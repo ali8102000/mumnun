@@ -9,38 +9,108 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SelectRoleRouteImport } from './routes/select-role'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OnboardingWorkerRouteImport } from './routes/onboarding.worker'
+import { Route as OnboardingDriverRouteImport } from './routes/onboarding.driver'
 
+const SelectRoleRoute = SelectRoleRouteImport.update({
+  id: '/select-role',
+  path: '/select-role',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingWorkerRoute = OnboardingWorkerRouteImport.update({
+  id: '/onboarding/worker',
+  path: '/onboarding/worker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingDriverRoute = OnboardingDriverRouteImport.update({
+  id: '/onboarding/driver',
+  path: '/onboarding/driver',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/select-role': typeof SelectRoleRoute
+  '/onboarding/driver': typeof OnboardingDriverRoute
+  '/onboarding/worker': typeof OnboardingWorkerRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/select-role': typeof SelectRoleRoute
+  '/onboarding/driver': typeof OnboardingDriverRoute
+  '/onboarding/worker': typeof OnboardingWorkerRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/select-role': typeof SelectRoleRoute
+  '/onboarding/driver': typeof OnboardingDriverRoute
+  '/onboarding/worker': typeof OnboardingWorkerRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/select-role'
+    | '/onboarding/driver'
+    | '/onboarding/worker'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/select-role'
+    | '/onboarding/driver'
+    | '/onboarding/worker'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/select-role'
+    | '/onboarding/driver'
+    | '/onboarding/worker'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
+  SelectRoleRoute: typeof SelectRoleRoute
+  OnboardingDriverRoute: typeof OnboardingDriverRoute
+  OnboardingWorkerRoute: typeof OnboardingWorkerRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/select-role': {
+      id: '/select-role'
+      path: '/select-role'
+      fullPath: '/select-role'
+      preLoaderRoute: typeof SelectRoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,12 +118,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding/worker': {
+      id: '/onboarding/worker'
+      path: '/onboarding/worker'
+      fullPath: '/onboarding/worker'
+      preLoaderRoute: typeof OnboardingWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding/driver': {
+      id: '/onboarding/driver'
+      path: '/onboarding/driver'
+      fullPath: '/onboarding/driver'
+      preLoaderRoute: typeof OnboardingDriverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
+  SelectRoleRoute: SelectRoleRoute,
+  OnboardingDriverRoute: OnboardingDriverRoute,
+  OnboardingWorkerRoute: OnboardingWorkerRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
