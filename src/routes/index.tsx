@@ -1,29 +1,28 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth-context";
+import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
-    ],
-  }),
+  ssr: false,
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
 function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+  const { loading, session, roles, profile } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="text-5xl font-black text-gradient">ممنون</div>
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) return <Navigate to="/auth" />;
+  if (!profile) return <Navigate to="/auth" />;
+  if (roles.length === 0) return <Navigate to="/select-role" />;
+  return <Navigate to="/home" />;
 }
