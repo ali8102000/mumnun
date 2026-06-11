@@ -133,7 +133,8 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     supabase.from(table).select("*").eq("user_id", session.user.id).maybeSingle().then(({ data }) => {
       if (data) {
         setAvailable(data.available);
-        setStats({ rating: Number(data.rating_avg ?? 5), jobs: data.completed_jobs ?? data.completed_rides ?? 0 });
+        const d: any = data;
+        setStats({ rating: Number(d.rating_avg ?? 5), jobs: d.completed_jobs ?? d.completed_rides ?? 0 });
       }
     });
 
