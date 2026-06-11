@@ -10,14 +10,40 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SelectRoleRouteImport } from './routes/select-role'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as HomeRouteImport } from './routes/home'
+import { Route as HistoryRouteImport } from './routes/history'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RequestNewRouteImport } from './routes/request.new'
+import { Route as RequestIdRouteImport } from './routes/request.$id'
 import { Route as OnboardingWorkerRouteImport } from './routes/onboarding.worker'
 import { Route as OnboardingDriverRouteImport } from './routes/onboarding.driver'
 
 const SelectRoleRoute = SelectRoleRouteImport.update({
   id: '/select-role',
   path: '/select-role',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryRoute = HistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -28,6 +54,16 @@ const AuthRoute = AuthRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestNewRoute = RequestNewRouteImport.update({
+  id: '/request/new',
+  path: '/request/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestIdRoute = RequestIdRouteImport.update({
+  id: '/request/$id',
+  path: '/request/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingWorkerRoute = OnboardingWorkerRouteImport.update({
@@ -44,55 +80,97 @@ const OnboardingDriverRoute = OnboardingDriverRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/history': typeof HistoryRoute
+  '/home': typeof HomeRoute
+  '/messages': typeof MessagesRoute
+  '/profile': typeof ProfileRoute
   '/select-role': typeof SelectRoleRoute
   '/onboarding/driver': typeof OnboardingDriverRoute
   '/onboarding/worker': typeof OnboardingWorkerRoute
+  '/request/$id': typeof RequestIdRoute
+  '/request/new': typeof RequestNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/history': typeof HistoryRoute
+  '/home': typeof HomeRoute
+  '/messages': typeof MessagesRoute
+  '/profile': typeof ProfileRoute
   '/select-role': typeof SelectRoleRoute
   '/onboarding/driver': typeof OnboardingDriverRoute
   '/onboarding/worker': typeof OnboardingWorkerRoute
+  '/request/$id': typeof RequestIdRoute
+  '/request/new': typeof RequestNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/history': typeof HistoryRoute
+  '/home': typeof HomeRoute
+  '/messages': typeof MessagesRoute
+  '/profile': typeof ProfileRoute
   '/select-role': typeof SelectRoleRoute
   '/onboarding/driver': typeof OnboardingDriverRoute
   '/onboarding/worker': typeof OnboardingWorkerRoute
+  '/request/$id': typeof RequestIdRoute
+  '/request/new': typeof RequestNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/history'
+    | '/home'
+    | '/messages'
+    | '/profile'
     | '/select-role'
     | '/onboarding/driver'
     | '/onboarding/worker'
+    | '/request/$id'
+    | '/request/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/history'
+    | '/home'
+    | '/messages'
+    | '/profile'
     | '/select-role'
     | '/onboarding/driver'
     | '/onboarding/worker'
+    | '/request/$id'
+    | '/request/new'
   id:
     | '__root__'
     | '/'
     | '/auth'
+    | '/history'
+    | '/home'
+    | '/messages'
+    | '/profile'
     | '/select-role'
     | '/onboarding/driver'
     | '/onboarding/worker'
+    | '/request/$id'
+    | '/request/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  HistoryRoute: typeof HistoryRoute
+  HomeRoute: typeof HomeRoute
+  MessagesRoute: typeof MessagesRoute
+  ProfileRoute: typeof ProfileRoute
   SelectRoleRoute: typeof SelectRoleRoute
   OnboardingDriverRoute: typeof OnboardingDriverRoute
   OnboardingWorkerRoute: typeof OnboardingWorkerRoute
+  RequestIdRoute: typeof RequestIdRoute
+  RequestNewRoute: typeof RequestNewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -102,6 +180,34 @@ declare module '@tanstack/react-router' {
       path: '/select-role'
       fullPath: '/select-role'
       preLoaderRoute: typeof SelectRoleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history': {
+      id: '/history'
+      path: '/history'
+      fullPath: '/history'
+      preLoaderRoute: typeof HistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -116,6 +222,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/request/new': {
+      id: '/request/new'
+      path: '/request/new'
+      fullPath: '/request/new'
+      preLoaderRoute: typeof RequestNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/request/$id': {
+      id: '/request/$id'
+      path: '/request/$id'
+      fullPath: '/request/$id'
+      preLoaderRoute: typeof RequestIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding/worker': {
@@ -138,9 +258,15 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  HistoryRoute: HistoryRoute,
+  HomeRoute: HomeRoute,
+  MessagesRoute: MessagesRoute,
+  ProfileRoute: ProfileRoute,
   SelectRoleRoute: SelectRoleRoute,
   OnboardingDriverRoute: OnboardingDriverRoute,
   OnboardingWorkerRoute: OnboardingWorkerRoute,
+  RequestIdRoute: RequestIdRoute,
+  RequestNewRoute: RequestNewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
