@@ -78,18 +78,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "ممنون" },
-      { name: "description", content: "📱 تطبيق ممنون – كل خدماتك بمكان واحد
-تطبيق ممنون هو الحل الذكي والمتكامل اللي يجمع بين خدمات النقل (تكسي) وخدمات الفنيين في منصة واحدة سهلة وسريعة. سواء تحتاج" },
+      { name: "description", content: "Mumnun Super App is an integrated platform for ride-hailing and home services." },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "ممنون" },
-      { property: "og:description", content: "📱 تطبيق ممنون – كل خدماتك بمكان واحد
-تطبيق ممنون هو الحل الذكي والمتكامل اللي يجمع بين خدمات النقل (تكسي) وخدمات الفنيين في منصة واحدة سهلة وسريعة. سواء تحتاج" },
+      { property: "og:description", content: "Mumnun Super App is an integrated platform for ride-hailing and home services." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "ممنون" },
-      { name: "twitter:description", content: "📱 تطبيق ممنون – كل خدماتك بمكان واحد
-تطبيق ممنون هو الحل الذكي والمتكامل اللي يجمع بين خدمات النقل (تكسي) وخدمات الفنيين في منصة واحدة سهلة وسريعة. سواء تحتاج" },
+      { name: "twitter:description", content: "Mumnun Super App is an integrated platform for ride-hailing and home services." },
       { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/UrBZU8R6xFcuWoxmEv8MLh8Hhdr2/social-images/social-1781279583439-1000072491.webp" },
       { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/UrBZU8R6xFcuWoxmEv8MLh8Hhdr2/social-images/social-1781279583439-1000072491.webp" },
     ],
