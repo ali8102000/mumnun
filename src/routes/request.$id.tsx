@@ -16,7 +16,10 @@ function RequestDetail() {
   const [messages, setMessages] = useState<any[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
+  const [myRating, setMyRating] = useState<any>(null);
+  const [showRating, setShowRating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
 
   async function loadAll() {
     const { data: r } = await supabase.from("service_requests").select("*").eq("id", id).single();
