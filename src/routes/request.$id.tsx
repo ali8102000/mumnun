@@ -142,6 +142,25 @@ function RequestDetail() {
             )}
           </div>
         )}
+
+        {req.status === "completed" && other && (
+          myRating ? (
+            <div className="glass rounded-2xl p-4 flex items-center gap-2 text-sm">
+              <span className="font-bold">تقييمك:</span>
+              <div className="flex gap-0.5">
+                {[1,2,3,4,5].map(s => (
+                  <Star key={s} className={`h-4 w-4 ${s <= myRating.stars ? "text-primary fill-primary" : "text-muted-foreground"}`} />
+                ))}
+              </div>
+              {myRating.comment && <span className="text-muted-foreground text-xs truncate">«{myRating.comment}»</span>}
+            </div>
+          ) : (
+            <button onClick={() => setShowRating(true)} className="w-full glass rounded-2xl p-4 flex items-center justify-center gap-2 btn-press font-bold text-sm text-primary">
+              <Star className="h-5 w-5 fill-primary" /> قيّم الخدمة
+            </button>
+          )
+        )}
+
       </div>
 
       {chat && (
