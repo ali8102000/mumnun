@@ -2,7 +2,7 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
-import { Phone, Send, Loader2, CheckCircle2, Clock } from "lucide-react";
+import { Phone, Send, Loader2, CheckCircle2, Clock, Star, X } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/request/$id")({ ssr: false, component: RequestDetail });
