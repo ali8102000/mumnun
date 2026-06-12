@@ -286,6 +286,3 @@ function RatingModal({ target, onClose, onSubmit }: { target: any; onClose: () =
   );
 }
 
-    </div>
-  );
-}
