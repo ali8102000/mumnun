@@ -38,10 +38,17 @@ function RequestDetail() {
         setMessages(m ?? []);
       }
     }
+    // existing rating by me?
+    if (session?.user) {
+      const { data: rate } = await supabase.from("ratings").select("*").eq("request_id", id).eq("rater_id", session.user.id).maybeSingle();
+      setMyRating(rate);
+      if (r.status === "completed" && !rate) setShowRating(true);
+    }
     setLoading(false);
   }
 
   useEffect(() => { if (session) loadAll(); }, [session, id]);
+
 
   useEffect(() => {
     if (!chat) return;
