@@ -201,6 +201,91 @@ function RequestDetail() {
           بانتظار قبول الطلب من أحد المزودين...
         </div>
       )}
+
+      {showRating && other && (
+        <RatingModal
+          target={other}
+          onClose={() => setShowRating(false)}
+          onSubmit={async (stars, comment) => {
+            const { data, error } = await supabase.from("ratings").insert({
+              request_id: id,
+              rater_id: session.user.id,
+              ratee_id: other.id,
+              stars,
+              comment: comment || null,
+            }).select().single();
+            if (error) { toast.error(error.message); return; }
+            setMyRating(data);
+            setShowRating(false);
+            toast.success("شكراً على تقييمك ⭐");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function RatingModal({ target, onClose, onSubmit }: { target: any; onClose: () => void; onSubmit: (stars: number, comment: string) => Promise<void> }) {
+  const [stars, setStars] = useState(5);
+  const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/30 backdrop-blur-sm p-5" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm glass-strong rounded-3xl p-6 shadow-elegant relative animate-in fade-in zoom-in-95">
+        <button onClick={onClose} className="absolute top-3 left-3 h-9 w-9 rounded-full grid place-items-center text-muted-foreground hover:bg-secondary btn-press">
+          <X className="h-5 w-5" />
+        </button>
+        <div className="text-center mb-4">
+          <div className="h-16 w-16 mx-auto rounded-3xl bg-gradient-to-br from-primary to-primary-glow grid place-items-center text-primary-foreground font-black text-2xl mb-3">
+            {(target.full_name || "?").charAt(0)}
+          </div>
+          <div className="font-black text-lg">كيف كانت تجربتك؟</div>
+          <div className="text-xs text-muted-foreground mt-1">قيّم {target.full_name || "المزود"}</div>
+        </div>
+
+        <div className="flex justify-center gap-1.5 my-5" onMouseLeave={() => setHover(0)}>
+          {[1,2,3,4,5].map((s) => {
+            const active = s <= (hover || stars);
+            return (
+              <button
+                key={s}
+                type="button"
+                onMouseEnter={() => setHover(s)}
+                onClick={() => setStars(s)}
+                className="btn-press p-1 transition-transform"
+                style={{ transform: active ? "scale(1.1)" : "scale(1)" }}
+              >
+                <Star className={`h-10 w-10 transition ${active ? "text-primary fill-primary drop-shadow-[0_4px_12px_var(--primary)]" : "text-muted-foreground"}`} />
+              </button>
+            );
+          })}
+        </div>
+        <div className="text-center text-xs text-muted-foreground mb-3">
+          {["", "سيء جداً", "سيء", "مقبول", "جيد", "ممتاز"][hover || stars]}
+        </div>
+
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value.slice(0, 500))}
+          placeholder="اكتب تعليقك (اختياري)..."
+          rows={3}
+          className="w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm outline-none focus:border-ring resize-none"
+        />
+
+        <button
+          disabled={busy}
+          onClick={async () => { setBusy(true); await onSubmit(stars, comment.trim()); setBusy(false); }}
+          className="mt-4 w-full h-12 rounded-2xl bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-black btn-press glow-primary disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "إرسال التقييم"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
     </div>
   );
 }
