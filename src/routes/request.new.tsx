@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, MapPin, Navigation, CheckCircle2, User, Users } from "lucide-react";
+import { MapPicker } from "@/components/map-picker";
 
 const search = z.object({ type: z.enum(["taxi", "service"]).default("taxi") });
 
