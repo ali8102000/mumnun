@@ -142,11 +142,56 @@ function RequestDetail() {
       </div>
 
       <div className="px-5 py-4 space-y-3">
+        {/* Vehicle category badge for taxi */}
+        {req.type === "taxi" && req.vehicle_category && VEHICLE_CAT_META[req.vehicle_category] && (
+          <div className={`rounded-2xl p-3 text-white bg-gradient-to-br ${VEHICLE_CAT_META[req.vehicle_category].gradient} shadow-md flex items-center gap-3`}>
+            <div className="text-2xl">{VEHICLE_CAT_META[req.vehicle_category].emoji}</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] opacity-90">فئة السيارة</div>
+              <div className="font-black text-sm">{VEHICLE_CAT_META[req.vehicle_category].label}</div>
+            </div>
+            {req.price_estimate && (
+              <div className="text-left">
+                <div className="font-black text-sm">{Number(req.price_estimate).toLocaleString()}</div>
+                <div className="text-[10px] opacity-80">د.ع تقريبي</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Live tracking map (after acceptance) */}
+        {trackingActive && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+              <Navigation className="h-3.5 w-3.5 text-primary animate-pulse" />
+              <span>تتبع مباشر — يتحدّث لحظياً</span>
+            </div>
+            <LiveTrackMap
+              me={myLive ?? (req && myRole === "customer" ? { lat: Number(req.pickup_lat), lng: Number(req.pickup_lng) } : null)}
+              other={otherLive}
+              meColor={myRole === "customer" ? "#0284c7" : "#16a34a"}
+              otherColor={myRole === "customer" ? "#16a34a" : "#0284c7"}
+              height={220}
+            />
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full" style={{ background: myRole === "customer" ? "#0284c7" : "#16a34a" }} />
+                أنت
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full" style={{ background: myRole === "customer" ? "#16a34a" : "#0284c7" }} />
+                {myRole === "customer" ? (req.type === "taxi" ? "الكابتن" : "الفني") : "الزبون"}
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="glass rounded-2xl p-4 text-sm space-y-2">
           <div><span className="text-muted-foreground text-xs">📍 الموقع: </span><span className="font-bold">{req.pickup_text}</span></div>
           {req.dest_text && <div><span className="text-muted-foreground text-xs">🎯 الوجهة: </span><span className="font-bold">{req.dest_text}</span></div>}
           {req.notes && <div><span className="text-muted-foreground text-xs">📝 ملاحظة: </span><span>{req.notes}</span></div>}
         </div>
+
 
         {other && req.status !== "pending" && (
           <div className="glass rounded-2xl p-4 flex items-center gap-3">
