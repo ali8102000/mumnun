@@ -2,8 +2,16 @@ import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
-import { Phone, Send, Loader2, CheckCircle2, Clock, Star, X } from "lucide-react";
+import { Phone, Send, Loader2, CheckCircle2, Clock, Star, X, Navigation } from "lucide-react";
 import { toast } from "sonner";
+import { LiveTrackMap } from "@/components/live-track-map";
+import { useLiveTracking } from "@/lib/use-live-tracking";
+
+const VEHICLE_CAT_META: Record<string, { label: string; emoji: string; gradient: string }> = {
+  economy: { label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500" },
+  premium: { label: "ممنون المتميز", emoji: "🚙", gradient: "from-sky-500 to-indigo-600" },
+  luxury:  { label: "ممنون فاخر",   emoji: "🏎️", gradient: "from-amber-400 to-orange-500" },
+};
 
 export const Route = createFileRoute("/request/$id")({ ssr: false, component: RequestDetail });
 
