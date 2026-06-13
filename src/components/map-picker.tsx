@@ -18,9 +18,9 @@ export function MapPicker({
   accent?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const markerRef = useRef<google.maps.Marker | null>(null);
-  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  const geocoderRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +49,7 @@ export function MapPicker({
         geocoderRef.current = geocoder;
 
         const reverse = (pos: Coords) => {
-          geocoder.geocode({ location: pos, language: "ar" }, (results, status) => {
+          geocoder.geocode({ location: pos, language: "ar" }, (results: any, status: any) => {
             const addr = status === "OK" && results?.[0]?.formatted_address;
             onChange(pos, addr || undefined);
           });
@@ -59,7 +59,7 @@ export function MapPicker({
           const p = marker.getPosition();
           if (p) reverse({ lat: p.lat(), lng: p.lng() });
         });
-        map.addListener("click", (e: google.maps.MapMouseEvent) => {
+        map.addListener("click", (e: any) => {
           if (!e.latLng) return;
           const p = { lat: e.latLng.lat(), lng: e.latLng.lng() };
           marker.setPosition(p);
@@ -100,7 +100,7 @@ export function MapPicker({
           mapRef.current.setZoom(16);
         }
         if (geocoderRef.current) {
-          geocoderRef.current.geocode({ location: p, language: "ar" }, (results, status) => {
+          geocoderRef.current.geocode({ location: p, language: "ar" }, (results: any, status: any) => {
             const addr = status === "OK" && results?.[0]?.formatted_address;
             onChange(p, addr || undefined);
           });
