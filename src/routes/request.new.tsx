@@ -42,6 +42,23 @@ const SERVICE_VISUALS: Record<string, { emoji: string; gradient: string }> = {
 
 const DEFAULT_VISUAL = { emoji: "🛠️", gradient: "from-primary to-primary-glow" };
 
+type VehicleCategory = "economy" | "premium" | "luxury";
+const VEHICLE_CATS: { key: VehicleCategory; label: string; emoji: string; gradient: string; base: number; perKm: number; eta: string }[] = [
+  { key: "economy", label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500", base: 1500, perKm: 400, eta: "3-5 د" },
+  { key: "premium", label: "ممنون المتميز", emoji: "🚙", gradient: "from-sky-500 to-indigo-600",   base: 2500, perKm: 650, eta: "4-6 د" },
+  { key: "luxury",  label: "ممنون فاخر",   emoji: "🏎️", gradient: "from-amber-400 to-orange-500", base: 4500, perKm: 1100, eta: "5-8 د" },
+];
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 function NewRequest() {
   const { type } = Route.useSearch();
   const { session, loading } = useAuth();
@@ -49,9 +66,9 @@ function NewRequest() {
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [level, setLevel] = useState<"fani" | "khabir">("fani");
-  // For khabir: choose alone or with helpers
   const [khabirMode, setKhabirMode] = useState<"alone" | "with_workers">("alone");
   const [workersCount, setWorkersCount] = useState(1);
+  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>("economy");
 
   const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [pickupLabel, setPickupLabel] = useState("");
@@ -63,6 +80,7 @@ function NewRequest() {
 
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+
 
   useEffect(() => {
     if (type === "service") {
@@ -105,8 +123,16 @@ function NewRequest() {
 
     const finalWorkers =
       type === "service" && level === "khabir"
-        ? (khabirMode === "alone" ? 1 : 1 + workersCount) // 1 khabir + N helpers
+        ? (khabirMode === "alone" ? 1 : 1 + workersCount)
         : workersCount;
+
+    // Price estimate for taxi
+    let priceEstimate: number | null = null;
+    if (type === "taxi" && pickupCoords && destCoords) {
+      const cat = VEHICLE_CATS.find((c) => c.key === vehicleCategory)!;
+      const km = haversineKm(pickupCoords, destCoords);
+      priceEstimate = Math.round(cat.base + cat.perKm * km);
+    }
 
     setBusy(true);
     try {
@@ -117,6 +143,8 @@ function NewRequest() {
         service_id: type === "service" ? serviceId : null,
         level_required: type === "service" ? level : null,
         workers_count: finalWorkers,
+        vehicle_category: type === "taxi" ? vehicleCategory : null,
+        price_estimate: priceEstimate,
         pickup_text: pickupLabel,
         pickup_lat: pickupCoords.lat,
         pickup_lng: pickupCoords.lng,
@@ -307,8 +335,47 @@ function NewRequest() {
             placeholder="أو اكتب اسم المنطقة (اختياري)"
             className="mt-2 w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-ring"
           />
+
+          {/* Vehicle category selector */}
+          <div className="mt-6 mb-2 text-sm font-bold text-muted-foreground">🚘 اختر فئة السيارة</div>
+          <div className="space-y-2">
+            {VEHICLE_CATS.map((c) => {
+              const active = vehicleCategory === c.key;
+              const km = pickupCoords && destCoords ? haversineKm(pickupCoords, destCoords) : null;
+              const est = km !== null ? Math.round(c.base + c.perKm * km) : null;
+              return (
+                <button
+                  key={c.key}
+                  onClick={() => setVehicleCategory(c.key)}
+                  className={`w-full text-right p-3 rounded-2xl btn-press transition-all flex items-center gap-3 ${
+                    active ? "bg-white ring-2 ring-primary shadow-lg scale-[1.01]" : "bg-white/70"
+                  }`}
+                >
+                  <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${c.gradient} grid place-items-center text-2xl shadow-md shrink-0`}>
+                    {c.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-black text-sm">{c.label}</div>
+                    <div className="text-[11px] text-muted-foreground">وصول خلال {c.eta}</div>
+                  </div>
+                  <div className="text-left shrink-0">
+                    {est !== null ? (
+                      <>
+                        <div className="font-black text-sm">{est.toLocaleString()}</div>
+                        <div className="text-[10px] text-muted-foreground">د.ع تقريبي</div>
+                      </>
+                    ) : (
+                      <div className="text-[11px] text-muted-foreground">{c.base.toLocaleString()}+ د.ع</div>
+                    )}
+                  </div>
+                  {active && <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
         </>
       )}
+
 
       <div className="mt-5">
         <div className="text-xs font-bold text-muted-foreground mb-2">📝 ملاحظات (اختياري)</div>
