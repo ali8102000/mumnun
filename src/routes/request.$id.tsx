@@ -28,6 +28,18 @@ function RequestDetail() {
   const [showRating, setShowRating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const myUserId = session?.user.id ?? null;
+  const otherUserId = req ? (myUserId === req.customer_id ? req.provider_id : req.customer_id) : null;
+  const myRole: "customer" | "provider" = req && myUserId === req.customer_id ? "customer" : "provider";
+  const trackingActive = !!req && (req.status === "accepted" || req.status === "in_progress");
+  const { me: myLive, other: otherLive } = useLiveTracking({
+    requestId: req?.id ?? null,
+    myUserId,
+    otherUserId,
+    myRole,
+    active: trackingActive,
+  });
+
 
   async function loadAll() {
     const { data: r } = await supabase.from("service_requests").select("*").eq("id", id).single();
