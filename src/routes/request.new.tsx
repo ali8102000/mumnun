@@ -335,8 +335,47 @@ function NewRequest() {
             placeholder="أو اكتب اسم المنطقة (اختياري)"
             className="mt-2 w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-ring"
           />
+
+          {/* Vehicle category selector */}
+          <div className="mt-6 mb-2 text-sm font-bold text-muted-foreground">🚘 اختر فئة السيارة</div>
+          <div className="space-y-2">
+            {VEHICLE_CATS.map((c) => {
+              const active = vehicleCategory === c.key;
+              const km = pickupCoords && destCoords ? haversineKm(pickupCoords, destCoords) : null;
+              const est = km !== null ? Math.round(c.base + c.perKm * km) : null;
+              return (
+                <button
+                  key={c.key}
+                  onClick={() => setVehicleCategory(c.key)}
+                  className={`w-full text-right p-3 rounded-2xl btn-press transition-all flex items-center gap-3 ${
+                    active ? "bg-white ring-2 ring-primary shadow-lg scale-[1.01]" : "bg-white/70"
+                  }`}
+                >
+                  <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${c.gradient} grid place-items-center text-2xl shadow-md shrink-0`}>
+                    {c.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-black text-sm">{c.label}</div>
+                    <div className="text-[11px] text-muted-foreground">وصول خلال {c.eta}</div>
+                  </div>
+                  <div className="text-left shrink-0">
+                    {est !== null ? (
+                      <>
+                        <div className="font-black text-sm">{est.toLocaleString()}</div>
+                        <div className="text-[10px] text-muted-foreground">د.ع تقريبي</div>
+                      </>
+                    ) : (
+                      <div className="text-[11px] text-muted-foreground">{c.base.toLocaleString()}+ د.ع</div>
+                    )}
+                  </div>
+                  {active && <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
         </>
       )}
+
 
       <div className="mt-5">
         <div className="text-xs font-bold text-muted-foreground mb-2">📝 ملاحظات (اختياري)</div>
