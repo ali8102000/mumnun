@@ -42,6 +42,23 @@ const SERVICE_VISUALS: Record<string, { emoji: string; gradient: string }> = {
 
 const DEFAULT_VISUAL = { emoji: "🛠️", gradient: "from-primary to-primary-glow" };
 
+type VehicleCategory = "economy" | "premium" | "luxury";
+const VEHICLE_CATS: { key: VehicleCategory; label: string; emoji: string; gradient: string; base: number; perKm: number; eta: string }[] = [
+  { key: "economy", label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500", base: 1500, perKm: 400, eta: "3-5 د" },
+  { key: "premium", label: "ممنون المتميز", emoji: "🚙", gradient: "from-sky-500 to-indigo-600",   base: 2500, perKm: 650, eta: "4-6 د" },
+  { key: "luxury",  label: "ممنون فاخر",   emoji: "🏎️", gradient: "from-amber-400 to-orange-500", base: 4500, perKm: 1100, eta: "5-8 د" },
+];
+
+function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 function NewRequest() {
   const { type } = Route.useSearch();
   const { session, loading } = useAuth();
@@ -49,9 +66,9 @@ function NewRequest() {
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [level, setLevel] = useState<"fani" | "khabir">("fani");
-  // For khabir: choose alone or with helpers
   const [khabirMode, setKhabirMode] = useState<"alone" | "with_workers">("alone");
   const [workersCount, setWorkersCount] = useState(1);
+  const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>("economy");
 
   const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [pickupLabel, setPickupLabel] = useState("");
@@ -63,6 +80,7 @@ function NewRequest() {
 
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+
 
   useEffect(() => {
     if (type === "service") {
