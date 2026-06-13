@@ -123,8 +123,16 @@ function NewRequest() {
 
     const finalWorkers =
       type === "service" && level === "khabir"
-        ? (khabirMode === "alone" ? 1 : 1 + workersCount) // 1 khabir + N helpers
+        ? (khabirMode === "alone" ? 1 : 1 + workersCount)
         : workersCount;
+
+    // Price estimate for taxi
+    let priceEstimate: number | null = null;
+    if (type === "taxi" && pickupCoords && destCoords) {
+      const cat = VEHICLE_CATS.find((c) => c.key === vehicleCategory)!;
+      const km = haversineKm(pickupCoords, destCoords);
+      priceEstimate = Math.round(cat.base + cat.perKm * km);
+    }
 
     setBusy(true);
     try {
@@ -135,6 +143,8 @@ function NewRequest() {
         service_id: type === "service" ? serviceId : null,
         level_required: type === "service" ? level : null,
         workers_count: finalWorkers,
+        vehicle_category: type === "taxi" ? vehicleCategory : null,
+        price_estimate: priceEstimate,
         pickup_text: pickupLabel,
         pickup_lat: pickupCoords.lat,
         pickup_lng: pickupCoords.lng,
