@@ -54,9 +54,14 @@ export type Database = {
           ratings_count: number
           updated_at: string
           user_id: string
+          vehicle_category:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
           vehicle_color: string | null
+          vehicle_make: string | null
           vehicle_model: string | null
           vehicle_plate: string | null
+          vehicle_year: number | null
         }
         Insert: {
           available?: boolean
@@ -65,9 +70,14 @@ export type Database = {
           ratings_count?: number
           updated_at?: string
           user_id: string
+          vehicle_category?:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
           vehicle_color?: string | null
+          vehicle_make?: string | null
           vehicle_model?: string | null
           vehicle_plate?: string | null
+          vehicle_year?: number | null
         }
         Update: {
           available?: boolean
@@ -76,11 +86,54 @@ export type Database = {
           ratings_count?: number
           updated_at?: string
           user_id?: string
+          vehicle_category?:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
           vehicle_color?: string | null
+          vehicle_make?: string | null
           vehicle_model?: string | null
           vehicle_plate?: string | null
+          vehicle_year?: number | null
         }
         Relationships: []
+      }
+      live_locations: {
+        Row: {
+          heading: number | null
+          lat: number
+          lng: number
+          request_id: string
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          heading?: number | null
+          lat: number
+          lng: number
+          request_id: string
+          role: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          heading?: number | null
+          lat?: number
+          lng?: number
+          request_id?: string
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_locations_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
@@ -203,6 +256,9 @@ export type Database = {
           status: Database["public"]["Enums"]["request_status"]
           type: Database["public"]["Enums"]["request_type"]
           updated_at: string
+          vehicle_category:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
           workers_count: number
         }
         Insert: {
@@ -225,6 +281,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["request_status"]
           type: Database["public"]["Enums"]["request_type"]
           updated_at?: string
+          vehicle_category?:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
           workers_count?: number
         }
         Update: {
@@ -247,6 +306,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["request_status"]
           type?: Database["public"]["Enums"]["request_type"]
           updated_at?: string
+          vehicle_category?:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
           workers_count?: number
         }
         Relationships: [
@@ -304,6 +366,39 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vehicle_models: {
+        Row: {
+          base_fare: number
+          category: Database["public"]["Enums"]["vehicle_category"]
+          created_at: string
+          id: string
+          make: string
+          min_year: number
+          model: string
+          per_km: number
+        }
+        Insert: {
+          base_fare?: number
+          category: Database["public"]["Enums"]["vehicle_category"]
+          created_at?: string
+          id?: string
+          make: string
+          min_year?: number
+          model: string
+          per_km?: number
+        }
+        Update: {
+          base_fare?: number
+          category?: Database["public"]["Enums"]["vehicle_category"]
+          created_at?: string
+          id?: string
+          make?: string
+          min_year?: number
+          model?: string
+          per_km?: number
         }
         Relationships: []
       }
@@ -385,6 +480,7 @@ export type Database = {
         | "completed"
         | "cancelled"
       request_type: "taxi" | "service"
+      vehicle_category: "economy" | "premium" | "luxury"
       worker_level: "fani" | "khabir"
     }
     CompositeTypes: {
@@ -522,6 +618,7 @@ export const Constants = {
         "cancelled",
       ],
       request_type: ["taxi", "service"],
+      vehicle_category: ["economy", "premium", "luxury"],
       worker_level: ["fani", "khabir"],
     },
   },
