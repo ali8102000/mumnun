@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, MapPin, Navigation, CheckCircle2, User, Users } from "lucide-react";
+import { MapPicker } from "@/components/map-picker";
 
 const search = z.object({ type: z.enum(["taxi", "service"]).default("taxi") });
 
@@ -263,28 +264,43 @@ function NewRequest() {
         </>
       )}
 
-      {/* Location sharing */}
+      {/* Location selection on map */}
       <div className="mt-2 mb-2 text-sm font-bold text-muted-foreground">
-        {type === "taxi" ? "📍 موقع الانطلاق" : "📍 موقع الخدمة"}
+        {type === "taxi" ? "📍 موقع الانطلاق — حرّك المؤشر أو اضغط على الخريطة" : "📍 موقع الخدمة — حدّد على الخريطة"}
       </div>
-      <LocationCard
-        coords={pickupCoords}
-        label={pickupLabel}
-        loading={locating}
-        onShare={() => shareLocation("pickup")}
-        color="from-sky-400 to-blue-600"
+      <MapPicker
+        value={pickupCoords}
+        accent="#0284c7"
+        onChange={(c, addr) => {
+          setPickupCoords(c);
+          setPickupLabel(addr ?? `موقعي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
+        }}
       />
+      {pickupLabel && (
+        <div className="mt-2 glass rounded-2xl p-3 flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-sky-600 shrink-0" />
+          <div className="text-xs font-bold truncate">{pickupLabel}</div>
+        </div>
+      )}
 
       {type === "taxi" && (
         <>
-          <div className="mt-5 mb-2 text-sm font-bold text-muted-foreground">🎯 الوجهة</div>
-          <LocationCard
-            coords={destCoords}
-            label={destLabel}
-            loading={locating}
-            onShare={() => shareLocation("dest")}
-            color="from-rose-400 to-pink-600"
+          <div className="mt-5 mb-2 text-sm font-bold text-muted-foreground">🎯 الوجهة — حدّدها على الخريطة</div>
+          <MapPicker
+            value={destCoords}
+            accent="#e11d48"
+            onChange={(c, addr) => {
+              setDestCoords(c);
+              setDestLabel(addr ?? `وجهتي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
+            }}
           />
+          {destLabel && (
+            <div className="mt-2 glass rounded-2xl p-3 flex items-center gap-2">
+              <MapPin className="h-4 w-4 text-rose-600 shrink-0" />
+              <div className="text-xs font-bold truncate">{destLabel}</div>
+            </div>
+          )}
+
           <input
             value={destText}
             onChange={(e) => setDestText(e.target.value)}
