@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Award, Star } from "lucide-react";
+import { grantProviderRole } from "@/lib/roles.functions";
 
 export const Route = createFileRoute("/onboarding/worker")({
   ssr: false,
@@ -54,6 +55,7 @@ function OnboardingWorker() {
       const rows = Array.from(selected).map((service_id) => ({ worker_id: uid, service_id }));
       const { error: sErr } = await supabase.from("worker_services").insert(rows);
       if (sErr) throw sErr;
+      await grantProviderRole({ data: { role: "worker" } });
       toast.success("تم تفعيل ملفك");
       navigate({ to: "/home" });
     } catch (e: any) {

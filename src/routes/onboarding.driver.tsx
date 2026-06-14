@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Car, Check, Crown, Sparkles, Wallet } from "lucide-react";
+import { grantProviderRole } from "@/lib/roles.functions";
 
 export const Route = createFileRoute("/onboarding/driver")({
   ssr: false,
@@ -64,6 +65,7 @@ function OnboardingDriver() {
         available: true,
       });
       if (error) throw error;
+      await grantProviderRole({ data: { role: "driver" } });
       toast.success(`تم تفعيل ملفك — ${CATEGORY_META[selected.category].label}`);
       navigate({ to: "/home" });
     } catch (e: any) {

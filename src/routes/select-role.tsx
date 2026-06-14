@@ -29,12 +29,16 @@ function SelectRolePage() {
     if (!picked || !session) return;
     setBusy(true);
     try {
-      const { error } = await supabase.from("user_roles").insert({ user_id: session.user.id, role: picked });
-      if (error && !error.message.includes("duplicate")) throw error;
-      await refresh();
-      if (picked === "worker") navigate({ to: "/onboarding/worker" });
-      else if (picked === "driver") navigate({ to: "/onboarding/driver" });
-      else navigate({ to: "/home" });
+      if (picked === "customer") {
+        const { error } = await supabase.from("user_roles").insert({ user_id: session.user.id, role: "customer" });
+        if (error && !error.message.toLowerCase().includes("duplicate")) throw error;
+        await refresh();
+        navigate({ to: "/home" });
+      } else if (picked === "driver") {
+        navigate({ to: "/onboarding/driver" });
+      } else {
+        navigate({ to: "/onboarding/worker" });
+      }
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ");
     } finally {
