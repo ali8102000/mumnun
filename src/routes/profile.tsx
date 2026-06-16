@@ -44,7 +44,7 @@ function ProfilePage() {
           <div className="flex justify-center gap-1.5 mt-3 flex-wrap">
             {roles.map((r) => (
               <span key={r} className="text-[10px] font-black px-3 py-1 rounded-full bg-primary/20 text-primary">
-                {r === "customer" ? "زبون" : r === "driver" ? "كابتن" : r === "admin" ? "مدير" : "فني"}
+                {r === "customer" ? "زبون" : r === "driver" ? "كابتن" : (r as string) === "admin" ? "مدير" : "فني"}
               </span>
             ))}
           </div>
