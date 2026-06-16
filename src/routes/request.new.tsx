@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, MapPin, Navigation, CheckCircle2, User, Users } from "lucide-react";
 import { MapPicker } from "@/components/map-picker";
+import { dispatchRequest } from "@/lib/dispatch.functions";
 
 const search = z.object({ type: z.enum(["taxi", "service"]).default("taxi") });
 
@@ -63,6 +65,7 @@ function NewRequest() {
   const { type } = Route.useSearch();
   const { session, loading } = useAuth();
   const navigate = useNavigate();
+  const runDispatch = useServerFn(dispatchRequest);
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [level, setLevel] = useState<"fani" | "khabir">("fani");
@@ -155,6 +158,10 @@ function NewRequest() {
       }).select("id").single();
       if (error) throw error;
       toast.success("تم إرسال الطلب");
+      // Fire dispatch for taxi requests (don't block navigation)
+      if (type === "taxi") {
+        runDispatch({ data: { requestId: data.id } }).catch((e) => console.warn("[dispatch]", e));
+      }
       navigate({ to: "/request/$id", params: { id: data.id } });
     } catch (e: any) {
       toast.error(e.message);

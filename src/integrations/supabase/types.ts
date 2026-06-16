@@ -97,6 +97,33 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_wallets: {
+        Row: {
+          balance: number
+          currency: string
+          total_commission: number
+          total_earned: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          currency?: string
+          total_commission?: number
+          total_earned?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          currency?: string
+          total_commission?: number
+          total_earned?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       live_locations: {
         Row: {
           heading: number | null
@@ -170,6 +197,81 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          data: Json | null
+          id: string
+          link: string | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          data?: Json | null
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          data?: Json | null
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pricing_rules: {
+        Row: {
+          active: boolean
+          base_fare: number
+          commission_pct: number
+          currency: string
+          id: string
+          minimum_fare: number
+          per_km: number
+          per_min: number
+          updated_at: string
+          vehicle_category: string
+        }
+        Insert: {
+          active?: boolean
+          base_fare?: number
+          commission_pct?: number
+          currency?: string
+          id?: string
+          minimum_fare?: number
+          per_km?: number
+          per_min?: number
+          updated_at?: string
+          vehicle_category: string
+        }
+        Update: {
+          active?: boolean
+          base_fare?: number
+          commission_pct?: number
+          currency?: string
+          id?: string
+          minimum_fare?: number
+          per_km?: number
+          per_min?: number
+          updated_at?: string
+          vehicle_category?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -238,23 +340,73 @@ export type Database = {
           },
         ]
       }
+      request_offers: {
+        Row: {
+          distance_km: number | null
+          expires_at: string
+          id: string
+          provider_id: string
+          request_id: string
+          responded_at: string | null
+          sent_at: string
+          status: string
+        }
+        Insert: {
+          distance_km?: number | null
+          expires_at?: string
+          id?: string
+          provider_id: string
+          request_id: string
+          responded_at?: string | null
+          sent_at?: string
+          status?: string
+        }
+        Update: {
+          distance_km?: number | null
+          expires_at?: string
+          id?: string
+          provider_id?: string
+          request_id?: string
+          responded_at?: string | null
+          sent_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_offers_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_requests: {
         Row: {
           accepted_at: string | null
+          admin_notes: string | null
+          cancellation_reason: string | null
+          cancelled_by: string | null
+          commission: number | null
           completed_at: string | null
           created_at: string
           customer_id: string
           dest_lat: number | null
           dest_lng: number | null
           dest_text: string | null
+          distance_km: number | null
+          duration_min: number | null
+          fare_breakdown: Json | null
           id: string
           level_required: Database["public"]["Enums"]["worker_level"] | null
           notes: string | null
+          payment_method: string | null
           pickup_lat: number | null
           pickup_lng: number | null
           pickup_text: string
           price_estimate: number | null
           provider_id: string | null
+          searching_started_at: string | null
           service_id: string | null
           status: Database["public"]["Enums"]["request_status"]
           type: Database["public"]["Enums"]["request_type"]
@@ -266,20 +418,29 @@ export type Database = {
         }
         Insert: {
           accepted_at?: string | null
+          admin_notes?: string | null
+          cancellation_reason?: string | null
+          cancelled_by?: string | null
+          commission?: number | null
           completed_at?: string | null
           created_at?: string
           customer_id: string
           dest_lat?: number | null
           dest_lng?: number | null
           dest_text?: string | null
+          distance_km?: number | null
+          duration_min?: number | null
+          fare_breakdown?: Json | null
           id?: string
           level_required?: Database["public"]["Enums"]["worker_level"] | null
           notes?: string | null
+          payment_method?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_text?: string
           price_estimate?: number | null
           provider_id?: string | null
+          searching_started_at?: string | null
           service_id?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           type: Database["public"]["Enums"]["request_type"]
@@ -291,20 +452,29 @@ export type Database = {
         }
         Update: {
           accepted_at?: string | null
+          admin_notes?: string | null
+          cancellation_reason?: string | null
+          cancelled_by?: string | null
+          commission?: number | null
           completed_at?: string | null
           created_at?: string
           customer_id?: string
           dest_lat?: number | null
           dest_lng?: number | null
           dest_text?: string | null
+          distance_km?: number | null
+          duration_min?: number | null
+          fare_breakdown?: Json | null
           id?: string
           level_required?: Database["public"]["Enums"]["worker_level"] | null
           notes?: string | null
+          payment_method?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
           pickup_text?: string
           price_estimate?: number | null
           provider_id?: string | null
+          searching_started_at?: string | null
           service_id?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           type?: Database["public"]["Enums"]["request_type"]
@@ -350,6 +520,50 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          balance_after: number | null
+          created_at: string
+          currency: string
+          id: string
+          note: string | null
+          request_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number | null
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          request_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number | null
+          created_at?: string
+          currency?: string
+          id?: string
+          note?: string | null
+          request_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -466,6 +680,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      find_nearby_drivers: {
+        Args: {
+          _category: string
+          _lat: number
+          _limit?: number
+          _lng: number
+          _radius_km?: number
+        }
+        Returns: {
+          distance_km: number
+          rating_avg: number
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -475,7 +703,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "customer" | "driver" | "worker"
+      app_role: "customer" | "driver" | "worker" | "admin"
       request_status:
         | "pending"
         | "accepted"
@@ -612,7 +840,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["customer", "driver", "worker"],
+      app_role: ["customer", "driver", "worker", "admin"],
       request_status: [
         "pending",
         "accepted",
