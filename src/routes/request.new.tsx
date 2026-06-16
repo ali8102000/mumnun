@@ -158,6 +158,10 @@ function NewRequest() {
       }).select("id").single();
       if (error) throw error;
       toast.success("تم إرسال الطلب");
+      // Fire dispatch for taxi requests (don't block navigation)
+      if (type === "taxi") {
+        runDispatch({ data: { requestId: data.id } }).catch((e) => console.warn("[dispatch]", e));
+      }
       navigate({ to: "/request/$id", params: { id: data.id } });
     } catch (e: any) {
       toast.error(e.message);
