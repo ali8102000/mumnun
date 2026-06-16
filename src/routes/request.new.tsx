@@ -65,6 +65,7 @@ function NewRequest() {
   const { type } = Route.useSearch();
   const { session, loading } = useAuth();
   const navigate = useNavigate();
+  const runDispatch = useServerFn(dispatchRequest);
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [level, setLevel] = useState<"fani" | "khabir">("fani");
