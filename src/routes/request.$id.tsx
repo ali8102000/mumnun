@@ -202,8 +202,21 @@ function RequestDetail() {
               <div className="font-bold text-sm truncate">{other.full_name || "مستخدم"}</div>
               <div className="text-xs text-muted-foreground" dir="ltr">{other.phone}</div>
             </div>
-            {req.status !== "completed" && session.user.id === req.customer_id && (
-              <button onClick={markCompleted} className="text-xs px-3 py-2 rounded-xl bg-success text-success-foreground font-bold btn-press">إنهاء</button>
+            {req.status === "accepted" && session.user.id === req.provider_id && (
+              <button onClick={async () => {
+                await supabase.from("service_requests").update({ status: "in_progress", started_at: new Date().toISOString() } as any).eq("id", id);
+                toast.success("بدأت الرحلة");
+              }} className="text-xs px-3 py-2 rounded-xl bg-primary text-primary-foreground font-bold btn-press">بدء الرحلة</button>
+            )}
+            {req.status === "in_progress" && session.user.id === req.provider_id && (
+              <button onClick={markCompleted} className="text-xs px-3 py-2 rounded-xl bg-success text-success-foreground font-bold btn-press">إنهاء الرحلة</button>
+            )}
+            {req.status === "accepted" && session.user.id === req.customer_id && (
+              <button onClick={async () => {
+                if (!confirm("هل تريد إلغاء الرحلة؟")) return;
+                await supabase.from("service_requests").update({ status: "cancelled", cancelled_by: session.user.id } as any).eq("id", id);
+                toast("تم الإلغاء");
+              }} className="text-xs px-3 py-2 rounded-xl bg-destructive/10 text-destructive font-bold btn-press">إلغاء</button>
             )}
           </div>
         )}
