@@ -677,7 +677,60 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      driver_public_stats: {
+        Row: {
+          available: boolean | null
+          rating_avg: number | null
+          ratings_count: number | null
+          user_id: string | null
+          vehicle_category:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
+        }
+        Insert: {
+          available?: boolean | null
+          rating_avg?: number | null
+          ratings_count?: number | null
+          user_id?: string | null
+          vehicle_category?:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
+        }
+        Update: {
+          available?: boolean | null
+          rating_avg?: number | null
+          ratings_count?: number | null
+          user_id?: string | null
+          vehicle_category?:
+            | Database["public"]["Enums"]["vehicle_category"]
+            | null
+        }
+        Relationships: []
+      }
+      worker_public_stats: {
+        Row: {
+          available: boolean | null
+          level: Database["public"]["Enums"]["worker_level"] | null
+          rating_avg: number | null
+          ratings_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          available?: boolean | null
+          level?: Database["public"]["Enums"]["worker_level"] | null
+          rating_avg?: number | null
+          ratings_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          available?: boolean | null
+          level?: Database["public"]["Enums"]["worker_level"] | null
+          rating_avg?: number | null
+          ratings_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       find_nearby_drivers: {
