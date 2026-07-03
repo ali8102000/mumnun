@@ -707,6 +707,30 @@ export type Database = {
         }
         Relationships: []
       }
+      worker_public_stats: {
+        Row: {
+          available: boolean | null
+          level: Database["public"]["Enums"]["worker_level"] | null
+          rating_avg: number | null
+          ratings_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          available?: boolean | null
+          level?: Database["public"]["Enums"]["worker_level"] | null
+          rating_avg?: number | null
+          ratings_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          available?: boolean | null
+          level?: Database["public"]["Enums"]["worker_level"] | null
+          rating_avg?: number | null
+          ratings_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       find_nearby_drivers: {
