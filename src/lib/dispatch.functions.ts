@@ -52,7 +52,7 @@ export const dispatchRequest = createServerFn({ method: "POST" })
       request_id: req.id,
       provider_id: d.user_id,
       distance_km: d.distance_km,
-      expires_at: new Date(Date.now() + 20_000).toISOString(),
+      expires_at: new Date(Date.now() + 45_000).toISOString(),
     }));
 
     const { error: insErr } = await supabaseAdmin.from("request_offers" as any).upsert(rows, {
