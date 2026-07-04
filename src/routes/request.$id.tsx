@@ -95,6 +95,16 @@ function RequestDetail() {
     return () => { supabase.removeChannel(ch); };
   }, [req?.id]);
 
+  // Auto retry-dispatch while customer is waiting and no driver accepted yet.
+  useEffect(() => {
+    if (!req || myRole !== "customer") return;
+    if (!["pending", "searching"].includes(req.status as string)) return;
+    const t = setInterval(() => {
+      retryFn({ data: { requestId: req.id } }).catch(() => {});
+    }, 15_000);
+    return () => clearInterval(t);
+  }, [req?.id, req?.status, myRole]);
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages.length]);
