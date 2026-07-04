@@ -142,8 +142,8 @@ export function DriverOfferPopup() {
 
   if (!offer || !request) return null;
 
-  const pct = (secondsLeft / 20) * 100;
-  const urgent = secondsLeft <= 7;
+  const pct = (secondsLeft / totalSeconds) * 100;
+  const urgent = secondsLeft <= Math.max(5, Math.round(totalSeconds * 0.2));
 
   return (
     <div
