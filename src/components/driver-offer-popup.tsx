@@ -27,7 +27,8 @@ export function DriverOfferPopup() {
   const respond = useServerFn(respondToOffer);
   const [offer, setOffer] = useState<Offer | null>(null);
   const [request, setRequest] = useState<any>(null);
-  const [secondsLeft, setSecondsLeft] = useState(20);
+  const [secondsLeft, setSecondsLeft] = useState(45);
+  const [totalSeconds, setTotalSeconds] = useState(45);
   const [busy, setBusy] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const beepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
