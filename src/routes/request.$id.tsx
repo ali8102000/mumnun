@@ -300,11 +300,42 @@ function RequestDetail() {
         </>
       )}
 
-      {req.status === "pending" && (
+      {["pending", "searching"].includes(req.status as string) && (
         <div className="px-5 py-8 text-center text-sm text-muted-foreground flex-1">
           <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-3" />
-          بانتظار قبول الطلب من أحد المزودين...
+          {req.status === "searching"
+            ? "نبحث عن أقرب مزوّد لك..."
+            : "بانتظار قبول الطلب من أحد المزودين..."}
+          {myRole === "customer" && (
+            <button
+              onClick={() => setShowCancel(true)}
+              className="block mx-auto mt-5 px-5 py-2.5 rounded-2xl bg-destructive/10 text-destructive font-bold text-xs btn-press"
+            >
+              إلغاء الطلب
+            </button>
+          )}
         </div>
+      )}
+
+      {showCancel && (
+        <CancelReasonModal
+          role={myRole}
+          onClose={() => setShowCancel(false)}
+          onSubmit={async (reason) => {
+            try {
+              if (myRole === "customer") {
+                await cancelFn({ data: { requestId: id, reason } });
+              } else {
+                await providerCancelFn({ data: { requestId: id, reason } });
+              }
+              toast.success("تم الإلغاء");
+              setShowCancel(false);
+              loadAll();
+            } catch (e: any) {
+              toast.error(e.message ?? "تعذّر الإلغاء");
+            }
+          }}
+        />
       )}
 
       {showRating && other && (
