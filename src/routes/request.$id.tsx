@@ -229,12 +229,22 @@ function RequestDetail() {
               <button onClick={markCompleted} className="text-xs px-3 py-2 rounded-xl bg-success text-success-foreground font-bold btn-press">إنهاء الرحلة</button>
             )}
             {req.status === "accepted" && session.user.id === req.customer_id && (
-              <button onClick={async () => {
-                if (!confirm("هل تريد إلغاء الرحلة؟")) return;
-                await supabase.from("service_requests").update({ status: "cancelled", cancelled_by: session.user.id } as any).eq("id", id);
-                toast("تم الإلغاء");
-              }} className="text-xs px-3 py-2 rounded-xl bg-destructive/10 text-destructive font-bold btn-press">إلغاء</button>
+              <button
+                onClick={() => setShowCancel(true)}
+                className="text-xs px-3 py-2 rounded-xl bg-destructive/10 text-destructive font-bold btn-press"
+              >
+                إلغاء
+              </button>
             )}
+            {["accepted", "in_progress"].includes(req.status as string) &&
+              session.user.id === req.provider_id && (
+                <button
+                  onClick={() => setShowCancel(true)}
+                  className="text-xs px-3 py-2 rounded-xl bg-destructive/10 text-destructive font-bold btn-press"
+                >
+                  إلغاء
+                </button>
+              )}
           </div>
         )}
 
