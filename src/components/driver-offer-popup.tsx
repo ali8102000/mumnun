@@ -71,6 +71,8 @@ export function DriverOfferPopup() {
   useEffect(() => {
     if (!offer) return;
     const expiresAt = new Date(offer.expires_at).getTime();
+    const total = Math.max(1, Math.round((expiresAt - Date.now()) / 1000));
+    setTotalSeconds(total);
     const tick = () => {
       const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
       setSecondsLeft(left);
