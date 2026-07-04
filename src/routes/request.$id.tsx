@@ -29,7 +29,11 @@ function RequestDetail() {
   const [loading, setLoading] = useState(true);
   const [myRating, setMyRating] = useState<any>(null);
   const [showRating, setShowRating] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const cancelFn = useServerFn(cancelRequest);
+  const providerCancelFn = useServerFn(providerCancelRequest);
+  const retryFn = useServerFn(retryDispatch);
 
   const myUserId = session?.user.id ?? null;
   const otherUserId = req ? (myUserId === req.customer_id ? req.provider_id : req.customer_id) : null;
