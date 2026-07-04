@@ -1,11 +1,14 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Phone, Send, Loader2, CheckCircle2, Clock, Star, X, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { LiveTrackMap } from "@/components/live-track-map";
 import { useLiveTracking } from "@/lib/use-live-tracking";
+import { CancelReasonModal } from "@/components/cancel-reason-modal";
+import { cancelRequest, providerCancelRequest, retryDispatch } from "@/lib/dispatch.functions";
 
 const VEHICLE_CAT_META: Record<string, { label: string; emoji: string; gradient: string }> = {
   economy: { label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500" },
@@ -26,7 +29,11 @@ function RequestDetail() {
   const [loading, setLoading] = useState(true);
   const [myRating, setMyRating] = useState<any>(null);
   const [showRating, setShowRating] = useState(false);
+  const [showCancel, setShowCancel] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const cancelFn = useServerFn(cancelRequest);
+  const providerCancelFn = useServerFn(providerCancelRequest);
+  const retryFn = useServerFn(retryDispatch);
 
   const myUserId = session?.user.id ?? null;
   const otherUserId = req ? (myUserId === req.customer_id ? req.provider_id : req.customer_id) : null;
@@ -87,6 +94,16 @@ function RequestDetail() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [req?.id]);
+
+  // Auto retry-dispatch while customer is waiting and no driver accepted yet.
+  useEffect(() => {
+    if (!req || myRole !== "customer") return;
+    if (!["pending", "searching"].includes(req.status as string)) return;
+    const t = setInterval(() => {
+      retryFn({ data: { requestId: req.id } }).catch(() => {});
+    }, 15_000);
+    return () => clearInterval(t);
+  }, [req?.id, req?.status, myRole]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -212,12 +229,22 @@ function RequestDetail() {
               <button onClick={markCompleted} className="text-xs px-3 py-2 rounded-xl bg-success text-success-foreground font-bold btn-press">إنهاء الرحلة</button>
             )}
             {req.status === "accepted" && session.user.id === req.customer_id && (
-              <button onClick={async () => {
-                if (!confirm("هل تريد إلغاء الرحلة؟")) return;
-                await supabase.from("service_requests").update({ status: "cancelled", cancelled_by: session.user.id } as any).eq("id", id);
-                toast("تم الإلغاء");
-              }} className="text-xs px-3 py-2 rounded-xl bg-destructive/10 text-destructive font-bold btn-press">إلغاء</button>
+              <button
+                onClick={() => setShowCancel(true)}
+                className="text-xs px-3 py-2 rounded-xl bg-destructive/10 text-destructive font-bold btn-press"
+              >
+                إلغاء
+              </button>
             )}
+            {["accepted", "in_progress"].includes(req.status as string) &&
+              session.user.id === req.provider_id && (
+                <button
+                  onClick={() => setShowCancel(true)}
+                  className="text-xs px-3 py-2 rounded-xl bg-destructive/10 text-destructive font-bold btn-press"
+                >
+                  إلغاء
+                </button>
+              )}
           </div>
         )}
 
@@ -273,11 +300,42 @@ function RequestDetail() {
         </>
       )}
 
-      {req.status === "pending" && (
+      {["pending", "searching"].includes(req.status as string) && (
         <div className="px-5 py-8 text-center text-sm text-muted-foreground flex-1">
           <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-3" />
-          بانتظار قبول الطلب من أحد المزودين...
+          {req.status === "searching"
+            ? "نبحث عن أقرب مزوّد لك..."
+            : "بانتظار قبول الطلب من أحد المزودين..."}
+          {myRole === "customer" && (
+            <button
+              onClick={() => setShowCancel(true)}
+              className="block mx-auto mt-5 px-5 py-2.5 rounded-2xl bg-destructive/10 text-destructive font-bold text-xs btn-press"
+            >
+              إلغاء الطلب
+            </button>
+          )}
         </div>
+      )}
+
+      {showCancel && (
+        <CancelReasonModal
+          role={myRole}
+          onClose={() => setShowCancel(false)}
+          onSubmit={async (reason) => {
+            try {
+              if (myRole === "customer") {
+                await cancelFn({ data: { requestId: id, reason } });
+              } else {
+                await providerCancelFn({ data: { requestId: id, reason } });
+              }
+              toast.success("تم الإلغاء");
+              setShowCancel(false);
+              loadAll();
+            } catch (e: any) {
+              toast.error(e.message ?? "تعذّر الإلغاء");
+            }
+          }}
+        />
       )}
 
       {showRating && other && (

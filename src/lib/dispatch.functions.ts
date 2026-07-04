@@ -52,7 +52,7 @@ export const dispatchRequest = createServerFn({ method: "POST" })
       request_id: req.id,
       provider_id: d.user_id,
       distance_km: d.distance_km,
-      expires_at: new Date(Date.now() + 20_000).toISOString(),
+      expires_at: new Date(Date.now() + 45_000).toISOString(),
     }));
 
     const { error: insErr } = await supabaseAdmin.from("request_offers" as any).upsert(rows, {
@@ -197,4 +197,125 @@ export const cancelRequest = createServerFn({ method: "POST" })
       });
     }
     return { ok: true };
+  });
+
+/**
+ * Provider cancels an accepted/in-progress request with a reason.
+ */
+export const providerCancelRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ requestId: z.string().uuid(), reason: z.string().max(300).min(2) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: req } = await supabase
+      .from("service_requests")
+      .select("id, customer_id, provider_id, status")
+      .eq("id", data.requestId)
+      .single();
+    if (!req || req.provider_id !== userId) throw new Error("Forbidden");
+    if (!["accepted", "in_progress"].includes(req.status as string))
+      throw new Error("لا يمكن الإلغاء الآن");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin
+      .from("service_requests")
+      .update({
+        status: "cancelled" as any,
+        cancellation_reason: data.reason,
+        cancelled_by: userId,
+      })
+      .eq("id", req.id);
+    await (supabaseAdmin as any).from("notifications").insert({
+      user_id: req.customer_id,
+      type: "request_cancelled",
+      title: "تم إلغاء الطلب من قِبل المزود",
+      body: data.reason,
+      link: `/request/${req.id}`,
+    });
+    return { ok: true };
+  });
+
+/**
+ * Re-dispatch a request that is still searching but has no active offers
+ * (all previous ones expired or were rejected). Safe to call repeatedly
+ * from the customer's waiting screen every ~15s.
+ */
+export const retryDispatch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: req } = await supabase
+      .from("service_requests")
+      .select("id, customer_id, status, vehicle_category, pickup_lat, pickup_lng")
+      .eq("id", data.requestId)
+      .single();
+    if (!req || req.customer_id !== userId) throw new Error("Forbidden");
+    if (!["pending", "searching"].includes(req.status as string))
+      return { ok: false, reason: "not_searching" };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Expire stale offers first
+    await (supabaseAdmin as any)
+      .from("request_offers")
+      .update({ status: "expired" })
+      .eq("request_id", req.id)
+      .eq("status", "pending")
+      .lt("expires_at", new Date().toISOString());
+
+    // Any offer still pending? then nothing to do
+    const { data: active } = await (supabaseAdmin as any)
+      .from("request_offers")
+      .select("id")
+      .eq("request_id", req.id)
+      .eq("status", "pending")
+      .limit(1);
+    if (active && active.length) return { ok: true, offers: 0, reason: "still_pending" };
+
+    // Collect drivers we already offered to (avoid re-offering the same ones immediately)
+    const { data: prior } = await (supabaseAdmin as any)
+      .from("request_offers")
+      .select("provider_id")
+      .eq("request_id", req.id);
+    const skipIds: string[] = (prior ?? []).map((p: any) => p.provider_id);
+
+    const radii = [3, 6, 12];
+    let drivers: any[] = [];
+    for (const r of radii) {
+      const { data: found } = await (supabaseAdmin as any).rpc("find_nearby_drivers", {
+        _lat: req.pickup_lat,
+        _lng: req.pickup_lng,
+        _category: req.vehicle_category ?? "economy",
+        _radius_km: r,
+        _limit: 15,
+      });
+      const filtered = (found ?? []).filter((d: any) => !skipIds.includes(d.user_id));
+      if (filtered.length) {
+        drivers = filtered;
+        break;
+      }
+    }
+    if (!drivers.length) return { ok: true, offers: 0, reason: "no_drivers" };
+
+    const rows = drivers.map((d: any) => ({
+      request_id: req.id,
+      provider_id: d.user_id,
+      distance_km: d.distance_km,
+      expires_at: new Date(Date.now() + 45_000).toISOString(),
+      status: "pending",
+    }));
+    await (supabaseAdmin as any).from("request_offers").upsert(rows, {
+      onConflict: "request_id,provider_id",
+    });
+    const notifs = drivers.map((d: any) => ({
+      user_id: d.user_id,
+      type: "new_offer",
+      title: "طلب جديد قريب منك",
+      body: `على بُعد ${Number(d.distance_km).toFixed(1)} كم`,
+      data: { request_id: req.id },
+    }));
+    await (supabaseAdmin as any).from("notifications").insert(notifs);
+    return { ok: true, offers: drivers.length };
   });
