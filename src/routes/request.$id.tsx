@@ -8,7 +8,9 @@ import { toast } from "sonner";
 import { LiveTrackMap } from "@/components/live-track-map";
 import { useLiveTracking } from "@/lib/use-live-tracking";
 import { CancelReasonModal } from "@/components/cancel-reason-modal";
+import { QuickReplies } from "@/components/quick-replies";
 import { cancelRequest, providerCancelRequest, retryDispatch } from "@/lib/dispatch.functions";
+
 
 const VEHICLE_CAT_META: Record<string, { label: string; emoji: string; gradient: string }> = {
   economy: { label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500" },
