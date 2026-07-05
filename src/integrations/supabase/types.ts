@@ -759,6 +759,7 @@ export type Database = {
       app_role: "customer" | "driver" | "worker" | "admin"
       request_status:
         | "pending"
+        | "searching"
         | "accepted"
         | "in_progress"
         | "completed"
@@ -896,6 +897,7 @@ export const Constants = {
       app_role: ["customer", "driver", "worker", "admin"],
       request_status: [
         "pending",
+        "searching",
         "accepted",
         "in_progress",
         "completed",
