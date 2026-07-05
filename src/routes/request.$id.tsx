@@ -8,7 +8,9 @@ import { toast } from "sonner";
 import { LiveTrackMap } from "@/components/live-track-map";
 import { useLiveTracking } from "@/lib/use-live-tracking";
 import { CancelReasonModal } from "@/components/cancel-reason-modal";
+import { QuickReplies } from "@/components/quick-replies";
 import { cancelRequest, providerCancelRequest, retryDispatch } from "@/lib/dispatch.functions";
+
 
 const VEHICLE_CAT_META: Record<string, { label: string; emoji: string; gradient: string }> = {
   economy: { label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500" },
@@ -284,7 +286,18 @@ function RequestDetail() {
             })}
           </div>
 
-          <div className="glass-strong p-3 border-t border-border sticky bottom-0">
+          <div className="glass-strong p-3 border-t border-border sticky bottom-0 space-y-2">
+            <QuickReplies
+              role={myRole}
+              type={req.type as "taxi" | "service"}
+              onPick={async (text) => {
+                if (!chat) return;
+                const { error } = await supabase.from("messages").insert({
+                  chat_id: chat.id, sender_id: session!.user.id, content: text,
+                });
+                if (error) toast.error(error.message);
+              }}
+            />
             <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex items-center gap-2">
               <input
                 value={draft}
@@ -297,6 +310,7 @@ function RequestDetail() {
               </button>
             </form>
           </div>
+
         </>
       )}
 
