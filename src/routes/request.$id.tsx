@@ -284,7 +284,18 @@ function RequestDetail() {
             })}
           </div>
 
-          <div className="glass-strong p-3 border-t border-border sticky bottom-0">
+          <div className="glass-strong p-3 border-t border-border sticky bottom-0 space-y-2">
+            <QuickReplies
+              role={myRole}
+              type={req.type as "taxi" | "service"}
+              onPick={async (text) => {
+                if (!chat) return;
+                const { error } = await supabase.from("messages").insert({
+                  chat_id: chat.id, sender_id: session!.user.id, content: text,
+                });
+                if (error) toast.error(error.message);
+              }}
+            />
             <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex items-center gap-2">
               <input
                 value={draft}
@@ -297,6 +308,7 @@ function RequestDetail() {
               </button>
             </form>
           </div>
+
         </>
       )}
 
