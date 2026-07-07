@@ -6,8 +6,11 @@ export function loadGoogleMaps(): Promise<any> {
   if ((window as any).google?.maps) return Promise.resolve((window as any).google);
   if (loaderPromise) return loaderPromise;
 
-  const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
-  if (!key) return Promise.reject(new Error("Missing VITE_GOOGLE_MAPS_API_KEY"));
+  const key =
+    (import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_BROWSER_KEY as string | undefined) ||
+    (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined);
+  const channel = import.meta.env.VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID as string | undefined;
+  if (!key) return Promise.reject(new Error("Missing Google Maps browser key"));
 
   loaderPromise = new Promise((resolve, reject) => {
     const cbName = `__gmInit_${Date.now()}`;
@@ -16,7 +19,7 @@ export function loadGoogleMaps(): Promise<any> {
       delete (window as any)[cbName];
     };
     const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async&callback=${cbName}&language=ar&region=IQ`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async&callback=${cbName}&language=ar&region=IQ${channel ? `&channel=${channel}` : ""}`;
     s.async = true;
     s.defer = true;
     s.onerror = () => {
