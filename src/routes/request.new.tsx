@@ -317,6 +317,8 @@ function NewRequest() {
       <MapPicker
         value={pickupCoords}
         accent="#0284c7"
+        nearby={nearby}
+        nearbyKind={type === "taxi" ? "car" : "worker"}
         onChange={(c, addr) => {
           setPickupCoords(c);
           setPickupLabel(addr ?? `موقعي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
