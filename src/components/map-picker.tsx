@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
 import { Loader2, MapPin, Crosshair, Search, X } from "lucide-react";
+import type { ProviderPin } from "@/lib/use-nearby-providers";
 
 type Coords = { lat: number; lng: number };
 
