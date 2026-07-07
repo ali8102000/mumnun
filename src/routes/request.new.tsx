@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, MapPin, Navigation, CheckCircle2, User, Users } from "lucide-react";
 import { MapPicker } from "@/components/map-picker";
 import { dispatchRequest } from "@/lib/dispatch.functions";
+import { useNearbyProviders } from "@/lib/use-nearby-providers";
 
 const search = z.object({ type: z.enum(["taxi", "service"]).default("taxi") });
 
@@ -83,6 +84,16 @@ function NewRequest() {
 
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Live nearby providers around the pickup point
+  const nearby = useNearbyProviders({
+    center: pickupCoords,
+    type,
+    category: type === "taxi" ? vehicleCategory : null,
+    serviceId: type === "service" ? serviceId : null,
+    radiusKm: 5,
+    active: !!pickupCoords,
+  });
 
 
   useEffect(() => {
@@ -306,6 +317,8 @@ function NewRequest() {
       <MapPicker
         value={pickupCoords}
         accent="#0284c7"
+        nearby={nearby}
+        nearbyKind={type === "taxi" ? "car" : "worker"}
         onChange={(c, addr) => {
           setPickupCoords(c);
           setPickupLabel(addr ?? `موقعي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
