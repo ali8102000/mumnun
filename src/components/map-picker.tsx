@@ -46,6 +46,10 @@ export function MapPicker({
   const sessionTokenRef = useRef<any>(null);
   const acServiceRef = useRef<any>(null);
   const placesSvcRef = useRef<any>(null);
+  const nearbyMarkersRef = useRef<
+    Map<string, { marker: any; anim: { from: Coords; to: Coords; startedAt: number; raf: number | null; heading: number } | null }>
+  >(new Map());
+  const readyRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
