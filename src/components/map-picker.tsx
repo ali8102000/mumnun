@@ -109,9 +109,95 @@ export function MapPicker({
     return () => {
       cancelled = true;
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      nearbyMarkersRef.current.forEach((v) => {
+        if (v.anim?.raf) cancelAnimationFrame(v.anim.raf);
+        v.marker?.setMap?.(null);
+      });
+      nearbyMarkersRef.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync nearby-provider markers with smooth interpolation
+  useEffect(() => {
+    if (!readyRef.current || !mapRef.current) return;
+    const g = (window as any).google;
+    if (!g) return;
+    const map = mapRef.current;
+    const store = nearbyMarkersRef.current;
+    const incoming = new Set((nearby ?? []).map((p) => p.pin_id));
+
+    // Remove stale
+    store.forEach((v, id) => {
+      if (!incoming.has(id)) {
+        if (v.anim?.raf) cancelAnimationFrame(v.anim.raf);
+        v.marker?.setMap?.(null);
+        store.delete(id);
+      }
+    });
+
+    const icon = (heading: number) =>
+      nearbyKind === "car"
+        ? {
+            path: g.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+            scale: 5,
+            fillColor: accent,
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+            rotation: heading,
+          }
+        : {
+            path: g.maps.SymbolPath.CIRCLE,
+            scale: 7,
+            fillColor: accent,
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+          };
+
+    (nearby ?? []).forEach((p) => {
+      const target: Coords = { lat: p.lat, lng: p.lng };
+      const heading = p.heading ?? 0;
+      const existing = store.get(p.pin_id);
+      if (!existing) {
+        const marker = new g.maps.Marker({
+          position: target,
+          map,
+          icon: icon(heading),
+          clickable: false,
+          zIndex: 10,
+          optimized: false,
+        });
+        store.set(p.pin_id, { marker, anim: null });
+        return;
+      }
+      const cur = existing.marker.getPosition();
+      const from: Coords = cur ? { lat: cur.lat(), lng: cur.lng() } : target;
+      // Skip if unchanged (< ~2m)
+      const dLat = target.lat - from.lat;
+      const dLng = target.lng - from.lng;
+      if (Math.abs(dLat) < 2e-5 && Math.abs(dLng) < 2e-5) {
+        existing.marker.setIcon(icon(heading));
+        return;
+      }
+      if (existing.anim?.raf) cancelAnimationFrame(existing.anim.raf);
+      existing.anim = { from, to: target, startedAt: performance.now(), raf: null, heading };
+      const step = () => {
+        const s = existing.anim;
+        if (!s) return;
+        const t = Math.min(1, (performance.now() - s.startedAt) / 1000);
+        const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const lat = s.from.lat + (s.to.lat - s.from.lat) * e;
+        const lng = s.from.lng + (s.to.lng - s.from.lng) * e;
+        existing.marker.setPosition({ lat, lng });
+        existing.marker.setIcon(icon(s.heading));
+        if (t < 1) s.raf = requestAnimationFrame(step);
+        else s.raf = null;
+      };
+      existing.anim.raf = requestAnimationFrame(step);
+    });
+  }, [nearby, nearbyKind, accent]);
 
   function reverseGeocode(pos: Coords) {
     if (!geocoderRef.current) {
