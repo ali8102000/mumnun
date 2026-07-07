@@ -747,6 +747,23 @@ export type Database = {
           user_id: string
         }[]
       }
+      find_nearby_provider_pins: {
+        Args: {
+          _category?: string
+          _lat: number
+          _limit?: number
+          _lng: number
+          _radius_km?: number
+          _service_id?: string
+          _type: string
+        }
+        Returns: {
+          heading: number
+          lat: number
+          lng: number
+          pin_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
