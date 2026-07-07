@@ -20,12 +20,16 @@ export function MapPicker({
   height = 280,
   accent = "#0ea5e9",
   placeholder = "ابحث عن مكان...",
+  nearby,
+  nearbyKind = "car",
 }: {
   value: Coords | null;
   onChange: (c: Coords, address?: string) => void;
   height?: number;
   accent?: string;
   placeholder?: string;
+  nearby?: ProviderPin[];
+  nearbyKind?: "car" | "worker";
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
