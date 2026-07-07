@@ -85,6 +85,16 @@ function NewRequest() {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Live nearby providers around the pickup point
+  const nearby = useNearbyProviders({
+    center: pickupCoords,
+    type,
+    category: type === "taxi" ? vehicleCategory : null,
+    serviceId: type === "service" ? serviceId : null,
+    radiusKm: 5,
+    active: !!pickupCoords,
+  });
+
 
   useEffect(() => {
     if (type === "service") {
