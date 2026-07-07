@@ -93,6 +93,7 @@ export function MapPicker({
         });
 
         setLoading(false);
+        readyRef.current = true;
 
         // Auto-locate if we have no initial value
         if (!value) {
