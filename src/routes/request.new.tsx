@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, MapPin, Navigation, CheckCircle2, User, Users } from "lucide-react";
 import { MapPicker } from "@/components/map-picker";
 import { dispatchRequest } from "@/lib/dispatch.functions";
+import { useNearbyProviders } from "@/lib/use-nearby-providers";
 
 const search = z.object({ type: z.enum(["taxi", "service"]).default("taxi") });
 
