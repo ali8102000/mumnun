@@ -1,16 +1,31 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth, type AppRole } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
-import { Car, Wrench, Power, Bell, Star } from "lucide-react";
+import {
+  Car, Wrench, Power, Bell, Star, Sun, Moon, Zap, ShieldCheck,
+  Sparkles, ArrowUpLeft, TrendingUp, Clock,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/use-theme";
+import { playClick } from "@/lib/click-sound";
 
 export const Route = createFileRoute("/home")({ ssr: false, component: HomePage });
+
+function greetingByHour() {
+  const h = new Date().getHours();
+  if (h < 5) return "مساء الخير";
+  if (h < 12) return "صباح الخير";
+  if (h < 18) return "نهارك سعيد";
+  return "مساء الخير";
+}
 
 function HomePage() {
   const { loading, session, profile, roles } = useAuth();
   const [activeRole, setActiveRole] = useState<AppRole | null>(null);
+  const { theme, toggle } = useTheme();
+  const greet = useMemo(greetingByHour, []);
 
   useEffect(() => {
     if (roles.length && !activeRole) setActiveRole(roles[0]);
@@ -20,32 +35,67 @@ function HomePage() {
   if (!session) return <Navigate to="/auth" />;
   if (!roles.length) return <Navigate to="/select-role" />;
 
+  const firstName = (profile?.full_name || "صديقنا").split(" ")[0];
+
   return (
     <MobileShell>
-      <div className="px-5 pt-10">
-        <div className="flex items-center justify-between mb-6">
+      {/* Ambient blobs */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-96 overflow-hidden">
+        <div className="absolute -top-16 -right-16 h-72 w-72 rounded-full bg-primary/25 blur-3xl animate-float" />
+        <div className="absolute -top-10 -left-24 h-64 w-64 rounded-full bg-accent/25 blur-3xl animate-float" style={{ animationDelay: "-3s" }} />
+      </div>
+
+      <div className="relative px-5 pt-10 pb-6">
+        {/* Top bar */}
+        <div className="flex items-center justify-between mb-6 animate-pop-in">
           <div>
-            <div className="text-xs text-muted-foreground">مرحباً</div>
-            <div className="text-xl font-black">{profile?.full_name || "صديقنا"} 👋</div>
+            <div className="text-[11px] font-bold tracking-wider text-primary/80 uppercase">{greet}</div>
+            <div className="text-2xl font-black leading-tight mt-0.5">
+              {firstName} <span className="inline-block animate-float">👋</span>
+            </div>
           </div>
-          <button className="glass h-11 w-11 rounded-2xl grid place-items-center btn-press">
-            <Bell className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { playClick("toggle"); toggle(); }}
+              aria-label="تبديل الوضع"
+              className="glass-strong h-11 w-11 rounded-2xl grid place-items-center btn-press tap-highlight-none relative overflow-hidden"
+            >
+              <Sun className={`h-5 w-5 absolute transition-all duration-500 ${theme === "dark" ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"}`} />
+              <Moon className={`h-5 w-5 absolute transition-all duration-500 ${theme === "dark" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0"}`} />
+            </button>
+            <button
+              onClick={() => playClick("tap")}
+              className="glass-strong h-11 w-11 rounded-2xl grid place-items-center btn-press tap-highlight-none relative"
+              aria-label="التنبيهات"
+            >
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-destructive animate-pulse" />
+            </button>
+          </div>
         </div>
 
+        {/* Role switch */}
         {roles.length > 1 && (
-          <div className="flex bg-surface-2 rounded-2xl p-1 mb-5 text-xs font-bold">
-            {roles.map((r) => (
-              <button
-                key={r}
-                onClick={() => setActiveRole(r)}
-                className={`flex-1 py-2.5 rounded-xl btn-press tap-highlight-none ${
-                  activeRole === r ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                }`}
-              >
-                {r === "customer" ? "زبون" : r === "driver" ? "كابتن" : "فني"}
-              </button>
-            ))}
+          <div className="relative flex bg-surface-2 rounded-2xl p-1 mb-5 text-xs font-bold animate-pop-in">
+            {roles.map((r) => {
+              const active = activeRole === r;
+              return (
+                <button
+                  key={r}
+                  onClick={() => { playClick("soft"); setActiveRole(r); }}
+                  className={`relative flex-1 py-2.5 rounded-xl btn-press tap-highlight-none transition-colors ${
+                    active ? "text-primary-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary to-primary-glow shadow-[0_6px_20px_-8px_var(--primary)]" />
+                  )}
+                  <span className="relative">
+                    {r === "customer" ? "زبون" : r === "driver" ? "كابتن" : "فني"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -57,69 +107,141 @@ function HomePage() {
   );
 }
 
+/* ---------------- Customer ---------------- */
+
 function CustomerHome() {
   return (
     <div className="space-y-4">
-      <div className="glass rounded-3xl p-6 shadow-card relative overflow-hidden">
-        <div className="absolute -top-10 -left-10 h-40 w-40 rounded-full bg-primary/20 blur-3xl" />
+      {/* Hero promo — gradient card with shimmer */}
+      <div className="relative rounded-3xl p-6 overflow-hidden animate-pop-in shadow-elegant bg-gradient-to-br from-primary via-primary-glow to-accent text-primary-foreground">
+        <div className="absolute inset-0 shine opacity-40 mix-blend-overlay" />
+        <div className="absolute -top-8 -left-8 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
         <div className="relative">
-          <div className="text-xs text-primary font-bold mb-1">عرض الترحيب</div>
-          <div className="text-lg font-black">رحلتك الأولى بخصم ٥٠٪</div>
-          <div className="text-xs text-muted-foreground mt-1">صالح للأسبوع الأول فقط</div>
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-[10px] font-bold">
+            <Sparkles className="h-3 w-3" /> مجاناً بلا عمولة
+          </div>
+          <div className="text-2xl font-black mt-2 leading-tight">اطلب الآن، ادفع للمزوّد مباشرة</div>
+          <div className="text-xs opacity-90 mt-1">ممنون منصّة مجانية — بدون أي نسبة على طلبك</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Link
-          to="/request/new"
-          search={{ type: "taxi" }}
-          className="glass rounded-3xl p-5 btn-press shadow-card flex flex-col gap-3 items-start tap-highlight-none"
-        >
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-yellow-400 grid place-items-center">
-            <Car className="h-7 w-7 text-white" />
-          </div>
-          <div>
-            <div className="font-black text-base">طلب سيارة</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">تكسي خلال دقائق</div>
-          </div>
-        </Link>
-
-        <Link
-          to="/request/new"
-          search={{ type: "service" }}
-          className="glass rounded-3xl p-5 btn-press shadow-card flex flex-col gap-3 items-start tap-highlight-none"
-        >
-          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-400 grid place-items-center">
-            <Wrench className="h-7 w-7 text-white" />
-          </div>
-          <div>
-            <div className="font-black text-base">طلب فني</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">١٦ خدمة منزلية</div>
-          </div>
-        </Link>
+      {/* Bento actions */}
+      <div className="grid grid-cols-3 gap-3">
+        <QuickTile
+          to="/request/new" type="taxi"
+          title="طلب سيارة" subtitle="خلال دقائق"
+          icon={<Car className="h-7 w-7" />}
+          gradient="from-amber-500 to-orange-500"
+          span={2}
+          delay={0.05}
+        />
+        <QuickTile
+          to="/request/new" type="service"
+          title="طلب فني" subtitle="١٦ خدمة"
+          icon={<Wrench className="h-6 w-6" />}
+          gradient="from-emerald-500 to-teal-400"
+          delay={0.1}
+        />
       </div>
 
-      <div className="mt-6">
-        <h3 className="font-black mb-3">لماذا ممنون؟</h3>
-        <div className="space-y-2">
-          {[
-            { icon: "⚡", t: "سرعة في الاستجابة", d: "نوصلك بأقرب مزود خدمة" },
-            { icon: "🛡️", t: "أمان مضمون", d: "جميع المزودين موثقين" },
-            { icon: "⭐", t: "تقييمات حقيقية", d: "اختر الأفضل بنفسك" },
-          ].map((f) => (
-            <div key={f.t} className="glass rounded-2xl p-4 flex items-center gap-3">
-              <div className="text-2xl">{f.icon}</div>
-              <div>
-                <div className="font-bold text-sm">{f.t}</div>
-                <div className="text-[11px] text-muted-foreground">{f.d}</div>
-              </div>
-            </div>
-          ))}
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
+        <MiniStat icon={<Clock className="h-4 w-4" />} label="أقل من" value="٣ د" />
+        <MiniStat icon={<TrendingUp className="h-4 w-4" />} label="طلبات اليوم" value="١٢٤٠" />
+        <MiniStat icon={<Star className="h-4 w-4" />} label="متوسط" value="٤٫٩" />
+      </div>
+
+      {/* Why us */}
+      <div className="mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-black">لماذا ممنون؟</h3>
+          <span className="text-[11px] text-muted-foreground">مميّزاتنا</span>
+        </div>
+        <div className="space-y-2.5">
+          <FeatureRow
+            icon={<Zap className="h-5 w-5" />}
+            title="سرعة في الاستجابة"
+            desc="نوصلك بأقرب مزوّد خدمة"
+            accent="from-amber-500 to-orange-500"
+          />
+          <FeatureRow
+            icon={<ShieldCheck className="h-5 w-5" />}
+            title="أمان مضمون"
+            desc="جميع المزوّدين موثّقون"
+            accent="from-emerald-500 to-teal-400"
+          />
+          <FeatureRow
+            icon={<Star className="h-5 w-5" />}
+            title="تقييمات حقيقية"
+            desc="اختر الأفضل بنفسك"
+            accent="from-fuchsia-500 to-pink-500"
+          />
         </div>
       </div>
     </div>
   );
 }
+
+function QuickTile({
+  to, type, title, subtitle, icon, gradient, span = 1, delay = 0,
+}: {
+  to: string; type: "taxi" | "service"; title: string; subtitle: string;
+  icon: React.ReactNode; gradient: string; span?: 1 | 2; delay?: number;
+}) {
+  return (
+    <Link
+      to={to as any}
+      search={{ type } as any}
+      onClick={() => playClick("pop")}
+      className={`glass rounded-3xl p-4 btn-press shadow-card tap-highlight-none animate-pop-in relative overflow-hidden group ${
+        span === 2 ? "col-span-2 min-h-[132px]" : "min-h-[132px]"
+      }`}
+      style={{ animationDelay: `${delay}s` }}
+    >
+      <div className={`absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-gradient-to-br ${gradient} opacity-20 blur-2xl group-hover:opacity-40 transition-opacity`} />
+      <div className="relative flex flex-col h-full justify-between">
+        <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${gradient} grid place-items-center text-white shadow-lg`}>
+          {icon}
+        </div>
+        <div>
+          <div className="flex items-center gap-1">
+            <div className="font-black text-base">{title}</div>
+            <ArrowUpLeft className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="glass rounded-2xl p-3 flex flex-col items-center text-center gap-0.5">
+      <div className="text-primary">{icon}</div>
+      <div className="font-black text-sm">{value}</div>
+      <div className="text-[10px] text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function FeatureRow({
+  icon, title, desc, accent,
+}: { icon: React.ReactNode; title: string; desc: string; accent: string }) {
+  return (
+    <div className="glass rounded-2xl p-3.5 flex items-center gap-3 btn-press">
+      <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${accent} grid place-items-center text-white shadow-md`}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-bold text-sm">{title}</div>
+        <div className="text-[11px] text-muted-foreground">{desc}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Provider ---------------- */
 
 function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const { session } = useAuth();
@@ -139,11 +261,10 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     });
 
     async function loadRequests() {
-      let q = supabase.from("service_requests")
+      const { data } = await supabase.from("service_requests")
         .select("id, pickup_text, dest_text, notes, created_at, service_id, type")
         .eq("status", "pending").eq("type", type)
         .order("created_at", { ascending: false }).limit(20);
-      const { data } = await q;
       setRequests(data ?? []);
     }
     loadRequests();
@@ -155,17 +276,18 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
   }, [session, type, table]);
 
   async function toggleAvail() {
+    playClick("toggle");
     const next = !available;
     setAvailable(next);
     await supabase.from(table).update({ available: next }).eq("user_id", session!.user.id);
   }
 
   async function accept(id: string) {
+    playClick("pop");
     const { error } = await supabase.from("service_requests")
       .update({ provider_id: session!.user.id, status: "accepted", accepted_at: new Date().toISOString() })
       .eq("id", id).eq("status", "pending");
     if (error) { toast.error(error.message); return; }
-    // create chat
     const { data: req } = await supabase.from("service_requests").select("customer_id").eq("id", id).single();
     if (req) {
       await supabase.from("chats").insert({ request_id: id, customer_id: req.customer_id, provider_id: session!.user.id });
@@ -176,30 +298,37 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
 
   return (
     <div className="space-y-4">
-      <div className="glass rounded-3xl p-5 flex items-center justify-between shadow-card">
-        <div>
-          <div className="text-xs text-muted-foreground">حالة التوفر</div>
-          <div className="font-black text-lg mt-0.5">{available ? "متاح للعمل" : "غير متاح"}</div>
+      <div className={`relative rounded-3xl p-5 overflow-hidden animate-pop-in shadow-card ${
+        available
+          ? "bg-gradient-to-br from-emerald-500 to-teal-400 text-white"
+          : "glass"
+      }`}>
+        {available && <div className="absolute inset-0 shine opacity-30 mix-blend-overlay" />}
+        <div className="relative flex items-center justify-between">
+          <div>
+            <div className={`text-xs ${available ? "text-white/80" : "text-muted-foreground"}`}>حالة التوفر</div>
+            <div className="font-black text-lg mt-0.5">{available ? "متاح للعمل" : "غير متاح"}</div>
+          </div>
+          <button
+            onClick={toggleAvail}
+            className={`h-14 w-14 rounded-2xl grid place-items-center btn-press transition ${
+              available ? "bg-white/25 backdrop-blur" : "bg-surface-2"
+            }`}
+          >
+            <Power className={`h-6 w-6 ${available ? "text-white" : "text-muted-foreground"}`} />
+          </button>
         </div>
-        <button
-          onClick={toggleAvail}
-          className={`h-14 w-14 rounded-2xl grid place-items-center btn-press transition ${
-            available ? "bg-gradient-to-br from-emerald-500 to-teal-400 glow-primary" : "bg-surface-2"
-          }`}
-        >
-          <Power className={`h-6 w-6 ${available ? "text-white" : "text-muted-foreground"}`} />
-        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="glass rounded-2xl p-4">
+        <div className="glass rounded-2xl p-4 animate-pop-in" style={{ animationDelay: "0.05s" }}>
           <div className="text-xs text-muted-foreground">التقييم</div>
           <div className="flex items-center gap-1 mt-1">
             <Star className="h-5 w-5 text-primary fill-primary" />
             <span className="font-black text-lg">{stats.rating.toFixed(1)}</span>
           </div>
         </div>
-        <div className="glass rounded-2xl p-4">
+        <div className="glass rounded-2xl p-4 animate-pop-in" style={{ animationDelay: "0.1s" }}>
           <div className="text-xs text-muted-foreground">الطلبات المكتملة</div>
           <div className="font-black text-lg mt-1">{stats.jobs}</div>
         </div>
@@ -217,8 +346,8 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
             لا توجد طلبات جديدة الآن
           </div>
         )}
-        {available && requests.map((r) => (
-          <div key={r.id} className="glass rounded-2xl p-4 mb-2.5">
+        {available && requests.map((r, i) => (
+          <div key={r.id} className="glass rounded-2xl p-4 mb-2.5 animate-pop-in" style={{ animationDelay: `${i * 0.04}s` }}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold truncate">📍 {r.pickup_text || "بدون عنوان"}</div>
@@ -227,7 +356,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
               </div>
               <button
                 onClick={() => accept(r.id)}
-                className="shrink-0 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs btn-press"
+                className="shrink-0 px-4 py-2 rounded-xl bg-gradient-to-br from-primary to-primary-glow text-primary-foreground font-bold text-xs btn-press shadow-md"
               >
                 قبول
               </button>

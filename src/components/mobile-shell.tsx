@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, ClipboardList, MessageCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playClick } from "@/lib/click-sound";
 import type { ReactNode } from "react";
 
 interface Props {
@@ -18,8 +19,8 @@ export function MobileShell({ children, hideNav }: Props) {
   ] as const;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main className={cn("flex-1 pb-24", hideNav && "pb-0")}>{children}</main>
+    <div className="min-h-screen flex flex-col relative">
+      <main className={cn("flex-1 pb-24 relative", hideNav && "pb-0")}>{children}</main>
       {!hideNav && (
         <nav className="fixed bottom-0 inset-x-0 z-40 px-3 pb-3 pt-1 pointer-events-none">
           <div className="glass-strong rounded-2xl shadow-card mx-auto max-w-md pointer-events-auto">
@@ -30,6 +31,7 @@ export function MobileShell({ children, hideNav }: Props) {
                   <li key={to}>
                     <Link
                       to={to}
+                      onClick={() => playClick("soft")}
                       className={cn(
                         "flex flex-col items-center gap-1 py-3 tap-highlight-none btn-press",
                         active ? "text-primary" : "text-muted-foreground",
