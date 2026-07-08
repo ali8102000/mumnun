@@ -21,6 +21,7 @@ export function MobileShell({ children, hideNav }: Props) {
   return (
     <div className="min-h-screen flex flex-col relative">
       <main className={cn("flex-1 pb-24 relative", hideNav && "pb-0")}>{children}</main>
+      {!hideNav && (
         <nav className="fixed bottom-0 inset-x-0 z-40 px-3 pb-3 pt-1 pointer-events-none">
           <div className="glass-strong rounded-2xl shadow-card mx-auto max-w-md pointer-events-auto">
             <ul className="grid grid-cols-4">
@@ -30,6 +31,7 @@ export function MobileShell({ children, hideNav }: Props) {
                   <li key={to}>
                     <Link
                       to={to}
+                      onClick={() => playClick("soft")}
                       className={cn(
                         "flex flex-col items-center gap-1 py-3 tap-highlight-none btn-press",
                         active ? "text-primary" : "text-muted-foreground",
