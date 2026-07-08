@@ -19,9 +19,8 @@ export function MobileShell({ children, hideNav }: Props) {
   ] as const;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <main className={cn("flex-1 pb-24", hideNav && "pb-0")}>{children}</main>
-      {!hideNav && (
+    <div className="min-h-screen flex flex-col relative">
+      <main className={cn("flex-1 pb-24 relative", hideNav && "pb-0")}>{children}</main>
         <nav className="fixed bottom-0 inset-x-0 z-40 px-3 pb-3 pt-1 pointer-events-none">
           <div className="glass-strong rounded-2xl shadow-card mx-auto max-w-md pointer-events-auto">
             <ul className="grid grid-cols-4">
