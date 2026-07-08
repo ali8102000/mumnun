@@ -1,6 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Home, ClipboardList, MessageCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playClick } from "@/lib/click-sound";
 import type { ReactNode } from "react";
 
 interface Props {
