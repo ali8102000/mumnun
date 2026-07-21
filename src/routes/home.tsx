@@ -7,6 +7,7 @@ import {
   Car, Wrench, Power, Bell, Star, Sun, Moon, Zap, ShieldCheck,
   Sparkles, ArrowUpLeft, TrendingUp, Clock,
 } from "lucide-react";
+import { NotificationsBell } from "@/components/notifications-bell";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/use-theme";
 import { playClick } from "@/lib/click-sound";
@@ -63,14 +64,7 @@ function HomePage() {
               <Sun className={`h-5 w-5 absolute transition-all duration-500 ${theme === "dark" ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"}`} />
               <Moon className={`h-5 w-5 absolute transition-all duration-500 ${theme === "dark" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0"}`} />
             </button>
-            <button
-              onClick={() => playClick("tap")}
-              className="glass-strong h-11 w-11 rounded-2xl grid place-items-center btn-press tap-highlight-none relative"
-              aria-label="التنبيهات"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-destructive animate-pulse" />
-            </button>
+            <NotificationsBell />
           </div>
         </div>
 
@@ -147,8 +141,8 @@ function CustomerHome() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
         <MiniStat icon={<Clock className="h-4 w-4" />} label="أقل من" value="٣ د" />
-        <MiniStat icon={<TrendingUp className="h-4 w-4" />} label="طلبات اليوم" value="١٢٤٠" />
         <MiniStat icon={<Star className="h-4 w-4" />} label="متوسط" value="٤٫٩" />
+        <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="مزودون" value="موثق" />
       </div>
 
       {/* Why us */}
@@ -285,12 +279,12 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
   async function accept(id: string) {
     playClick("pop");
     const { error } = await supabase.from("service_requests")
-      .update({ provider_id: session!.user.id, status: "accepted", accepted_at: new Date().toISOString() })
+      .update({ provider_id: session!.user.id, status: "accepted", accepted_at: new Date().toISOString() } as any)
       .eq("id", id).eq("status", "pending");
     if (error) { toast.error(error.message); return; }
     const { data: req } = await supabase.from("service_requests").select("customer_id").eq("id", id).single();
     if (req) {
-      await supabase.from("chats").insert({ request_id: id, customer_id: req.customer_id, provider_id: session!.user.id });
+      await supabase.from("chats").upsert({ request_id: id, customer_id: req.customer_id, provider_id: session!.user.id } as any).eq("request_id", id);
     }
     toast.success("تم قبول الطلب");
     window.location.href = `/request/${id}`;
