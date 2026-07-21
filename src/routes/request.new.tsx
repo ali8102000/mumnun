@@ -206,7 +206,7 @@ function NewRequest() {
                     active
                       ? "bg-white ring-2 ring-primary shadow-lg scale-105"
                       : "bg-white/70 hover:bg-white"
-                  }`
+                  }`}
                 >
                   {active && (
                     <CheckCircle2 className="absolute top-1.5 left-1.5 h-4 w-4 text-primary fill-white" />
