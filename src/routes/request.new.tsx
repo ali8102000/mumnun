@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, ArrowLeft, MapPin, Navigation, CheckCircle2, User, Users } from "lucide-react";
+import { Loader2, ArrowLeft, MapPin, CheckCircle2, User, Users } from "lucide-react";
 import { MapPicker } from "@/components/map-picker";
 import { dispatchRequest } from "@/lib/dispatch.functions";
 import { useNearbyProviders } from "@/lib/use-nearby-providers";
@@ -20,7 +20,6 @@ export const Route = createFileRoute("/request/new")({
 
 type Service = { id: string; slug: string; name_ar: string };
 
-// Colorful icon mapping per service slug
 const SERVICE_VISUALS: Record<string, { emoji: string; gradient: string }> = {
   build:            { emoji: "🧱", gradient: "from-orange-400 to-red-500" },
   plaster:          { emoji: "🪣", gradient: "from-amber-400 to-orange-500" },
@@ -85,7 +84,6 @@ function NewRequest() {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Live nearby providers around the pickup point
   const nearby = useNearbyProviders({
     center: pickupCoords,
     type,
@@ -140,7 +138,6 @@ function NewRequest() {
         ? (khabirMode === "alone" ? 1 : 1 + workersCount)
         : workersCount;
 
-    // Price estimate for taxi
     let priceEstimate: number | null = null;
     if (type === "taxi" && pickupCoords && destCoords) {
       const cat = VEHICLE_CATS.find((c) => c.key === vehicleCategory)!;
@@ -169,7 +166,6 @@ function NewRequest() {
       }).select("id").single();
       if (error) throw error;
       toast.success("تم إرسال الطلب");
-      // Fire dispatch for taxi requests (don't block navigation)
       if (type === "taxi") {
         runDispatch({ data: { requestId: data.id } }).catch((e) => console.warn("[dispatch]", e));
       }
@@ -210,7 +206,7 @@ function NewRequest() {
                     active
                       ? "bg-white ring-2 ring-primary shadow-lg scale-105"
                       : "bg-white/70 hover:bg-white"
-                  }`}
+                  }`
                 >
                   {active && (
                     <CheckCircle2 className="absolute top-1.5 left-1.5 h-4 w-4 text-primary fill-white" />
@@ -310,7 +306,6 @@ function NewRequest() {
         </>
       )}
 
-      {/* Location selection on map */}
       <div className="mt-2 mb-2 text-sm font-bold text-muted-foreground">
         {type === "taxi" ? "📍 موقع الانطلاق — حرّك المؤشر أو اضغط على الخريطة" : "📍 موقع الخدمة — حدّد على الخريطة"}
       </div>
@@ -356,7 +351,6 @@ function NewRequest() {
             className="mt-2 w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-ring"
           />
 
-          {/* Vehicle category selector */}
           <div className="mt-6 mb-2 text-sm font-bold text-muted-foreground">🚘 اختر فئة السيارة</div>
           <div className="space-y-2">
             {VEHICLE_CATS.map((c) => {
@@ -420,42 +414,5 @@ function NewRequest() {
         </button>
       </div>
     </div>
-  );
-}
-
-function LocationCard({
-  coords, label, loading, onShare, color,
-}: {
-  coords: { lat: number; lng: number } | null;
-  label: string;
-  loading: boolean;
-  onShare: () => void;
-  color: string;
-}) {
-  if (coords) {
-    return (
-      <div className="glass rounded-2xl p-4 flex items-center gap-3">
-        <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center shadow-md`}>
-          <MapPin className="h-6 w-6 text-white" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-black truncate">{label}</div>
-          <div className="text-[11px] text-muted-foreground">تمت المشاركة ✓</div>
-        </div>
-        <button onClick={onShare} className="text-xs font-bold text-primary btn-press px-2">
-          تغيير
-        </button>
-      </div>
-    );
-  }
-  return (
-    <button
-      onClick={onShare}
-      disabled={loading}
-      className={`w-full rounded-2xl p-5 bg-gradient-to-br ${color} text-white shadow-lg btn-press flex items-center justify-center gap-3 disabled:opacity-60`}
-    >
-      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
-      <span className="font-black">شارك موقعك الآن</span>
-    </button>
   );
 }

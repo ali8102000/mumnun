@@ -67,7 +67,6 @@ function RequestDetail() {
         setMessages(m ?? []);
       }
     }
-    // existing rating by me?
     if (session?.user) {
       const { data: rate } = await supabase.from("ratings").select("*").eq("request_id", id).eq("rater_id", session.user.id).maybeSingle();
       setMyRating(rate);
@@ -97,7 +96,6 @@ function RequestDetail() {
     return () => { supabase.removeChannel(ch); };
   }, [req?.id]);
 
-  // Auto retry-dispatch while customer is waiting and no driver accepted yet.
   useEffect(() => {
     if (!req || myRole !== "customer") return;
     if (!["pending", "searching"].includes(req.status as string)) return;
@@ -161,7 +159,6 @@ function RequestDetail() {
       </div>
 
       <div className="px-5 py-4 space-y-3">
-        {/* Vehicle category badge for taxi */}
         {req.type === "taxi" && req.vehicle_category && VEHICLE_CAT_META[req.vehicle_category] && (
           <div className={`rounded-2xl p-3 text-white bg-gradient-to-br ${VEHICLE_CAT_META[req.vehicle_category].gradient} shadow-md flex items-center gap-3`}>
             <div className="text-2xl">{VEHICLE_CAT_META[req.vehicle_category].emoji}</div>
@@ -178,7 +175,6 @@ function RequestDetail() {
           </div>
         )}
 
-        {/* Live tracking map (after acceptance) */}
         {trackingActive && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
@@ -230,7 +226,7 @@ function RequestDetail() {
             {req.status === "in_progress" && session.user.id === req.provider_id && (
               <button onClick={markCompleted} className="text-xs px-3 py-2 rounded-xl bg-success text-success-foreground font-bold btn-press">إنهاء الرحلة</button>
             )}
-            {req.status === "accepted" && session.user.id === req.customer_id && (
+            {["pending", "searching", "accepted", "in_progress"].includes(req.status as string) && (
               <button
                 onClick={() => setShowCancel(true)}
                 className="text-xs px-3 py-2 rounded-xl bg-destructive/10 text-destructive font-bold btn-press"
@@ -238,15 +234,6 @@ function RequestDetail() {
                 إلغاء
               </button>
             )}
-            {["accepted", "in_progress"].includes(req.status as string) &&
-              session.user.id === req.provider_id && (
-                <button
-                  onClick={() => setShowCancel(true)}
-                  className="text-xs px-3 py-2 rounded-xl bg-destructive/10 text-destructive font-bold btn-press"
-                >
-                  إلغاء
-                </button>
-              )}
           </div>
         )}
 
@@ -435,4 +422,3 @@ function RatingModal({ target, onClose, onSubmit }: { target: any; onClose: () =
     </div>
   );
 }
-
