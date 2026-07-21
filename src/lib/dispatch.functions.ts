@@ -13,7 +13,6 @@ export const dispatchRequest = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Verify caller owns request
     const { data: req, error } = await supabase
       .from("service_requests")
       .select("id, customer_id, type, vehicle_category, pickup_lat, pickup_lng, status")
@@ -24,7 +23,6 @@ export const dispatchRequest = createServerFn({ method: "POST" })
     if (req.type !== "taxi") return { offers: 0, reason: "not_taxi" };
     if (!req.pickup_lat || !req.pickup_lng) throw new Error("Missing pickup location");
 
-    // Mark as searching
     await supabaseAdmin
       .from("service_requests")
       .update({ status: "searching" as any, searching_started_at: new Date().toISOString() })
@@ -60,7 +58,6 @@ export const dispatchRequest = createServerFn({ method: "POST" })
     });
     if (insErr) throw new Error(insErr.message);
 
-    // Notify drivers
     const notifs = drivers.map((d: any) => ({
       user_id: d.user_id,
       type: "new_offer",
@@ -74,9 +71,6 @@ export const dispatchRequest = createServerFn({ method: "POST" })
     return { offers: drivers.length };
   });
 
-/**
- * Driver accepts/rejects an offer. Acceptance is atomic: first accepter wins.
- */
 export const respondToOffer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -109,7 +103,6 @@ export const respondToOffer = createServerFn({ method: "POST" })
       return { ok: true, accepted: false };
     }
 
-    // Accept: try to assign request atomically (only succeed if still searching/pending)
     const { data: updated, error: updErr } = await supabaseAdmin
       .from("service_requests")
       .update({
@@ -125,7 +118,6 @@ export const respondToOffer = createServerFn({ method: "POST" })
     if (updErr) throw new Error(updErr.message);
     if (!updated) throw new Error("الطلب لم يعد متاحاً");
 
-    // Mark this offer accepted, cancel siblings
     await (supabaseAdmin as any)
       .from("request_offers")
       .update({ status: "accepted", responded_at: new Date().toISOString() })
@@ -137,13 +129,12 @@ export const respondToOffer = createServerFn({ method: "POST" })
       .eq("status", "pending")
       .neq("id", offer.id);
 
-    // Create chat
     await supabaseAdmin
       .from("chats")
-      .insert({ request_id: offer.request_id, customer_id: updated.customer_id, provider_id: userId } as any)
+      .upsert({ request_id: offer.request_id, customer_id: updated.customer_id, provider_id: userId } as any)
+      .eq("request_id", offer.request_id)
       .select();
 
-    // Notify customer
     await (supabaseAdmin as any).from("notifications").insert({
       user_id: updated.customer_id,
       type: "offer_accepted",
@@ -155,9 +146,6 @@ export const respondToOffer = createServerFn({ method: "POST" })
     return { ok: true, accepted: true, requestId: offer.request_id };
   });
 
-/**
- * Cancel a request (customer-side).
- */
 export const cancelRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -199,9 +187,6 @@ export const cancelRequest = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/**
- * Provider cancels an accepted/in-progress request with a reason.
- */
 export const providerCancelRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -237,11 +222,6 @@ export const providerCancelRequest = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/**
- * Re-dispatch a request that is still searching but has no active offers
- * (all previous ones expired or were rejected). Safe to call repeatedly
- * from the customer's waiting screen every ~15s.
- */
 export const retryDispatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
@@ -257,7 +237,6 @@ export const retryDispatch = createServerFn({ method: "POST" })
       return { ok: false, reason: "not_searching" };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Expire stale offers first
     await (supabaseAdmin as any)
       .from("request_offers")
       .update({ status: "expired" })
@@ -265,7 +244,6 @@ export const retryDispatch = createServerFn({ method: "POST" })
       .eq("status", "pending")
       .lt("expires_at", new Date().toISOString());
 
-    // Any offer still pending? then nothing to do
     const { data: active } = await (supabaseAdmin as any)
       .from("request_offers")
       .select("id")
@@ -274,7 +252,6 @@ export const retryDispatch = createServerFn({ method: "POST" })
       .limit(1);
     if (active && active.length) return { ok: true, offers: 0, reason: "still_pending" };
 
-    // Collect drivers we already offered to (avoid re-offering the same ones immediately)
     const { data: prior } = await (supabaseAdmin as any)
       .from("request_offers")
       .select("provider_id")
