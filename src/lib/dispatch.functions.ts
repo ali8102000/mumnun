@@ -296,3 +296,138 @@ export const retryDispatch = createServerFn({ method: "POST" })
     await (supabaseAdmin as any).from("notifications").insert(notifs);
     return { ok: true, offers: drivers.length };
   });
+
+export const startRide = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: req } = await supabase
+      .from("service_requests")
+      .select("id, provider_id, status, customer_id")
+      .eq("id", data.requestId)
+      .single();
+    if (!req) throw new Error("Request not found");
+    if (req.provider_id !== userId) throw new Error("Forbidden");
+    if (req.status !== "accepted") throw new Error("Request not in accepted state");
+
+    await supabaseAdmin
+      .from("service_requests")
+      .update({ status: "in_progress", started_at: new Date().toISOString() } as any)
+      .eq("id", req.id);
+
+    await (supabaseAdmin as any).from("notifications").insert({
+      user_id: req.customer_id,
+      type: "ride_started",
+      title: "بدأت الرحلة",
+      body: "الكابتن بدأ الرحلة",
+      link: `/request/${req.id}`,
+    });
+
+    return { ok: true };
+  });
+
+export const completeRide = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: req } = await supabase
+      .from("service_requests")
+      .select("id, provider_id, status, customer_id, price_estimate")
+      .eq("id", data.requestId)
+      .single();
+    if (!req) throw new Error("Request not found");
+    if (req.provider_id !== userId) throw new Error("Forbidden");
+    if (req.status !== "in_progress") throw new Error("Request not in progress");
+
+    await supabaseAdmin
+      .from("service_requests")
+      .update({ status: "completed" as any, completed_at: new Date().toISOString() })
+      .eq("id", req.id);
+
+    if (req.price_estimate) {
+      const { data: wallet } = await (supabaseAdmin as any)
+        .from("driver_wallets")
+        .select("balance, total_earned, total_commission")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (wallet) {
+        const commission = Math.round(Number(req.price_estimate) * 0.1);
+        const net = Number(req.price_estimate) - commission;
+        await (supabaseAdmin as any)
+          .from("driver_wallets")
+          .update({
+            balance: Number(wallet.balance) + net,
+            total_earned: Number(wallet.total_earned) + net,
+            total_commission: Number(wallet.total_commission) + commission,
+          })
+          .eq("user_id", userId);
+
+        await (supabaseAdmin as any).from("transactions").insert({
+          user_id: userId,
+          request_id: req.id,
+          type: "earnings",
+          amount: net,
+          note: `أرباح رحلة #${req.id.slice(0, 8)}`,
+        });
+      }
+    }
+
+    await (supabaseAdmin as any).from("notifications").insert({
+      user_id: req.customer_id,
+      type: "ride_completed",
+      title: "تم إنهاء الرحلة",
+      body: "وصلت إلى وجهتك. يرجى تقييم الخدمة.",
+      link: `/request/${req.id}`,
+    });
+
+    return { ok: true };
+  });
+
+export const acceptServiceRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: updated, error } = await supabaseAdmin
+      .from("service_requests")
+      .update({
+        provider_id: userId,
+        status: "accepted" as any,
+        accepted_at: new Date().toISOString(),
+      })
+      .eq("id", data.requestId)
+      .eq("status", "pending")
+      .select("id, customer_id")
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!updated) throw new Error("الطلب لم يعد متاحاً");
+
+    await supabaseAdmin
+      .from("chats")
+      .upsert({
+        request_id: data.requestId,
+        customer_id: updated.customer_id,
+        provider_id: userId,
+      } as any)
+      .eq("request_id", data.requestId);
+
+    await (supabaseAdmin as any).from("notifications").insert({
+      user_id: updated.customer_id,
+      type: "offer_accepted",
+      title: "تم قبول طلبك",
+      body: "المزود في طريقه إليك",
+      link: `/request/${data.requestId}`,
+    });
+
+    return { ok: true, requestId: data.requestId };
+  });
