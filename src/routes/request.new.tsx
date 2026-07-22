@@ -80,6 +80,7 @@ function NewRequest() {
   const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [destLabel, setDestLabel] = useState("");
   const [destText, setDestText] = useState("");
+  const [mapStep, setMapStep] = useState<"pickup" | "dest">("pickup");
 
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -102,28 +103,7 @@ function NewRequest() {
     }
   }, [type]);
 
-  function shareLocation(target: "pickup" | "dest") {
-    if (!navigator.geolocation) {
-      toast.error("المتصفح لا يدعم تحديد الموقع");
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const label = `موقعي الحالي (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)})`;
-        if (target === "pickup") { setPickupCoords(coords); setPickupLabel(label); }
-        else { setDestCoords(coords); setDestLabel(label); }
-        setLocating(false);
-        toast.success("تمت مشاركة الموقع");
-      },
-      (err) => {
-        setLocating(false);
-        toast.error(err.code === 1 ? "يرجى السماح بالوصول للموقع" : "تعذّر تحديد الموقع");
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }
+
 
   if (loading) return null;
   if (!session) return <Navigate to="/auth" />;
@@ -306,44 +286,67 @@ function NewRequest() {
         </>
       )}
 
-      <div className="mt-2 mb-2 text-sm font-bold text-muted-foreground">
-        {type === "taxi" ? "📍 موقع الانطلاق — حرّك المؤشر أو اضغط على الخريطة" : "📍 موقع الخدمة — حدّد على الخريطة"}
+      {/* Single unified map — two-step: pickup then destination */}
+      <div className="mt-2 mb-2 flex items-center gap-2">
+        <div className={`flex-1 text-sm font-bold transition-colors ${mapStep === "pickup" ? "text-primary" : "text-muted-foreground"}`}>
+          ١. موقع {type === "taxi" ? "الانطلاق" : "الخدمة"}
+        </div>
+        {type === "taxi" && (
+          <div className={`flex-1 text-sm font-bold transition-colors ${mapStep === "dest" ? "text-rose-600" : pickupCoords ? "text-muted-foreground" : "text-muted-foreground/40"}`}>
+            ٢. الوجهة
+          </div>
+        )}
       </div>
       <MapPicker
-        value={pickupCoords}
-        accent="#0284c7"
-        nearby={nearby}
+        value={mapStep === "pickup" ? pickupCoords : destCoords}
+        accent={mapStep === "pickup" ? "#0284c7" : "#e11d48"}
+        nearby={mapStep === "pickup" ? nearby : undefined}
         nearbyKind={type === "taxi" ? "car" : "worker"}
         onChange={(c, addr) => {
-          setPickupCoords(c);
-          setPickupLabel(addr ?? `موقعي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
+          if (mapStep === "pickup") {
+            setPickupCoords(c);
+            setPickupLabel(addr ?? `موقعي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
+          } else {
+            setDestCoords(c);
+            setDestLabel(addr ?? `وجهتي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
+          }
         }}
       />
-      {pickupLabel && (
-        <div className="mt-2 glass rounded-2xl p-3 flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-sky-600 shrink-0" />
-          <div className="text-xs font-bold truncate">{pickupLabel}</div>
+      {/* Selected points summary */}
+      <div className="mt-2 space-y-2">
+        {pickupLabel && (
+          <button onClick={() => setMapStep("pickup")} className={`w-full glass rounded-2xl p-3 flex items-center gap-2 text-right transition ${mapStep === "pickup" ? "ring-2 ring-sky-500" : ""}`}>
+            <MapPin className="h-4 w-4 text-sky-600 shrink-0" />
+            <div className="text-xs font-bold truncate flex-1">{pickupLabel}</div>
+            {mapStep === "pickup" && <CheckCircle2 className="h-4 w-4 text-sky-600 shrink-0" />}
+          </button>
+        )}
+        {type === "taxi" && destLabel && (
+          <button onClick={() => setMapStep("dest")} className={`w-full glass rounded-2xl p-3 flex items-center gap-2 text-right transition ${mapStep === "dest" ? "ring-2 ring-rose-500" : ""}`}>
+            <MapPin className="h-4 w-4 text-rose-600 shrink-0" />
+            <div className="text-xs font-bold truncate flex-1">{destLabel}</div>
+            {mapStep === "dest" && <CheckCircle2 className="h-4 w-4 text-rose-600 shrink-0" />}
+          </button>
+        )}
+      </div>
+      {/* Step switch buttons */}
+      {type === "taxi" && pickupCoords && (
+        <div className="mt-3 flex gap-2">
+          {mapStep === "pickup" && (
+            <button onClick={() => setMapStep("dest")} className="flex-1 py-3 rounded-2xl bg-sky-600 text-white font-bold text-sm btn-press flex items-center justify-center gap-2">
+              تحديد الوجهة <ArrowLeft className="h-4 w-4" />
+            </button>
+          )}
+          {mapStep === "dest" && (
+            <button onClick={() => setMapStep("pickup")} className="flex-1 py-3 rounded-2xl bg-surface-2 font-bold text-sm btn-press">
+              العودة لموقع الانطلاق
+            </button>
+          )}
         </div>
       )}
 
       {type === "taxi" && (
         <>
-          <div className="mt-5 mb-2 text-sm font-bold text-muted-foreground">🎯 الوجهة — حدّدها على الخريطة</div>
-          <MapPicker
-            value={destCoords}
-            accent="#e11d48"
-            onChange={(c, addr) => {
-              setDestCoords(c);
-              setDestLabel(addr ?? `وجهتي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
-            }}
-          />
-          {destLabel && (
-            <div className="mt-2 glass rounded-2xl p-3 flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-rose-600 shrink-0" />
-              <div className="text-xs font-bold truncate">{destLabel}</div>
-            </div>
-          )}
-
           <input
             value={destText}
             onChange={(e) => setDestText(e.target.value)}

@@ -4,7 +4,7 @@ import { useAuth, type AppRole } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
 import {
-  Car, Wrench, Power, Bell, Star, Sun, Moon, Zap, ShieldCheck,
+  Car, Wrench, Power, Bell, Sun, Moon, Zap, ShieldCheck,
   Sparkles, ArrowUpLeft, TrendingUp, Clock,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
@@ -141,9 +141,8 @@ function CustomerHome() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
+      <div className="grid grid-cols-2 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
         <MiniStat icon={<Clock className="h-4 w-4" />} label="أقل من" value="٣ د" />
-        <MiniStat icon={<Star className="h-4 w-4" />} label="متوسط" value="٤٫٩" />
         <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="مزودون" value="موثق" />
       </div>
 
@@ -166,12 +165,7 @@ function CustomerHome() {
             desc="جميع المزوّدين موثّقون"
             accent="from-emerald-500 to-teal-400"
           />
-          <FeatureRow
-            icon={<Star className="h-5 w-5" />}
-            title="تقييمات حقيقية"
-            desc="اختر الأفضل بنفسك"
-            accent="from-fuchsia-500 to-pink-500"
-          />
+
         </div>
       </div>
     </div>
@@ -244,7 +238,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const acceptFn = useServerFn(acceptServiceRequest);
   const [available, setAvailable] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
-  const [stats, setStats] = useState({ rating: 5.0, jobs: 0 });
+  const [stats, setStats] = useState({ jobs: 0 });
   const table = type === "taxi" ? "driver_profiles" : "worker_profiles";
 
   useEffect(() => {
@@ -253,7 +247,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       if (data) {
         setAvailable(data.available);
         const d: any = data;
-        setStats({ rating: Number(d.rating_avg ?? 5), jobs: d.completed_jobs ?? d.completed_rides ?? 0 });
+        setStats({ jobs: d.completed_jobs ?? d.completed_rides ?? 0 });
       }
     });
 
@@ -314,18 +308,9 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="glass rounded-2xl p-4 animate-pop-in" style={{ animationDelay: "0.05s" }}>
-          <div className="text-xs text-muted-foreground">التقييم</div>
-          <div className="flex items-center gap-1 mt-1">
-            <Star className="h-5 w-5 text-primary fill-primary" />
-            <span className="font-black text-lg">{stats.rating.toFixed(1)}</span>
-          </div>
-        </div>
-        <div className="glass rounded-2xl p-4 animate-pop-in" style={{ animationDelay: "0.1s" }}>
-          <div className="text-xs text-muted-foreground">الطلبات المكتملة</div>
-          <div className="font-black text-lg mt-1">{stats.jobs}</div>
-        </div>
+      <div className="glass rounded-2xl p-4 animate-pop-in" style={{ animationDelay: "0.05s" }}>
+        <div className="text-xs text-muted-foreground">الطلبات المكتملة</div>
+        <div className="font-black text-lg mt-1">{stats.jobs}</div>
       </div>
 
       <div>
