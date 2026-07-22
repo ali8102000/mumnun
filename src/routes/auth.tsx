@@ -53,7 +53,13 @@ function AuthPage() {
         const { data, error } = await supabase.auth.signUp({
           email: authEmail,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: {
+              phone: normalized,
+              full_name: name.trim(),
+            },
+          },
         });
         if (error) throw error;
         const uid = data.user?.id;
