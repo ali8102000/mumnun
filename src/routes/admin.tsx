@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ShieldCheck, Users, Car, ListChecks, Wallet, DollarSign } from "lucide-react";
 
@@ -90,7 +90,7 @@ function AdminPage() {
               <div className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString("ar-IQ")}</div>
             </div>
             <div className="text-left">
-              <div className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary inline-block">{r.status}</div>
+              <div className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary inline-block">{r.status === "pending" ? "بانتظار" : r.status === "searching" ? "بحث" : r.status === "accepted" ? "مقبول" : r.status === "in_progress" ? "قيد التنفيذ" : r.status === "completed" ? "مكتمل" : r.status === "cancelled" ? "ملغي" : r.status}</div>
               {r.price_estimate && <div className="text-xs font-black mt-0.5">{Number(r.price_estimate).toLocaleString()} د.ع</div>}
             </div>
           </li>
