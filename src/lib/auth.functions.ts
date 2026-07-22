@@ -27,14 +27,11 @@ export const lookupAuthEmail = createServerFn({ method: "POST" })
       return { email: id.toLowerCase() };
     }
 
-    // Treat as phone — find profile by phone, fall back to synthetic.
-    const { data: prof } = await supabaseAdmin
-      .from("profiles")
-      .select("phone, email")
-      .eq("phone", id)
-      .maybeSingle();
+    // Use SECURITY DEFINER function to bypass RLS for phone→email lookup
+    const { data: email } = await supabaseAdmin
+      .rpc("lookup_email_by_phone", { _phone: id });
 
-    if (prof?.email) return { email: prof.email.toLowerCase() };
+    if (email) return { email: String(email).toLowerCase() };
 
     // Fallback: synthetic phoneToEmail (used for legacy accounts).
     const digits = id.replace(/[^\d]/g, "");
@@ -64,12 +61,9 @@ export const sendPasswordReset = createServerFn({ method: "POST" })
     if (isEmail) {
       email = id.toLowerCase();
     } else {
-      const { data: prof } = await supabaseAdmin
-        .from("profiles")
-        .select("email")
-        .eq("phone", id)
-        .maybeSingle();
-      email = prof?.email ?? null;
+      const { data: emailResult } = await supabaseAdmin
+        .rpc("lookup_email_by_phone", { _phone: id });
+      email = emailResult ? String(emailResult) : null;
     }
 
     if (!email) {
