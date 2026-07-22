@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { acceptServiceRequest } from "@/lib/dispatch.functions";
 import { useTheme } from "@/lib/use-theme";
 import { playClick } from "@/lib/click-sound";
 
@@ -239,6 +241,7 @@ function FeatureRow({
 
 function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const { session } = useAuth();
+  const acceptFn = useServerFn(acceptServiceRequest);
   const [available, setAvailable] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
   const [stats, setStats] = useState({ rating: 5.0, jobs: 0 });
@@ -278,16 +281,13 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
 
   async function accept(id: string) {
     playClick("pop");
-    const { error } = await supabase.from("service_requests")
-      .update({ provider_id: session!.user.id, status: "accepted", accepted_at: new Date().toISOString() } as any)
-      .eq("id", id).eq("status", "pending");
-    if (error) { toast.error(error.message); return; }
-    const { data: req } = await supabase.from("service_requests").select("customer_id").eq("id", id).single();
-    if (req) {
-      await supabase.from("chats").upsert({ request_id: id, customer_id: req.customer_id, provider_id: session!.user.id } as any).eq("request_id", id);
+    try {
+      await acceptFn({ data: { requestId: id } });
+      toast.success("تم قبول الطلب");
+      window.location.href = `/request/${id}`;
+    } catch (e: any) {
+      toast.error(e.message ?? "تعذّر قبول الطلب");
     }
-    toast.success("تم قبول الطلب");
-    window.location.href = `/request/${id}`;
   }
 
   return (
