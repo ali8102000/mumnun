@@ -9,7 +9,7 @@ import { LiveTrackMap } from "@/components/live-track-map";
 import { useLiveTracking } from "@/lib/use-live-tracking";
 import { CancelReasonModal } from "@/components/cancel-reason-modal";
 import { QuickReplies } from "@/components/quick-replies";
-import { cancelRequest, providerCancelRequest, retryDispatch } from "@/lib/dispatch.functions";
+import { cancelRequest, providerCancelRequest, retryDispatch, startRide, completeRide } from "@/lib/dispatch.functions";
 
 
 const VEHICLE_CAT_META: Record<string, { label: string; emoji: string; gradient: string }> = {
@@ -36,6 +36,8 @@ function RequestDetail() {
   const cancelFn = useServerFn(cancelRequest);
   const providerCancelFn = useServerFn(providerCancelRequest);
   const retryFn = useServerFn(retryDispatch);
+  const runStartRide = useServerFn(startRide);
+  const runCompleteRide = useServerFn(completeRide);
 
   const myUserId = session?.user.id ?? null;
   const otherUserId = req ? (myUserId === req.customer_id ? req.provider_id : req.customer_id) : null;
@@ -124,19 +126,22 @@ function RequestDetail() {
   }
 
   async function markCompleted() {
-    await supabase.from("service_requests")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", id);
-    toast.success("تم إنهاء الطلب");
+    try {
+      await runCompleteRide({ data: { requestId: id } });
+      toast.success("تم إنهاء الطلب");
+    } catch (e: any) {
+      toast.error(e.message ?? "تعذّر إنهاء الطلب");
+    }
   }
 
   const statusLabel = {
     pending: "بانتظار القبول",
+    searching: "جاري البحث",
     accepted: "تم القبول",
     in_progress: "قيد التنفيذ",
     completed: "مكتمل",
     cancelled: "ملغي",
-  }[req.status as string];
+  }[req.status as string] ?? req.status;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -219,8 +224,12 @@ function RequestDetail() {
             </div>
             {req.status === "accepted" && session.user.id === req.provider_id && (
               <button onClick={async () => {
-                await supabase.from("service_requests").update({ status: "in_progress", started_at: new Date().toISOString() } as any).eq("id", id);
-                toast.success("بدأت الرحلة");
+                try {
+                  await runStartRide({ data: { requestId: id } });
+                  toast.success("بدأت الرحلة");
+                } catch (e: any) {
+                  toast.error(e.message ?? "تعذّر بدء الرحلة");
+                }
               }} className="text-xs px-3 py-2 rounded-xl bg-primary text-primary-foreground font-bold btn-press">بدء الرحلة</button>
             )}
             {req.status === "in_progress" && session.user.id === req.provider_id && (
