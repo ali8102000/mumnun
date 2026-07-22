@@ -95,7 +95,9 @@ function AuthPage() {
       }
     } catch (err: any) {
       const msg = err?.message || "حدث خطأ";
-      if (/already registered|User already/i.test(msg)) {
+      if (/Failed to fetch|NetworkError|fetch.*failed/i.test(msg)) {
+        toast.error("تعذّر الاتصال بالخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.");
+      } else if (/already registered|User already/i.test(msg)) {
         toast.error("هذا الحساب مسجّل مسبقاً. حاول تسجيل الدخول.");
       } else if (/Invalid login|Invalid credentials/i.test(msg)) {
         toast.error("بيانات الدخول غير صحيحة");
