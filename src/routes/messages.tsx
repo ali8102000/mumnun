@@ -13,18 +13,30 @@ function MessagesPage() {
 
   useEffect(() => {
     if (!session) return;
-    supabase.from("chats")
-      .select("id, request_id, customer_id, provider_id, created_at")
-      .or(`customer_id.eq.${session.user.id},provider_id.eq.${session.user.id}`)
-      .order("created_at", { ascending: false })
-      .then(async ({ data }) => {
-        if (!data) return;
-        const otherIds = data.map((c) => c.customer_id === session.user.id ? c.provider_id : c.customer_id);
-        const { data: profs } = await supabase.from("profiles").select("id, full_name, phone").in("id", otherIds);
-        const map = new Map(profs?.map((p) => [p.id, p]) ?? []);
-        setChats(data.map((c) => ({ ...c, other: map.get(c.customer_id === session.user.id ? c.provider_id : c.customer_id) })));
-      });
+    loadChats();
+
+    const ch = supabase
+      .channel(`chats-${session.user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chats" },
+        () => loadChats()
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
   }, [session]);
+
+  async function loadChats() {
+    const { data } = await supabase.from("chats")
+      .select("id, request_id, customer_id, provider_id, created_at")
+      .or(`customer_id.eq.${session!.user.id},provider_id.eq.${session!.user.id}`)
+      .order("created_at", { ascending: false });
+    if (!data) return;
+    const otherIds = data.map((c) => c.customer_id === session!.user.id ? c.provider_id : c.customer_id);
+    const { data: profs } = await supabase.from("profiles").select("id, full_name, phone").in("id", otherIds);
+    const map = new Map(profs?.map((p) => [p.id, p]) ?? []);
+    setChats(data.map((c) => ({ ...c, other: map.get(c.customer_id === session!.user.id ? c.provider_id : c.customer_id) })));
+  }
 
   if (loading) return null;
   if (!session) return <Navigate to="/auth" />;
