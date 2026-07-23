@@ -1,12 +1,11 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth, type AppRole } from "@lib/auth-context";
+import { useAuth, type AppRole } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
 import {
   Car, Wrench, Power, Sun, Moon, Zap, ShieldCheck,
   Sparkles, ArrowUpLeft, Clock, MapPin, TrendingUp,
-  Star, Wallet, Users,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { toast } from "sonner";
@@ -43,17 +42,12 @@ function HomePage() {
 
   return (
     <MobileShell>
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-96 overflow-hidden">
-        <div className="absolute -top-16 -right-16 h-72 w-72 rounded-full bg-primary/20 blur-3xl animate-float" />
-        <div className="absolute -top-10 -left-24 h-64 w-64 rounded-full bg-accent/20 blur-3xl animate-float" style={{ animationDelay: "-3s" }} />
-      </div>
-
       <div className="relative px-5 pt-10 pb-6">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-6 animate-pop-in">
           <div>
             <div className="text-[11px] font-bold tracking-wider text-primary/80 uppercase">{greet}</div>
-            <div className="text-2xl font-black leading-tight mt-0.5">
+            <div className="text-2xl font-black leading-tight mt-0.5 text-foreground">
               {firstName} <span className="inline-block animate-float">👋</span>
             </div>
           </div>
@@ -143,15 +137,15 @@ function CustomerHome() {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
-        <MiniStat icon={<Clock className="h-4 w-4" />} label="وصول خلال" value="٣ د" accent="text-amber-500" />
-        <MiniStat icon={<MapPin className="h-4 w-4" />} label="تغطية" value="كل العراق" accent="text-sky-500" />
-        <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="مزودون" value="موثق" accent="text-emerald-500" />
+        <MiniStat icon={<Clock className="h-4 w-4" />} label="وصول خلال" value="٣ د" accent="text-amber-400" />
+        <MiniStat icon={<MapPin className="h-4 w-4" />} label="تغطية" value="كل العراق" accent="text-sky-400" />
+        <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="مزودون" value="موثق" accent="text-emerald-400" />
       </div>
 
       {/* Why us */}
       <div className="mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-black text-lg">لماذا ممنون؟</h3>
+          <h3 className="font-black text-lg text-foreground">لماذا ممنون؟</h3>
           <span className="text-[11px] text-muted-foreground">مميّزاتنا</span>
         </div>
         <div className="space-y-2.5">
@@ -171,7 +165,7 @@ function CustomerHome() {
             icon={<TrendingUp className="h-5 w-5" />}
             title="بدون عمولة"
             desc="تدفع للمزوّد مباشرة بدون وسطاء"
-            accent="from-sky-500 to-indigo-500"
+            accent="from-sky-500 to-cyan-400"
           />
         </div>
       </div>
@@ -202,7 +196,7 @@ function QuickTile({
         </div>
         <div>
           <div className="flex items-center gap-1">
-            <div className="font-black text-base">{title}</div>
+            <div className="font-black text-base text-foreground">{title}</div>
             <ArrowUpLeft className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</div>
@@ -216,7 +210,7 @@ function MiniStat({ icon, label, value, accent }: { icon: React.ReactNode; label
   return (
     <div className="glass rounded-2xl p-3 flex flex-col items-center text-center gap-0.5">
       <div className={accent}>{icon}</div>
-      <div className="font-black text-sm">{value}</div>
+      <div className="font-black text-sm text-foreground">{value}</div>
       <div className="text-[10px] text-muted-foreground">{label}</div>
     </div>
   );
@@ -231,7 +225,7 @@ function FeatureRow({
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-bold text-sm">{title}</div>
+        <div className="font-bold text-sm text-foreground">{title}</div>
         <div className="text-[11px] text-muted-foreground">{desc}</div>
       </div>
     </div>
@@ -318,16 +312,16 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       <div className="grid grid-cols-2 gap-2.5 animate-pop-in" style={{ animationDelay: "0.05s" }}>
         <div className="glass rounded-2xl p-4">
           <div className="text-xs text-muted-foreground">الطلبات المكتملة</div>
-          <div className="font-black text-2xl mt-1">{stats.jobs}</div>
+          <div className="font-black text-2xl mt-1 text-foreground">{stats.jobs}</div>
         </div>
         <div className="glass rounded-2xl p-4">
           <div className="text-xs text-muted-foreground">الطلبات المتاحة</div>
-          <div className="font-black text-2xl mt-1">{available ? requests.length : "—"}</div>
+          <div className="font-black text-2xl mt-1 text-foreground">{available ? requests.length : "—"}</div>
         </div>
       </div>
 
       <div>
-        <h3 className="font-black mb-3 mt-2">الطلبات المتاحة</h3>
+        <h3 className="font-black mb-3 mt-2 text-foreground">الطلبات المتاحة</h3>
         {!available && (
           <div className="glass rounded-2xl p-4 text-center text-sm text-muted-foreground">
             فعّل التوفر لعرض الطلبات
@@ -342,7 +336,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
           <div key={r.id} className="glass rounded-2xl p-4 mb-2.5 animate-pop-in" style={{ animationDelay: `${i * 0.04}s` }}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold truncate">📍 {r.pickup_text || "بدون عنوان"}</div>
+                <div className="text-sm font-bold truncate text-foreground">📍 {r.pickup_text || "بدون عنوان"}</div>
                 {r.dest_text && <div className="text-xs text-muted-foreground mt-1 truncate">🎯 {r.dest_text}</div>}
                 {r.notes && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">📝 {r.notes}</div>}
               </div>

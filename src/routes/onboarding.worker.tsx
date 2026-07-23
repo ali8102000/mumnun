@@ -4,7 +4,6 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Award, Star } from "lucide-react";
-import { grantProviderRole } from "@/lib/roles.functions";
 
 export const Route = createFileRoute("/onboarding/worker")({
   ssr: false,
@@ -14,7 +13,7 @@ export const Route = createFileRoute("/onboarding/worker")({
 interface Service { id: string; name_ar: string; slug: string }
 
 function OnboardingWorker() {
-  const { session, loading } = useAuth();
+  const { session, loading, refresh } = useAuth();
   const navigate = useNavigate();
   const [services, setServices] = useState<Service[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -54,7 +53,13 @@ function OnboardingWorker() {
       const rows = Array.from(selected).map((service_id) => ({ worker_id: uid, service_id }));
       const { error: sErr } = await supabase.from("worker_services").insert(rows);
       if (sErr) throw sErr;
-      await grantProviderRole({ data: { role: "worker" } });
+
+      const { error: roleErr } = await supabase.from("user_roles").insert({
+        user_id: uid, role: "worker",
+      });
+      if (roleErr && !roleErr.message.toLowerCase().includes("duplicate")) throw roleErr;
+
+      await refresh();
       toast.success("تم تفعيل ملفك");
       navigate({ to: "/home" });
     } catch (e: any) {
@@ -99,8 +104,8 @@ function OnboardingWorker() {
               type="button"
               onClick={() => toggle(s.id)}
               className={`glass rounded-2xl p-4 text-sm font-bold btn-press tap-highlight-none text-right transition ${
-                on ? "ring-2 ring-primary text-primary" : ""
-              }`
+                on ? "ring-2 ring-primary text-primary glow-primary" : ""
+              }`}
             >
               {s.name_ar}
             </button>

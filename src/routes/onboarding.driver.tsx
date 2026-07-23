@@ -4,7 +4,6 @@ import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Car, Check, Crown, Sparkles, Wallet } from "lucide-react";
-import { grantProviderRole } from "@/lib/roles.functions";
 
 export const Route = createFileRoute("/onboarding/driver")({
   ssr: false,
@@ -27,7 +26,7 @@ const CATEGORY_META: Record<string, { label: string; emoji: string; gradient: st
 };
 
 function OnboardingDriver() {
-  const { session, loading } = useAuth();
+  const { session, loading, refresh } = useAuth();
   const navigate = useNavigate();
   const [models, setModels] = useState<VehicleModel[]>([]);
   const [makeFilter, setMakeFilter] = useState<string>("");
@@ -65,7 +64,13 @@ function OnboardingDriver() {
         available: true,
       }, { onConflict: "user_id" });
       if (error) throw error;
-      await grantProviderRole({ data: { role: "driver" } });
+
+      const { error: roleErr } = await supabase.from("user_roles").insert({
+        user_id: session!.user.id, role: "driver",
+      });
+      if (roleErr && !roleErr.message.toLowerCase().includes("duplicate")) throw roleErr;
+
+      await refresh();
       toast.success(`تم تفعيل ملفك — ${CATEGORY_META[selected.category].label}`);
       navigate({ to: "/home" });
     } catch (e: any) {
@@ -79,84 +84,72 @@ function OnboardingDriver() {
 
   return (
     <div className="min-h-screen px-5 pt-10 pb-32">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 grid place-items-center shadow-card">
-          <Car className="h-6 w-6 text-white" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-black">ملف الكابتن</h1>
-          <p className="text-xs text-muted-foreground">اختر سيارتك — وسنحدد فئتها تلقائياً</p>
-        </div>
-      </div>
+      <h1 className="text-3xl font-black">ملف الكابتن</h1>
+      <p className="text-sm text-muted-foreground mt-2 mb-6">اختر سيارتك — وسنحدد فئتها تلقائياً</p>
 
       {cat && selected && (
-        <div className={`mb-4 rounded-3xl p-4 bg-gradient-to-br ${cat.gradient} text-white shadow-lg`}>
+        <div className={`rounded-3xl p-4 mb-5 bg-gradient-to-br ${cat.gradient} text-white shadow-elegant animate-pop-in`}>
           <div className="flex items-center gap-3">
-            <div className="text-3xl">{cat.emoji}</div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs opacity-90">فئتك</div>
+            <div className="text-4xl">{cat.emoji}</div>
+            <div>
+              <div className="text-xs opacity-80">فئتك</div>
               <div className="font-black text-lg">{cat.label}</div>
-              <div className="text-[11px] opacity-90">{cat.desc}</div>
+              <div className="text-[11px] opacity-80">{cat.desc}</div>
             </div>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-center">
-            <div className="rounded-xl bg-white/20 py-2">
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <div className="bg-white/15 rounded-2xl p-2.5">
               <div className="text-[10px] opacity-80">السعر الأساسي</div>
-              <div className="font-black text-sm">{Number(selected.base_fare).toLocaleString()} د.ع</div>
+              <div className="font-black">{Number(selected.base_fare).toLocaleString()} د.ع</div>
             </div>
-            <div className="rounded-xl bg-white/20 py-2">
+            <div className="bg-white/15 rounded-2xl p-2.5">
               <div className="text-[10px] opacity-80">لكل كيلومتر</div>
-              <div className="font-black text-sm">{Number(selected.per_km).toLocaleString()} د.ع</div>
+              <div className="font-black">{Number(selected.per_km).toLocaleString()} د.ع</div>
             </div>
           </div>
         </div>
       )}
 
-      <div className="mb-2 text-xs font-bold text-muted-foreground">الشركة المصنعة</div>
-      <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 mb-3">
-        <button onClick={() => setMakeFilter("")} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press ${!makeFilter ? "bg-primary text-primary-foreground" : "glass"}`}>الكل</button>
-        {makes.map((m) => (
-          <button key={m} onClick={() => setMakeFilter(m)} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press ${makeFilter === m ? "bg-primary text-primary-foreground" : "glass"}`}>{m}</button>
-        ))}
-      </div>
-
-      <div className="mb-2 text-xs font-bold text-muted-foreground">الموديل</div>
-      <div className="grid grid-cols-2 gap-2 mb-5">
-        {filtered.map((m) => {
-          const c = CATEGORY_META[m.category];
-          const active = selected?.id === m.id;
-          return (
-            <button
-              key={m.id}
-              onClick={() => setSelected(m)}
-              className={`relative text-right p-3 rounded-2xl btn-press transition-all ${active ? "bg-white ring-2 ring-primary shadow-md scale-[1.02]" : "bg-white/70"}`}
-            >
-              {active && <Check className="absolute top-2 left-2 h-4 w-4 text-primary" />}
-              <div className="flex items-center gap-2">
-                <div className={`h-9 w-9 rounded-xl bg-gradient-to-br ${c.gradient} grid place-items-center text-lg shadow`}>{c.emoji}</div>
-                <div className="min-w-0">
-                  <div className="text-xs text-muted-foreground truncate">{m.make}</div>
-                  <div className="font-black text-sm truncate">{m.model}</div>
-                </div>
-              </div>
-              <div className="mt-2 text-[10px] font-bold text-muted-foreground">{c.label}</div>
+      <div className="mb-3">
+        <div className="text-xs font-bold text-muted-foreground mb-2">الشركة المصنعة</div>
+        <div className="flex flex-wrap gap-2">
+          {makes.map((m) => (
+            <button key={m} onClick={() => setMakeFilter(m === makeFilter ? "" : m)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold btn-press ${makeFilter === m ? "bg-primary text-primary-foreground" : "glass"}`}>
+              {m}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      <div className="space-y-3">
-        <Field label="سنة الصنع" value={year} onChange={setYear} placeholder="2022" />
-        <Field label="رقم اللوحة" value={plate} onChange={setPlate} placeholder="مثال: 12345 بغداد" />
-        <Field label="لون السيارة (اختياري)" value={color} onChange={setColor} placeholder="مثال: أبيض" />
+      <div className="mb-5">
+        <div className="text-xs font-bold text-muted-foreground mb-2">الموديل</div>
+        <div className="grid grid-cols-2 gap-2.5">
+          {filtered.map((m) => {
+            const c = CATEGORY_META[m.category];
+            const active = selected?.id === m.id;
+            return (
+              <button key={m.id} onClick={() => setSelected(m)}
+                className={`glass rounded-2xl p-3 text-right btn-press transition ${active ? "ring-2 ring-primary glow-primary" : ""}`}>
+                <div className="text-sm font-black">{m.make} {m.model}</div>
+                <div className={`inline-flex items-center gap-1 mt-1 text-[10px] font-bold bg-gradient-to-r ${c.gradient} bg-clip-text text-transparent`}>
+                  {c.emoji} {c.label}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-3 mb-6">
+        <Field label="سنة الصنع" value={year} onChange={setYear} placeholder="2023" />
+        <Field label="رقم اللوحة" value={plate} onChange={setPlate} placeholder="بغداد ١٢٣٤٥" />
+        <Field label="اللون (اختياري)" value={color} onChange={setColor} placeholder="أبيض" />
       </div>
 
       <div className="fixed bottom-0 inset-x-0 p-4 glass-strong border-t border-border">
-        <button
-          disabled={busy || !selected}
-          onClick={submit}
-          className="w-full max-w-md mx-auto py-4 rounded-2xl bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-bold btn-press glow-primary disabled:opacity-50 flex items-center justify-center gap-2"
-        >
+        <button disabled={busy} onClick={submit}
+          className="w-full py-4 rounded-2xl bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-bold btn-press glow-primary disabled:opacity-50 flex items-center justify-center gap-2 max-w-md mx-auto">
           {busy && <Loader2 className="h-5 w-5 animate-spin" />}
           حفظ والمتابعة
           <ArrowLeft className="h-5 w-5" />
@@ -168,14 +161,10 @@ function OnboardingDriver() {
 
 function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
-    <label className="block">
-      <div className="text-xs font-bold text-muted-foreground mb-2">{label}</div>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-input border border-border rounded-2xl px-4 py-3.5 text-sm font-bold outline-none focus:border-ring"
-      />
-    </label>
+    <div>
+      <div className="text-xs font-bold text-muted-foreground mb-1.5">{label}</div>
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        className="w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-ring" />
+    </div>
   );
 }

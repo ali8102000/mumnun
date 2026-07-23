@@ -8,26 +8,26 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/select-role")({
   ssr: false, component: SelectRolePage });
 
-const roles: { id: AppRole; title: string; desc: string; icon: any; gradient: string; bg: string; perks: string[] }[] = [
+const roles: { id: AppRole; title: string; desc: string; icon: any; gradient: string; perks: string[] }[] = [
   {
     id: "customer", title: "زبون", desc: "اطلب تكسي أو خدمة منزلية بضغطة واحدة",
-    icon: User, gradient: "from-blue-500 to-cyan-400", bg: "from-sky-50 to-blue-50",
+    icon: User, gradient: "from-teal-500 to-cyan-400",
     perks: ["طلب سريع", "بدون عمولة", "تتبع مباشر"],
   },
   {
     id: "driver", title: "كابتن تكسي", desc: "استقبل طلبات الرحلات واكسب يومياً",
-    icon: Car, gradient: "from-amber-500 to-orange-500", bg: "from-amber-50 to-orange-50",
+    icon: Car, gradient: "from-amber-500 to-orange-500",
     perks: ["أرباح يومية", "ساعات مرنة", "طلب مستمر"],
   },
   {
     id: "worker", title: "فني خدمات", desc: "قدم خدمتك واستقبل طلبات في اختصاصك",
-    icon: Wrench, gradient: "from-emerald-500 to-teal-500", bg: "from-emerald-50 to-teal-50",
+    icon: Wrench, gradient: "from-emerald-500 to-teal-500",
     perks: ["١٦ تخصص", "أولوية للخبراء", "دخل إضافي"],
   },
 ];
 
 function SelectRolePage() {
-  const { session, refresh, loading } = useAuth();
+  const { session, roles: existingRoles, refresh, loading } = useAuth();
   const [picked, setPicked] = useState<AppRole | null>(null);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
@@ -58,7 +58,6 @@ function SelectRolePage() {
 
   return (
     <div className="min-h-screen flex flex-col px-5 pt-12 pb-8">
-      {/* Hero header */}
       <div className="mb-8 animate-pop-in">
         <div className="inline-flex items-center gap-1.5 rounded-full glass px-3 py-1 text-[10px] font-bold text-primary mb-4">
           <Sparkles className="h-3 w-3" /> مرحباً بك في ممنون
@@ -67,10 +66,10 @@ function SelectRolePage() {
         <p className="text-sm text-muted-foreground mt-2">يمكنك إضافة أدوار أخرى لاحقاً من الإعدادات</p>
       </div>
 
-      {/* Role cards */}
       <div className="space-y-4 flex-1">
         {roles.map(({ id, title, desc, icon: Icon, gradient, perks }, i) => {
           const active = picked === id;
+          const alreadyHas = existingRoles.includes(id);
           return (
             <button
               key={id}
@@ -78,8 +77,8 @@ function SelectRolePage() {
               onClick={() => setPicked(id)}
               className={`w-full text-right rounded-3xl p-5 btn-press tap-highlight-none transition-all animate-pop-in relative overflow-hidden ${
                 active
-                  ? "bg-white ring-2 ring-primary shadow-elegant glow-primary scale-[1.02]"
-                  : "glass hover:bg-white/80"
+                  ? "bg-white/90 dark:bg-white/5 ring-2 ring-primary shadow-elegant glow-primary scale-[1.02]"
+                  : "glass"
               }`}
               style={{ animationDelay: `${i * 0.08}s` }}
             >
@@ -91,7 +90,14 @@ function SelectRolePage() {
                   <Icon className="h-8 w-8 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xl font-black">{title}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-xl font-black">{title}</div>
+                    {alreadyHas && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600">
+                        <Check className="h-2.5 w-2.5" /> مفعّل
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground mt-1">{desc}</div>
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {perks.map((p) => (
@@ -110,7 +116,6 @@ function SelectRolePage() {
         })}
       </div>
 
-      {/* Trust badges */}
       <div className="flex items-center justify-center gap-4 mt-6 mb-4 text-[10px] text-muted-foreground">
         <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /> آمن</span>
         <span className="flex items-center gap-1"><Zap className="h-3.5 w-3.5 text-amber-500" /> سريع</span>
