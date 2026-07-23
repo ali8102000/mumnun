@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
-import { Search, UserPlus, Loader2, Users, Check, X, Phone, ArrowLeft } from "lucide-react";
+import { Search, UserPlus, Loader2, Users, Check, X, Phone } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/friends")({ ssr: false, component: FriendsPage });
@@ -33,6 +33,26 @@ function FriendsPage() {
     if (!session) return;
     loadFriends();
     loadRequests();
+
+    // Realtime: listen for new friend requests and accepted friends
+    const ch = supabase
+      .channel(`friend-reqs-${session.user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "friend_requests", filter: `receiver_id=eq.${session.user.id}` },
+        () => {
+          loadRequests();
+          toast.success("لديك طلب صداقة جديد!");
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "friends", filter: `user_id=eq.${session.user.id}` },
+        () => loadFriends()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
   }, [session]);
 
   async function loadFriends() {
