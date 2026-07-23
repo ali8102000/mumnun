@@ -1,11 +1,12 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth, type AppRole } from "@/lib/auth-context";
+import { useAuth, type AppRole } from "@lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
 import {
   Car, Wrench, Power, Sun, Moon, Zap, ShieldCheck,
   Sparkles, ArrowUpLeft, Clock, MapPin, TrendingUp,
+  Star, Wallet, Users,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { toast } from "sonner";
@@ -43,8 +44,8 @@ function HomePage() {
   return (
     <MobileShell>
       <div className="pointer-events-none absolute inset-x-0 top-0 h-96 overflow-hidden">
-        <div className="absolute -top-16 -right-16 h-72 w-72 rounded-full bg-primary/25 blur-3xl animate-float" />
-        <div className="absolute -top-10 -left-24 h-64 w-64 rounded-full bg-accent/25 blur-3xl animate-float" style={{ animationDelay: "-3s" }} />
+        <div className="absolute -top-16 -right-16 h-72 w-72 rounded-full bg-primary/20 blur-3xl animate-float" />
+        <div className="absolute -top-10 -left-24 h-64 w-64 rounded-full bg-accent/20 blur-3xl animate-float" style={{ animationDelay: "-3s" }} />
       </div>
 
       <div className="relative px-5 pt-10 pb-6">
@@ -109,7 +110,7 @@ function CustomerHome() {
     <div className="space-y-4">
       {/* Hero promo */}
       <div className="relative rounded-3xl p-6 overflow-hidden animate-pop-in shadow-elegant bg-gradient-to-br from-primary via-primary-glow to-accent text-primary-foreground">
-        <div className="absolute inset-0 shine opacity-40 mix-blend-overlay" />
+        <div className="absolute inset-0 shine opacity-30 mix-blend-overlay" />
         <div className="absolute -top-8 -left-8 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
         <div className="absolute -bottom-12 -right-4 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
         <div className="relative">
