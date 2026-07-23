@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { requestNotificationPermission, onForegroundMessage } from "@/lib/firebase";
 
 type Notif = {
   id: string;
@@ -50,8 +51,29 @@ export function NotificationsBell() {
         },
       )
       .subscribe();
+
+    // Register for Firebase Cloud Messaging push notifications
+    requestNotificationPermission().then((token) => {
+      if (token && uid) {
+        supabase.from("fcm_tokens").upsert({
+          user_id: uid,
+          token,
+        }, { onConflict: "user_id" }).then(({ error }: any) => {
+          if (error) console.warn("[fcm] token save error:", error.message);
+        });
+      }
+    });
+
+    // Listen for foreground FCM messages
+    const unsub = onForegroundMessage((payload: any) => {
+      const title = payload.notification?.title || "إشعار جديد";
+      const body = payload.notification?.body || "";
+      toast(title, { description: body });
+    });
+
     return () => {
       supabase.removeChannel(ch);
+      if (unsub) unsub();
     };
   }, [uid]);
 
@@ -64,8 +86,7 @@ export function NotificationsBell() {
       .update({ read_at: new Date().toISOString() })
       .eq("user_id", uid)
       .is("read_at", null);
-    setItems((cur) => cur.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
-  }
+    setItems((cur) => cur.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));  }
 
   if (!uid) return null;
 

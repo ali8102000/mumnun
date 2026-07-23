@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDsvSjzPIr4KyJ00dbIwTSczAMeQGeoTko",
@@ -20,4 +21,45 @@ if (typeof window !== "undefined") {
       })
     )
     .catch(() => {});
+}
+
+let messagingInstance: Messaging | null = null;
+
+export function getFCM(): Messaging | null {
+  if (typeof window === "undefined") return null;
+  if (!messagingInstance) {
+    try {
+      messagingInstance = getMessaging(firebaseApp);
+    } catch {
+      messagingInstance = null;
+    }
+  }
+  return messagingInstance;
+}
+
+export async function requestNotificationPermission(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  if (!("Notification" in window)) return null;
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") return null;
+  const fcm = getFCM();
+  if (!fcm) return null;
+  try {
+    const token = await getToken(fcm, {
+      vapidKey: "BDxHJt9E92tCiIlVQa36Nrq6HBeY8ss7M",
+    });
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+export function onForegroundMessage(cb: (payload: any) => void): (() => void) | null {
+  const fcm = getFCM();
+  if (!fcm) return null;
+  try {
+    return onMessage(fcm, cb);
+  } catch {
+    return null;
+  }
 }
