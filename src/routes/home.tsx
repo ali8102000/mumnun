@@ -4,8 +4,8 @@ import { useAuth, type AppRole } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
 import {
-  Car, Wrench, Power, Bell, Sun, Moon, Zap, ShieldCheck,
-  Sparkles, ArrowUpLeft, TrendingUp, Clock,
+  Car, Wrench, Power, Sun, Moon, Zap, ShieldCheck,
+  Sparkles, ArrowUpLeft, Clock, MapPin, TrendingUp,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { toast } from "sonner";
@@ -42,7 +42,6 @@ function HomePage() {
 
   return (
     <MobileShell>
-      {/* Ambient blobs */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-96 overflow-hidden">
         <div className="absolute -top-16 -right-16 h-72 w-72 rounded-full bg-primary/25 blur-3xl animate-float" />
         <div className="absolute -top-10 -left-24 h-64 w-64 rounded-full bg-accent/25 blur-3xl animate-float" style={{ animationDelay: "-3s" }} />
@@ -108,16 +107,17 @@ function HomePage() {
 function CustomerHome() {
   return (
     <div className="space-y-4">
-      {/* Hero promo — gradient card with shimmer */}
+      {/* Hero promo */}
       <div className="relative rounded-3xl p-6 overflow-hidden animate-pop-in shadow-elegant bg-gradient-to-br from-primary via-primary-glow to-accent text-primary-foreground">
         <div className="absolute inset-0 shine opacity-40 mix-blend-overlay" />
         <div className="absolute -top-8 -left-8 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+        <div className="absolute -bottom-12 -right-4 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
         <div className="relative">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-[10px] font-bold">
             <Sparkles className="h-3 w-3" /> مجاناً بلا عمولة
           </div>
-          <div className="text-2xl font-black mt-2 leading-tight">اطلب الآن، ادفع للمزوّد مباشرة</div>
-          <div className="text-xs opacity-90 mt-1">ممنون منصّة مجانية — بدون أي نسبة على طلبك</div>
+          <div className="text-2xl font-black mt-3 leading-tight">اطلب الآن<br/>ادفع للمزوّد مباشرة</div>
+          <div className="text-xs opacity-90 mt-2">ممنون منصّة مجانية — بدون أي نسبة على طلبك</div>
         </div>
       </div>
 
@@ -140,16 +140,17 @@ function CustomerHome() {
         />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
-        <MiniStat icon={<Clock className="h-4 w-4" />} label="أقل من" value="٣ د" />
-        <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="مزودون" value="موثق" />
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
+        <MiniStat icon={<Clock className="h-4 w-4" />} label="وصول خلال" value="٣ د" accent="text-amber-500" />
+        <MiniStat icon={<MapPin className="h-4 w-4" />} label="تغطية" value="كل العراق" accent="text-sky-500" />
+        <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="مزودون" value="موثق" accent="text-emerald-500" />
       </div>
 
       {/* Why us */}
       <div className="mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-black">لماذا ممنون؟</h3>
+          <h3 className="font-black text-lg">لماذا ممنون؟</h3>
           <span className="text-[11px] text-muted-foreground">مميّزاتنا</span>
         </div>
         <div className="space-y-2.5">
@@ -165,7 +166,12 @@ function CustomerHome() {
             desc="جميع المزوّدين موثّقون"
             accent="from-emerald-500 to-teal-400"
           />
-
+          <FeatureRow
+            icon={<TrendingUp className="h-5 w-5" />}
+            title="بدون عمولة"
+            desc="تدفع للمزوّد مباشرة بدون وسطاء"
+            accent="from-sky-500 to-indigo-500"
+          />
         </div>
       </div>
     </div>
@@ -205,10 +211,10 @@ function QuickTile({
   );
 }
 
-function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function MiniStat({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent: string }) {
   return (
     <div className="glass rounded-2xl p-3 flex flex-col items-center text-center gap-0.5">
-      <div className="text-primary">{icon}</div>
+      <div className={accent}>{icon}</div>
       <div className="font-black text-sm">{value}</div>
       <div className="text-[10px] text-muted-foreground">{label}</div>
     </div>
@@ -220,7 +226,7 @@ function FeatureRow({
 }: { icon: React.ReactNode; title: string; desc: string; accent: string }) {
   return (
     <div className="glass rounded-2xl p-3.5 flex items-center gap-3 btn-press">
-      <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${accent} grid place-items-center text-white shadow-md`}>
+      <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${accent} grid place-items-center text-white shadow-md shrink-0`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
@@ -308,9 +314,15 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
         </div>
       </div>
 
-      <div className="glass rounded-2xl p-4 animate-pop-in" style={{ animationDelay: "0.05s" }}>
-        <div className="text-xs text-muted-foreground">الطلبات المكتملة</div>
-        <div className="font-black text-lg mt-1">{stats.jobs}</div>
+      <div className="grid grid-cols-2 gap-2.5 animate-pop-in" style={{ animationDelay: "0.05s" }}>
+        <div className="glass rounded-2xl p-4">
+          <div className="text-xs text-muted-foreground">الطلبات المكتملة</div>
+          <div className="font-black text-2xl mt-1">{stats.jobs}</div>
+        </div>
+        <div className="glass rounded-2xl p-4">
+          <div className="text-xs text-muted-foreground">الطلبات المتاحة</div>
+          <div className="font-black text-2xl mt-1">{available ? requests.length : "—"}</div>
+        </div>
       </div>
 
       <div>

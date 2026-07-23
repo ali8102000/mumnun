@@ -48,9 +48,8 @@ function OnboardingWorker() {
       const uid = session!.user.id;
       const { error: pErr } = await supabase.from("worker_profiles").upsert({
         user_id: uid, level, bio, available: true,
-      });
+      }, { onConflict: "user_id" });
       if (pErr) throw pErr;
-      // wipe old then insert
       await supabase.from("worker_services").delete().eq("worker_id", uid);
       const rows = Array.from(selected).map((service_id) => ({ worker_id: uid, service_id }));
       const { error: sErr } = await supabase.from("worker_services").insert(rows);
@@ -101,7 +100,7 @@ function OnboardingWorker() {
               onClick={() => toggle(s.id)}
               className={`glass rounded-2xl p-4 text-sm font-bold btn-press tap-highlight-none text-right transition ${
                 on ? "ring-2 ring-primary text-primary" : ""
-              }`}
+              }`
             >
               {s.name_ar}
             </button>

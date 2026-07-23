@@ -63,7 +63,7 @@ function OnboardingDriver() {
         vehicle_plate: plate.trim(),
         vehicle_color: color.trim() || null,
         available: true,
-      });
+      }, { onConflict: "user_id" });
       if (error) throw error;
       await grantProviderRole({ data: { role: "driver" } });
       toast.success(`تم تفعيل ملفك — ${CATEGORY_META[selected.category].label}`);
@@ -89,7 +89,6 @@ function OnboardingDriver() {
         </div>
       </div>
 
-      {/* Category preview */}
       {cat && selected && (
         <div className={`mb-4 rounded-3xl p-4 bg-gradient-to-br ${cat.gradient} text-white shadow-lg`}>
           <div className="flex items-center gap-3">
@@ -113,7 +112,6 @@ function OnboardingDriver() {
         </div>
       )}
 
-      {/* Make filter */}
       <div className="mb-2 text-xs font-bold text-muted-foreground">الشركة المصنعة</div>
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 mb-3">
         <button onClick={() => setMakeFilter("")} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press ${!makeFilter ? "bg-primary text-primary-foreground" : "glass"}`}>الكل</button>
@@ -122,7 +120,6 @@ function OnboardingDriver() {
         ))}
       </div>
 
-      {/* Models grid */}
       <div className="mb-2 text-xs font-bold text-muted-foreground">الموديل</div>
       <div className="grid grid-cols-2 gap-2 mb-5">
         {filtered.map((m) => {
