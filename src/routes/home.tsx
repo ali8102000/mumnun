@@ -6,7 +6,7 @@ import { MobileShell } from "@/components/mobile-shell";
 import {
   Car, Wrench, Power, Sun, Moon, Zap, ShieldCheck,
   Sparkles, ArrowUpLeft, Clock, MapPin, TrendingUp,
-  Users, UserCheck, Send,
+  Users, Send,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { toast } from "sonner";
@@ -96,16 +96,19 @@ function HomePage() {
           <Link
             to="/friends"
             onClick={() => playClick("pop")}
-            className="glass rounded-2xl p-3 mb-4 flex items-center gap-3 btn-press tap-highlight-none animate-pop-in"
+            className="relative rounded-2xl p-4 mb-5 flex items-center gap-3 btn-press tap-highlight-none animate-pop-in overflow-hidden animate-pulse-glow"
+            style={{ background: "var(--gradient-friends)" }}
           >
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-primary-glow grid place-items-center text-primary-foreground shadow-md">
-              <Users className="h-5 w-5" />
+            <div className="absolute inset-0 shine opacity-25 mix-blend-overlay" />
+            <div className="absolute -top-6 -left-6 h-24 w-24 rounded-full bg-white/20 blur-2xl" />
+            <div className="relative h-12 w-12 rounded-2xl bg-white/25 backdrop-blur grid place-items-center text-friends-foreground shadow-lg">
+              <Users className="h-6 w-6" />
             </div>
-            <div className="flex-1">
-              <div className="font-bold text-sm text-foreground">الأصدقاء والتعاون</div>
-              <div className="text-[11px] text-muted-foreground">ابحث واضيف أصدقاء للعمل المشترك</div>
+            <div className="relative flex-1">
+              <div className="font-black text-sm text-friends-foreground">الأصدقاء والتعاون</div>
+              <div className="text-[11px] text-friends-foreground/80">ابحث واضيف أصدقاء للعمل المشترك</div>
             </div>
-            <ArrowUpLeft className="h-4 w-4 text-muted-foreground" />
+            <ArrowUpLeft className="relative h-5 w-5 text-friends-foreground" />
           </Link>
         )}
 
@@ -139,12 +142,12 @@ function CustomerHome() {
         <QuickTile to="/request/new" type="taxi" title="طلب سيارة" subtitle="خلال دقائق"
           icon={<Car className="h-7 w-7" />} gradient="from-amber-500 to-orange-500" span={2} delay={0.05} />
         <QuickTile to="/request/new" type="service" title="طلب فني" subtitle="١٦ خدمة"
-          icon={<Wrench className="h-6 w-6" />} gradient="from-emerald-500 to-teal-400" delay={0.1} />
+          icon={<Wrench className="h-6 w-6" />} gradient="from-blue-500 to-indigo-500" delay={0.1} />
       </div>
 
       <div className="grid grid-cols-3 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
         <MiniStat icon={<Clock className="h-4 w-4" />} label="وصول خلال" value="٣ د" accent="text-amber-500" />
-        <MiniStat icon={<MapPin className="h-4 w-4" />} label="تغطية" value="كل العراق" accent="text-sky-500" />
+        <MiniStat icon={<MapPin className="h-4 w-4" />} label="تغطية" value="كل العراق" accent="text-blue-500" />
         <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="مزودون" value="موثق" accent="text-emerald-500" />
       </div>
 
@@ -155,8 +158,8 @@ function CustomerHome() {
         </div>
         <div className="space-y-2.5">
           <FeatureRow icon={<Zap className="h-5 w-5" />} title="سرعة في الاستجابة" desc="نوصلك بأقرب مزوّد خدمة" accent="from-amber-500 to-orange-500" />
-          <FeatureRow icon={<ShieldCheck className="h-5 w-5" />} title="أمان مضمون" desc="جميع المزوّدين موثّقون" accent="from-emerald-500 to-teal-400" />
-          <FeatureRow icon={<TrendingUp className="h-5 w-5" />} title="بدون عمولة" desc="تدفع للمزوّد مباشرة بدون وسطاء" accent="from-sky-500 to-cyan-400" />
+          <FeatureRow icon={<ShieldCheck className="h-5 w-5" />} title="أمان مضمون" desc="جميع المزوّدين موثّقون" accent="from-blue-500 to-indigo-500" />
+          <FeatureRow icon={<TrendingUp className="h-5 w-5" />} title="بدون عمولة" desc="تدفع للمزوّد مباشرة بدون وسطاء" accent="from-amber-400 to-yellow-500" />
         </div>
       </div>
     </div>
@@ -253,7 +256,6 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     }
     loadRequests();
 
-    // Load friends for transfer feature (workers only)
     if (type === "service") {
       supabase.from("friends")
         .select("friend_id, profiles:friend_id(full_name)")
@@ -302,7 +304,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     <div className="space-y-4">
       <div className={`relative rounded-3xl p-5 overflow-hidden animate-pop-in shadow-card ${
         available
-          ? "bg-gradient-to-br from-emerald-500 to-teal-400 text-white"
+          ? "bg-gradient-to-br from-blue-500 to-indigo-500 text-white"
           : "glass"
       }`}>
         {available && <div className="absolute inset-0 shine opacity-30 mix-blend-overlay" />}
@@ -360,11 +362,11 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
                 >
                   قبول
                 </button>
-                {/* Transfer to friend — workers only */}
                 {type === "service" && friends.length > 0 && (
                   <button
                     onClick={() => setTransferModal(r.id)}
-                    className="px-4 py-2 rounded-xl bg-surface-2 text-foreground font-bold text-xs btn-press flex items-center gap-1"
+                    className="px-4 py-2 rounded-xl text-friends-foreground font-bold text-xs btn-press flex items-center gap-1"
+                    style={{ background: "var(--gradient-friends)" }}
                   >
                     <Send className="h-3 w-3" />
                     تحويل
@@ -376,7 +378,6 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
         ))}
       </div>
 
-      {/* Transfer modal */}
       {transferModal && (
         <div className="fixed inset-0 z-50 grid place-items-center p-5 bg-black/40 backdrop-blur-sm" onClick={() => setTransferModal(null)}>
           <div className="glass-strong rounded-3xl p-5 w-full max-w-sm animate-pop-in" onClick={(e) => e.stopPropagation()}>
@@ -389,11 +390,12 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
                   onClick={() => transferToFriend(transferModal, f.friend_id)}
                   className="w-full flex items-center gap-3 bg-surface-2 rounded-xl p-3 btn-press text-right"
                 >
-                  <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary/30 to-primary-glow/30 grid place-items-center font-black text-primary text-sm">
+                  <div className="h-9 w-9 rounded-lg grid place-items-center font-black text-sm text-friends-foreground"
+                    style={{ background: "var(--gradient-friends)" }}>
                     {(f.profiles?.full_name || "?").charAt(0)}
                   </div>
                   <div className="flex-1 text-sm font-bold text-foreground">{f.profiles?.full_name || "مستخدم"}</div>
-                  <Send className="h-4 w-4 text-primary" />
+                  <Send className="h-4 w-4 text-friends" />
                 </button>
               ))}
             </div>
