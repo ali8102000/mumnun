@@ -5,15 +5,8 @@ import type { ProviderPin } from "@/lib/use-nearby-providers";
 
 type Coords = { lat: number; lng: number };
 
-const DEFAULT_CENTER: Coords = { lat: 33.3152, lng: 44.3661 }; // Baghdad
+const DEFAULT_CENTER: Coords = { lat: 33.3152, lng: 44.3661 };
 
-/**
- * Baly-style map picker:
- *  - Auto-detects current location on mount and drops the pin there.
- *  - Center-of-map pin (not a draggable marker) — user pans the map to pick.
- *  - Places autocomplete search bar (Iraq-biased, Arabic).
- *  - Recenter-to-me FAB.
- */
 export function MapPicker({
   value,
   onChange,
@@ -50,6 +43,8 @@ export function MapPicker({
     Map<string, { marker: any; anim: { from: Coords; to: Coords; startedAt: number; raf: number | null; heading: number } | null }>
   >(new Map());
   const readyRef = useRef(false);
+  const searchDebounceRef = useRef<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -77,7 +72,6 @@ export function MapPicker({
           placesSvcRef.current = new g.maps.places.PlacesService(map);
         } catch {}
 
-        // Debounced idle → propagate center as new pin
         map.addListener("idle", () => {
           if (suppressIdleRef.current) {
             suppressIdleRef.current = false;
@@ -95,7 +89,6 @@ export function MapPicker({
         setLoading(false);
         readyRef.current = true;
 
-        // Auto-locate if we have no initial value
         if (!value) {
           autoLocate(map);
         } else {
@@ -109,16 +102,17 @@ export function MapPicker({
     return () => {
       cancelled = true;
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
       nearbyMarkersRef.current.forEach((v) => {
         if (v.anim?.raf) cancelAnimationFrame(v.anim.raf);
         v.marker?.setMap?.(null);
       });
       nearbyMarkersRef.current.clear();
+      readyRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync nearby-provider markers with smooth interpolation
   useEffect(() => {
     if (!readyRef.current || !mapRef.current) return;
     const g = (window as any).google;
@@ -127,7 +121,6 @@ export function MapPicker({
     const store = nearbyMarkersRef.current;
     const incoming = new Set((nearby ?? []).map((p) => p.pin_id));
 
-    // Remove stale
     store.forEach((v, id) => {
       if (!incoming.has(id)) {
         if (v.anim?.raf) cancelAnimationFrame(v.anim.raf);
@@ -174,7 +167,6 @@ export function MapPicker({
       }
       const cur = existing.marker.getPosition();
       const from: Coords = cur ? { lat: cur.lat(), lng: cur.lng() } : target;
-      // Skip if unchanged (< ~2m)
       const dLat = target.lat - from.lat;
       const dLng = target.lng - from.lng;
       if (Math.abs(dLat) < 2e-5 && Math.abs(dLng) < 2e-5) {
@@ -230,7 +222,6 @@ export function MapPicker({
     );
   }
 
-  // Keep map in sync when parent updates value externally
   useEffect(() => {
     if (!mapRef.current || !value) return;
     const c = mapRef.current.getCenter();
@@ -240,33 +231,32 @@ export function MapPicker({
     mapRef.current.panTo(value);
   }, [value?.lat, value?.lng]);
 
-  function handleSearchInput(q: string) {
-    if (!acServiceRef.current || !q.trim()) {
-      setSuggestions([]);
-      return;
-    }
-    acServiceRef.current.getPlacePredictions(
-      {
-        input: q,
-        language: "ar",
-        componentRestrictions: { country: "iq" },
-        sessionToken: sessionTokenRef.current,
-      },
-      (preds: any[], status: any) => {
-        if (status !== "OK" || !preds) {
-          setSuggestions([]);
-          return;
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!searchQuery.trim()) { setSuggestions([]); return; }
+    searchDebounceRef.current = setTimeout(() => {
+      if (!acServiceRef.current) return;
+      acServiceRef.current.getPlacePredictions(
+        {
+          input: searchQuery,
+          language: "ar",
+          componentRestrictions: { country: "iq" },
+          sessionToken: sessionTokenRef.current,
+        },
+        (preds: any[], status: any) => {
+          if (status !== "OK" || !preds) { setSuggestions([]); return; }
+          setSuggestions(
+            preds.slice(0, 6).map((p) => ({
+              id: p.place_id,
+              text: p.structured_formatting?.main_text ?? p.description,
+              secondary: p.structured_formatting?.secondary_text ?? "",
+            }))
+          );
         }
-        setSuggestions(
-          preds.slice(0, 6).map((p) => ({
-            id: p.place_id,
-            text: p.structured_formatting?.main_text ?? p.description,
-            secondary: p.structured_formatting?.secondary_text ?? "",
-          }))
-        );
-      }
-    );
-  }
+      );
+    }, 300);
+    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+  }, [searchQuery]);
 
   function pickSuggestion(id: string, label: string) {
     if (!placesSvcRef.current) return;
@@ -282,7 +272,7 @@ export function MapPicker({
         setAddress(addr);
         setSearchOpen(false);
         setSuggestions([]);
-        if (inputRef.current) inputRef.current.value = "";
+        setSearchQuery("");
         suppressIdleRef.current = true;
         if (mapRef.current) {
           mapRef.current.panTo(p);
@@ -297,7 +287,6 @@ export function MapPicker({
     <div className="relative rounded-3xl overflow-hidden border border-border shadow-sm" style={{ height }}>
       <div ref={containerRef} className="absolute inset-0" style={{ background: "#e5edf5" }} />
 
-      {/* Search bar */}
       {!loading && !error && (
         <div className="absolute top-3 left-3 right-3 z-10">
           <div className="flex items-center gap-2 bg-white rounded-2xl shadow-lg px-3 py-2">
@@ -305,7 +294,8 @@ export function MapPicker({
             <input
               ref={inputRef}
               onFocus={() => setSearchOpen(true)}
-              onChange={(e) => handleSearchInput(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={placeholder}
               className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
             />
@@ -315,7 +305,7 @@ export function MapPicker({
                 onClick={() => {
                   setSearchOpen(false);
                   setSuggestions([]);
-                  if (inputRef.current) inputRef.current.value = "";
+                  setSearchQuery("");
                 }}
                 className="text-muted-foreground"
                 aria-label="إغلاق"
@@ -347,7 +337,6 @@ export function MapPicker({
         </div>
       )}
 
-      {/* Center pin */}
       {!loading && !error && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center z-[5]">
           <div className="flex flex-col items-center -translate-y-3">
@@ -362,7 +351,6 @@ export function MapPicker({
         </div>
       )}
 
-      {/* Address readout */}
       {!loading && !error && address && (
         <div className="absolute bottom-3 left-3 right-16 bg-white/95 backdrop-blur rounded-2xl px-3 py-2 shadow-lg z-10">
           <div className="text-[10px] uppercase tracking-wide text-muted-foreground">الموقع المحدد</div>
@@ -384,7 +372,6 @@ export function MapPicker({
         </div>
       )}
 
-      {/* Recenter FAB */}
       {!loading && !error && (
         <button
           type="button"
