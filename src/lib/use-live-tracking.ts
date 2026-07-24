@@ -3,10 +3,19 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Coords = { lat: number; lng: number; heading?: number | null };
 
-/**
- * Live location tracking hook: pushes my location to the server and
- * subscribes to the other party's location via realtime.
- */
+const MIN_DISTANCE_M = 15;
+const MAX_INTERVAL_MS = 4000;
+
+function distanceMeters(a: Coords, b: Coords): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 export function useLiveTracking(opts: {
   requestId: string | null;
   myUserId: string | null;
@@ -18,10 +27,20 @@ export function useLiveTracking(opts: {
   const [me, setMe] = useState<Coords | null>(null);
   const [other, setOther] = useState<Coords | null>(null);
   const watchRef = useRef<number | null>(null);
+  const lastPushRef = useRef<Coords | null>(null);
+  const lastPushTimeRef = useRef<number>(0);
 
-  // Push my location to the server
   const push = (lat: number, lng: number, heading: number | null) => {
     if (!requestId || !myUserId) return;
+    const now = Date.now();
+    const coords: Coords = { lat, lng, heading };
+    if (lastPushRef.current) {
+      const dist = distanceMeters(lastPushRef.current, coords);
+      const elapsed = now - lastPushTimeRef.current;
+      if (dist < MIN_DISTANCE_M && elapsed < MAX_INTERVAL_MS) return;
+    }
+    lastPushRef.current = coords;
+    lastPushTimeRef.current = now;
     supabase
       .from("live_locations")
       .upsert(
@@ -41,24 +60,26 @@ export function useLiveTracking(opts: {
       });
   };
 
-  // Watch my GPS and push
   useEffect(() => {
     if (!active || !navigator.geolocation) return;
-    navigator.geolocation.watchPosition(
+    const id = navigator.geolocation.watchPosition(
       (pos) => {
         const c = { lat: pos.coords.latitude, lng: pos.coords.longitude, heading: pos.coords.heading };
         setMe(c);
         push(c.lat, c.lng, c.heading ?? null);
       },
       (err) => { console.warn("[live-tracking] geolocation error:", err.message); },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 }
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
     );
+    watchRef.current = id;
     return () => {
-      if (watchRef.current != null) navigator.geolocation.clearWatch(watchRef.current);
+      if (watchRef.current != null) {
+        navigator.geolocation.clearWatch(watchRef.current);
+        watchRef.current = null;
+      }
     };
   }, [active, requestId, myUserId, myRole]);
 
-  // Subscribe to other party's location
   useEffect(() => {
     if (!active || !requestId || !otherUserId) return;
     const ch = supabase
@@ -73,9 +94,10 @@ export function useLiveTracking(opts: {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") console.warn("[live-tracking] channel error");
+      });
 
-    // Also fetch initial
     supabase
       .from("live_locations")
       .select("*")
