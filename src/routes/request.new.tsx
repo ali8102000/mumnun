@@ -94,7 +94,6 @@ function NewRequest() {
     active: !!pickupCoords,
   });
 
-
   useEffect(() => {
     if (type === "service") {
       supabase.from("services").select("id, slug, name_ar").order("sort_order").then(({ data }) => {
@@ -102,8 +101,6 @@ function NewRequest() {
       });
     }
   }, [type]);
-
-
 
   if (loading) return null;
   if (!session) return <Navigate to="/auth" />;
@@ -137,8 +134,8 @@ function NewRequest() {
         vehicle_category: type === "taxi" ? vehicleCategory : null,
         price_estimate: priceEstimate,
         pickup_text: pickupLabel,
-        pickup_lat: pickupCoords.lat,
-        pickup_lng: pickupCoords.lng,
+        pickup_lat: pickupCoords?.lat ?? null,
+        pickup_lng: pickupCoords?.lng ?? null,
         dest_text: destLabel || destText || null,
         dest_lat: destCoords?.lat ?? null,
         dest_lng: destCoords?.lng ?? null,
@@ -286,7 +283,6 @@ function NewRequest() {
         </>
       )}
 
-      {/* Single unified map — two-step: pickup then destination */}
       <div className="mt-2 mb-2 flex items-center gap-2">
         <div className={`flex-1 text-sm font-bold transition-colors ${mapStep === "pickup" ? "text-primary" : "text-muted-foreground"}`}>
           ١. موقع {type === "taxi" ? "الانطلاق" : "الخدمة"}
@@ -312,7 +308,6 @@ function NewRequest() {
           }
         }}
       />
-      {/* Selected points summary */}
       <div className="mt-2 space-y-2">
         {pickupLabel && (
           <button onClick={() => setMapStep("pickup")} className={`w-full glass rounded-2xl p-3 flex items-center gap-2 text-right transition ${mapStep === "pickup" ? "ring-2 ring-sky-500" : ""}`}>
@@ -329,7 +324,6 @@ function NewRequest() {
           </button>
         )}
       </div>
-      {/* Step switch buttons */}
       {type === "taxi" && pickupCoords && (
         <div className="mt-3 flex gap-2">
           {mapStep === "pickup" && (
