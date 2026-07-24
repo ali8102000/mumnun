@@ -3,7 +3,6 @@ import { useMemo } from "react";
 type Role = "customer" | "provider";
 type ReqType = "taxi" | "service";
 
-// Iraqi dialect quick replies, tailored per role and request type.
 const REPLIES: Record<Role, Record<ReqType, string[]>> = {
   customer: {
     taxi: [
@@ -33,7 +32,7 @@ const REPLIES: Record<Role, Record<ReqType, string[]>> = {
       "وصلت لباب البيت",
       "بگه دقيقتين واوصل",
       "زحمة، أتأخر شوية",
-      "أنا واگف بسيارة {اللون}",
+      "أنا واگف بسيارة بيضة",
       "طلع لو سمحت",
       "أهلاً وسهلاً",
       "شكراً على الرحلة",
