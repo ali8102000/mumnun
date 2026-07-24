@@ -15,16 +15,11 @@ type Offer = {
   status: string;
 };
 
-/**
- * Full-screen incoming-offer popup for drivers (Baly/Uber-style):
- *  - Slides in over everything, pulses, plays a repeating beep and vibrates.
- *  - Shows a 20s countdown with a shrinking progress ring.
- *  - Accept / Reject buttons hit the atomic dispatch server fn.
- */
 export function DriverOfferPopup() {
   const { session, roles } = useAuth();
   const navigate = useNavigate();
   const respond = useServerFn(respondToOffer);
+  const offerRef = useRef<Offer | null>(null);
   const [offer, setOffer] = useState<Offer | null>(null);
   const [request, setRequest] = useState<any>(null);
   const [secondsLeft, setSecondsLeft] = useState(45);
@@ -35,7 +30,8 @@ export function DriverOfferPopup() {
   const uid = session?.user.id;
   const isDriver = roles.includes("driver");
 
-  // Subscribe to new offers for this driver
+  useEffect(() => { offerRef.current = offer; }, [offer]);
+
   useEffect(() => {
     if (!uid || !isDriver) return;
     const ch = supabase
@@ -51,12 +47,13 @@ export function DriverOfferPopup() {
         async (payload: any) => {
           const o = payload.new as Offer;
           if (o.status !== "pending") return;
-          if (offer) return;
-          const { data: r } = await supabase
+          if (offerRef.current) return;
+          const { data: r, error } = await supabase
             .from("service_requests")
             .select("*")
             .eq("id", o.request_id)
-            .single();
+            .maybeSingle();
+          if (error || !r) return;
           setRequest(r);
           setOffer(o);
         },
@@ -65,9 +62,8 @@ export function DriverOfferPopup() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [uid, isDriver, offer]);
+  }, [uid, isDriver]);
 
-  // Countdown
   useEffect(() => {
     if (!offer) return;
     const expiresAt = new Date(offer.expires_at).getTime();
@@ -86,7 +82,6 @@ export function DriverOfferPopup() {
     return () => clearInterval(id);
   }, [offer]);
 
-  // Beep + vibrate while offer is visible
   useEffect(() => {
     if (!offer) return;
     try {
@@ -115,6 +110,10 @@ export function DriverOfferPopup() {
     return () => {
       if (beepIntervalRef.current) clearInterval(beepIntervalRef.current);
       beepIntervalRef.current = null;
+      if (audioCtxRef.current) {
+        try { audioCtxRef.current.close(); } catch {}
+        audioCtxRef.current = null;
+      }
     };
   }, [offer]);
 
@@ -160,7 +159,6 @@ export function DriverOfferPopup() {
             : "0 0 60px rgba(59,130,246,0.4), 0 0 30px rgba(59,130,246,0.25)",
         }}
       >
-        {/* Header with big countdown ring */}
         <div className="flex flex-col items-center mb-5">
           <div className="text-xs font-bold text-muted-foreground tracking-widest mb-3">
             🚕 طلب رحلة جديد
