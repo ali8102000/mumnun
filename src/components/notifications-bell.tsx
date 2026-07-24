@@ -4,7 +4,6 @@ import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
-import { requestNotificationPermission, onForegroundMessage } from "@/lib/firebase";
 
 type Notif = {
   id: string;
@@ -30,7 +29,10 @@ export function NotificationsBell() {
       .eq("user_id", uid)
       .order("created_at", { ascending: false })
       .limit(30)
-      .then(({ data }: any) => setItems(data ?? []));
+      .then(({ data, error }: any) => {
+        if (error) console.warn("[notifications] fetch error:", error.message);
+        setItems(data ?? []);
+      });
 
     const ch = supabase
       .channel(`notif-${uid}`)
@@ -51,29 +53,8 @@ export function NotificationsBell() {
         },
       )
       .subscribe();
-
-    // Register for Firebase Cloud Messaging push notifications
-    requestNotificationPermission().then((token) => {
-      if (token && uid) {
-        supabase.from("fcm_tokens").upsert({
-          user_id: uid,
-          token,
-        }, { onConflict: "user_id" }).then(({ error }: any) => {
-          if (error) console.warn("[fcm] token save error:", error.message);
-        });
-      }
-    });
-
-    // Listen for foreground FCM messages
-    const unsub = onForegroundMessage((payload: any) => {
-      const title = payload.notification?.title || "إشعار جديد";
-      const body = payload.notification?.body || "";
-      toast(title, { description: body });
-    });
-
     return () => {
       supabase.removeChannel(ch);
-      if (unsub) unsub();
     };
   }, [uid]);
 
@@ -81,12 +62,14 @@ export function NotificationsBell() {
 
   async function markAll() {
     if (!uid) return;
-    await (supabase as any)
+    const { error } = await (supabase as any)
       .from("notifications")
       .update({ read_at: new Date().toISOString() })
       .eq("user_id", uid)
       .is("read_at", null);
-    setItems((cur) => cur.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));  }
+    if (error) { toast.error("تعذّر تعليم الإشعارات"); return; }
+    setItems((cur) => cur.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+  }
 
   if (!uid) return null;
 
@@ -134,7 +117,7 @@ export function NotificationsBell() {
                     key={n.id}
                     className={`rounded-2xl border border-border p-3 ${!n.read_at ? "bg-primary/5" : "bg-card"}`}
                   >
-                    {n.link ? (
+                    {n.link && n.link.startsWith("/") ? (
                       <Link to={n.link as any} onClick={() => setOpen(false)} className="block">
                         <div className="font-bold text-sm">{n.title}</div>
                         {n.body && <div className="text-xs text-muted-foreground mt-1">{n.body}</div>}
