@@ -56,7 +56,7 @@ export const dispatchRequest = createServerFn({ method: "POST" })
     const { error: insErr } = await supabaseAdmin.from("request_offers" as any).upsert(rows, {
       onConflict: "request_id,provider_id",
     });
-    if (insErr) throw new Error(insErr.message);
+    if (insErr) throw new Error("Failed to create offers");
 
     const notifs = drivers.map((d: any) => ({
       user_id: d.user_id,
@@ -115,7 +115,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
       .select("id, customer_id")
       .maybeSingle();
 
-    if (updErr) throw new Error(updErr.message);
+    if (updErr) throw new Error("Failed to accept request");
     if (!updated) throw new Error("الطلب لم يعد متاحاً");
 
     await (supabaseAdmin as any)
@@ -409,7 +409,7 @@ export const acceptServiceRequest = createServerFn({ method: "POST" })
       .select("id, customer_id")
       .maybeSingle();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error("Failed to grant role");
     if (!updated) throw new Error("الطلب لم يعد متاحاً");
 
     await supabaseAdmin
