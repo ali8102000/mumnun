@@ -2,13 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage, type Messaging } from "firebase/messaging";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDsvSjzPIr4KyJ00dbIwTSczAMeQGeoTko",
-  authDomain: "kafo-iraq.firebaseapp.com",
-  projectId: "kafo-iraq",
-  storageBucket: "kafo-iraq.firebasestorage.app",
-  messagingSenderId: "519280841491",
-  appId: "1:519280841491:web:3b05c309cacc9b488300e6",
-  measurementId: "G-ZT52H353BD",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID as string,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID as string,
 };
 
 export const firebaseApp = initializeApp(firebaseConfig);
@@ -46,7 +46,7 @@ export async function requestNotificationPermission(): Promise<string | null> {
   if (!fcm) return null;
   try {
     const token = await getToken(fcm, {
-      vapidKey: "BDxHJt9E92tCiIlVQa36Nrq6HBeY8ss7M",
+      vapidKey: import.meta.env.VITE_FIREBASE_VAPID_KEY as string,
     });
     return token;
   } catch {

@@ -13,20 +13,21 @@ export const grantProviderRole = createServerFn({ method: "POST" })
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // Require the corresponding provider profile to exist before granting the role.
     const table = data.role === "driver" ? "driver_profiles" : "worker_profiles";
     const { data: prof, error: profErr } = await supabaseAdmin
       .from(table)
       .select("user_id")
       .eq("user_id", userId)
       .maybeSingle();
-    if (profErr) throw new Error(profErr.message);
+    if (profErr) throw new Error("Profile lookup failed");
     if (!prof) throw new Error("Provider profile required before granting role");
 
     const { error } = await supabaseAdmin
       .from("user_roles")
       .insert({ user_id: userId, role: data.role });
     if (error && !error.message.toLowerCase().includes("duplicate")) {
-      throw new Error(error.message);
+      throw new Error("Failed to grant role");
     }
     return { ok: true };
   });
