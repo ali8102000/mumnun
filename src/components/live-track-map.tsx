@@ -4,7 +4,6 @@ import { Loader2 } from "lucide-react";
 
 type Coords = { lat: number; lng: number; heading?: number | null };
 
-// Haversine distance in km
 function haversineKm(a: Coords, b: Coords) {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
@@ -17,7 +16,6 @@ function haversineKm(a: Coords, b: Coords) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
 
-// Initial bearing from a→b (deg 0..360)
 function bearingDeg(a: Coords, b: Coords) {
   const φ1 = (a.lat * Math.PI) / 180;
   const φ2 = (b.lat * Math.PI) / 180;
@@ -27,15 +25,10 @@ function bearingDeg(a: Coords, b: Coords) {
   const x =
     Math.cos(φ1) * Math.sin(φ2) -
     Math.sin(φ1) * Math.cos(φ2) * Math.cos(λ2 - λ1);
-  return (Math.atan2(y, x) * 180) / Math.PI;
+  const deg = (Math.atan2(y, x) * 180) / Math.PI;
+  return (deg + 360) % 360;
 }
 
-/**
- * Read-only live map with SMOOTH interpolation between position updates.
- * - The "other" marker glides toward each new server position over ~1.2s via rAF.
- * - Marker heading rotates to travel bearing when GPS heading is missing.
- * - Camera softly follows midpoint; auto-fits on first fix.
- */
 export function LiveTrackMap({
   me,
   other,
@@ -59,7 +52,6 @@ export function LiveTrackMap({
   const readyRef = useRef(false);
   const didFitRef = useRef(false);
 
-  // Interpolation state for "other" marker
   const otherAnimRef = useRef<{
     from: Coords;
     to: Coords;
@@ -75,6 +67,7 @@ export function LiveTrackMap({
     let cancelled = false;
     loadGoogleMaps().then((g) => {
       if (cancelled || !ref.current) return;
+      if (!g) return;
       const center = me ?? other ?? { lat: 33.3152, lng: 44.3661 };
       const map = new g.maps.Map(ref.current, {
         center,
@@ -86,11 +79,17 @@ export function LiveTrackMap({
       });
       mapRef.current = map;
       readyRef.current = true;
-      apply(/*animate*/ false);
+      apply(false);
     });
     return () => {
       cancelled = true;
       if (otherAnimRef.current?.raf) cancelAnimationFrame(otherAnimRef.current.raf);
+      if (meMarkerRef.current) meMarkerRef.current.setMap(null);
+      if (otherMarkerRef.current) otherMarkerRef.current.setMap(null);
+      if (lineRef.current) lineRef.current.setMap(null);
+      if (mapRef.current) { mapRef.current = null; }
+      readyRef.current = false;
+      didFitRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -180,10 +179,8 @@ export function LiveTrackMap({
     const map = mapRef.current;
     if (!g || !map) return;
 
-    // "me" marker → snap (own device updates rapidly already)
     meMarkerRef.current = upsertDot(meMarkerRef.current, me, meColor, "أنا", false);
 
-    // "other" marker → interpolate
     if (!other) {
       if (otherMarkerRef.current) otherMarkerRef.current.setMap(null);
       otherMarkerRef.current = null;
@@ -198,7 +195,6 @@ export function LiveTrackMap({
         const from: Coords = cur
           ? { lat: cur.lat(), lng: cur.lng() }
           : other;
-        // Skip micro-jitter (< ~2m)
         if (haversineKm(from, other) * 1000 < 2) {
           setMarkerPosition(otherMarkerRef.current, other, other.heading ?? null);
         } else {
@@ -220,7 +216,6 @@ export function LiveTrackMap({
             if (!s || !otherMarkerRef.current) return;
             const now = performance.now();
             const t = Math.min(1, (now - s.startedAt) / s.duration);
-            // easeInOutQuad
             const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
             const lat = s.from.lat + (s.to.lat - s.from.lat) * e;
             const lng = s.from.lng + (s.to.lng - s.from.lng) * e;
@@ -240,11 +235,9 @@ export function LiveTrackMap({
 
     drawLine();
 
-    // Distance readout
     if (me && other) setDistanceKm(haversineKm(me, other));
     else setDistanceKm(null);
 
-    // Camera: fit once, then softly follow midpoint
     if (me && other) {
       if (!didFitRef.current) {
         const bounds = new g.maps.LatLngBounds();
@@ -266,7 +259,7 @@ export function LiveTrackMap({
   useEffect(() => {
     if (readyRef.current) apply(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [me?.lat, me?.lng, other?.lat, other?.lng, other?.heading]);
+  }, [me?.lat, me?.lng, other?.lat, other?.lng, other?.heading, follow, meColor, otherColor]);
 
   const etaMin =
     distanceKm != null ? Math.max(1, Math.round((distanceKm / 30) * 60)) : null;
