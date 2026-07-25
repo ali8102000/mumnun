@@ -29,6 +29,7 @@ export function useLiveTracking(opts: {
   const watchRef = useRef<number | null>(null);
   const lastPushRef = useRef<Coords | null>(null);
   const lastPushTimeRef = useRef<number>(0);
+  const channelRef = useRef<string>("");
 
   const push = (lat: number, lng: number, heading: number | null) => {
     if (!requestId || !myUserId) return;
@@ -82,8 +83,10 @@ export function useLiveTracking(opts: {
 
   useEffect(() => {
     if (!active || !requestId || !otherUserId) return;
+    const chName = `live-${requestId}-${Math.random().toString(36).slice(2, 8)}`;
+    channelRef.current = chName;
     const ch = supabase
-      .channel(`live-${requestId}`)
+      .channel(chName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "live_locations", filter: `request_id=eq.${requestId}` },

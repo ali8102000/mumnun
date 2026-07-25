@@ -8,12 +8,6 @@ export type ProviderPin = {
   heading: number | null;
 };
 
-/**
- * Loads and live-updates nearby driver/worker pins for the map.
- * - Polls the anonymized RPC every `refreshMs` (default 8s).
- * - Also refreshes on realtime hint from `live_locations` (debounced).
- * - Cheap: RPC returns only lat/lng/heading + anonymized pin id.
- */
 export function useNearbyProviders(opts: {
   center: { lat: number; lng: number } | null;
   type: "taxi" | "service";
@@ -61,7 +55,6 @@ export function useNearbyProviders(opts: {
         } as any);
         if (cancelled) return;
         if (error) {
-          // Silently drop — map still usable without pins.
           return;
         }
         const rows = (data ?? []) as any[];
@@ -81,9 +74,9 @@ export function useNearbyProviders(opts: {
     fetchPins();
     timerRef.current = setInterval(fetchPins, refreshMs);
 
-    // Realtime nudge: any live_locations change triggers a debounced refetch
+    const chName = `nearby-pins-${type}-${Math.random().toString(36).slice(2, 8)}`;
     const ch = supabase
-      .channel(`nearby-pins-${type}`)
+      .channel(chName)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "live_locations" },
