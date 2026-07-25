@@ -232,7 +232,7 @@ function RequestDetail() {
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm truncate">{other.full_name || "مستخدم"}</div>
               <div className="text-xs text-muted-foreground" dir="ltr">{other.phone}</div>
-              {otherRep?.badges?.length > 0 && (
+              {otherRep && otherRep.badges && otherRep.badges.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-1">
                   {otherRep.badges.map((b) => (
                     <ReputationBadge key={b.code} badge={b} size="sm" />
