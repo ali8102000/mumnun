@@ -72,87 +72,77 @@ function SubscriptionsAdmin() {
   const [settings, setSettings] = useState<any>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [subs, setSubs] = useState<SubscriptionRow[]>([]);
+  const [tab, setTab] = useState<"overview" | "plans" | "subscriptions" | "settings">("overview");
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [tab, setTab] = useState<"overview" | "plans" | "settings" | "subscriptions">("overview");
-
-  const checkAuth = useCallback(async () => {
-    if (!session) return;
-    const { data } = await (supabase as any).rpc("has_role", {
-      _user_id: session.user.id,
-      _role: "admin",
-    });
-    setAuthorized(!!data);
-  }, [session]);
-
-  useEffect(() => {
-    if (!session) return;
-    checkAuth();
-  }, [session, checkAuth]);
 
   const loadAll = useCallback(async () => {
-    const [p, s, st, sb] = await Promise.all([
-      adminGetPlans(),
-      adminGetSettings(),
-      adminGetStats(),
-      adminGetSubscriptions(),
-    ]);
-    setPlans(p as Plan[]);
-    setSettings(s);
-    setStats(st as Stats);
-    setSubs(sb as SubscriptionRow[]);
+    try {
+      const [plansData, settingsData, statsData, subsData] = await Promise.all([
+        adminGetPlans(),
+        adminGetSettings(),
+        adminGetStats(),
+        adminGetSubscriptions(),
+      ]);
+      setPlans(plansData as Plan[]);
+      setSettings(settingsData);
+      setStats(statsData as Stats);
+      setSubs(subsData as SubscriptionRow[]);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   }, []);
 
   useEffect(() => {
-    if (authorized === true) loadAll();
-  }, [authorized, loadAll]);
+    if (loading) return;
+    if (!session) {
+      setAuthorized(false);
+      return;
+    }
+    (async () => {
+      try {
+        const { data: roleData } = await supabase.rpc("has_role", {
+          _user_id: session.user.id,
+          _role: "admin",
+        });
+        if (roleData) {
+          setAuthorized(true);
+          loadAll();
+        } else {
+          setAuthorized(false);
+        }
+      } catch {
+        setAuthorized(false);
+      }
+    })();
+  }, [session, loading, loadAll]);
 
-  if (loading) return null;
-  if (!session) return <Navigate to="/auth" />;
-  if (authorized === null)
-    return (
-      <div className="min-h-screen grid place-items-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
-  if (!authorized)
-    return (
-      <div className="min-h-screen grid place-items-center px-5">
-        <div className="text-center">
-          <ShieldCheck className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-          <div className="font-black">غير مصرّح</div>
-          <Link to="/admin" className="inline-block mt-4 text-primary text-sm font-bold">
-            العودة للوحة الإدارة
-          </Link>
-        </div>
-      </div>
-    );
+  if (loading) return <Loader2 className="h-8 w-8 animate-spin mx-auto mt-20" />;
+  if (authorized === false) return <Navigate to="/auth" />;
+  if (authorized !== true) return <Loader2 className="h-8 w-8 animate-spin mx-auto mt-20" />;
 
   return (
-    <div className="min-h-screen px-5 pt-10 pb-20 max-w-2xl mx-auto">
-      <div className="flex items-center gap-2 mb-2">
-        <Link to="/admin" className="text-muted-foreground hover:text-foreground">
+    <div className="min-h-screen bg-background p-4 pb-20 max-w-2xl mx-auto">
+      <div className="flex items-center gap-3 mb-4">
+        <Link to="/admin" className="glass rounded-xl p-2">
           <ChevronLeft className="h-5 w-5" />
         </Link>
-        <Crown className="h-6 w-6 text-amber-500" />
-        <h1 className="text-2xl font-black">إدارة الاشتراكات</h1>
+        <h1 className="text-lg font-black flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-primary" />
+          نظام الاشتراكات
+        </h1>
       </div>
 
-      <div className="flex gap-1 mb-6 p-1 glass rounded-2xl">
-        {([
-          ["overview", "نظرة عامة"],
-          ["plans", "الباقات"],
-          ["subscriptions", "المشتركون"],
-          ["settings", "الإعدادات"],
-        ] as const).map(([key, label]) => (
+      <div className="flex gap-1 mb-4 glass rounded-2xl p-1">
+        {(["overview", "plans", "subscriptions", "settings"] as const).map((t) => (
           <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-              tab === key ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${
+              tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"
             }`}
           >
-            {label}
+            {t === "overview" ? "نظرة عامة" : t === "plans" ? "الباقات" : t === "subscriptions" ? "المشتركون" : "الإعدادات"}
           </button>
         ))}
       </div>
@@ -161,11 +151,11 @@ function SubscriptionsAdmin() {
       {tab === "plans" && (
         <PlansTab
           plans={plans}
-          onEdit={(p) => {
+          onEdit={(p: Plan) => {
             setEditingPlan(p);
             setShowEditModal(true);
           }}
-          onToggle={async (id, isActive) => {
+          onToggle={async (id: string, isActive: boolean) => {
             try {
               await adminTogglePlan({ data: { id, is_active: isActive } });
               toast.success(isActive ? "تم تفعيل الباقة" : "تم إيقاف الباقة");
@@ -184,7 +174,7 @@ function SubscriptionsAdmin() {
       {tab === "settings" && (
         <SettingsTab
           settings={settings}
-          onSave={async (enabled, minDownloads) => {
+          onSave={async (enabled: boolean, minDownloads: number) => {
             try {
               await adminSaveSettings({
                 data: {
@@ -205,7 +195,7 @@ function SubscriptionsAdmin() {
         <PlanEditModal
           plan={editingPlan}
           onClose={() => setShowEditModal(false)}
-          onSave={async (planData) => {
+          onSave={async (planData: Partial<Plan>) => {
             try {
               await adminSavePlan({
                 data: {
@@ -316,7 +306,10 @@ function PlansTab({ plans, onEdit, onToggle, onNew }: any) {
                 <div className="text-[10px] text-muted-foreground">{p.code}</div>
               </div>
             </div>
-            <button onClick={() => onToggle(p.id, !p.is_active)} className="text-xs">
+            <button
+              onClick={() => onToggle(p.id, !p.is_active)}
+              className="text-xs"
+            >
               {p.is_active ? <ToggleRight className="h-7 w-7 text-emerald-500" /> : <ToggleLeft className="h-7 w-7 text-muted-foreground" />}
             </button>
           </div>
@@ -335,7 +328,10 @@ function PlansTab({ plans, onEdit, onToggle, onNew }: any) {
             <span className="text-muted-foreground">سنوي: <span className="font-black text-foreground">{p.yearly_price.toLocaleString()} د.ع</span></span>
           </div>
 
-          <button onClick={() => onEdit(p)} className="w-full py-2 rounded-xl bg-primary/10 text-primary text-xs font-bold">
+          <button
+            onClick={() => onEdit(p)}
+            className="w-full py-2 rounded-xl bg-primary/10 text-primary text-xs font-bold"
+          >
             تعديل الباقة
           </button>
         </div>
