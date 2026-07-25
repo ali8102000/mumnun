@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@lib/auth-context";
+import { supabase } from "@integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Car, Check, Crown, Sparkles, Wallet } from "lucide-react";
-import { grantProviderRole } from "@/lib/roles.functions";
+import { grantProviderRole } from "@lib/roles.functions";
 
 export const Route = createFileRoute("/onboarding/driver")({
   ssr: false,
@@ -22,8 +22,8 @@ type VehicleModel = {
 
 const CATEGORY_META: Record<string, { label: string; emoji: string; gradient: string; icon: any; desc: string }> = {
   economy: { label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500", icon: Wallet, desc: "موديلات موفرة وعملية" },
-  premium: { label: "ممنون المتميز",  emoji: "🚙", gradient: "from-sky-500 to-indigo-600", icon: Sparkles, desc: "موديلات حديثة ومتوسطة" },
-  luxury:  { label: "ممنون فاخر",     emoji: "🏎️", gradient: "from-amber-400 to-orange-500", icon: Crown, desc: "سيارات فاخرة وراقية" },
+  premium: { label: "ممنون المتميز", emoji: "🚙", gradient: "from-sky-500 to-indigo-600", icon: Sparkles, desc: "موديلات حديثة ومتوسطة" },
+  luxury: { label: "ممنون فاخر", emoji: "🏎️", gradient: "from-amber-400 to-orange-500", icon: Crown, desc: "سيارات فاخرة وراقية" },
 };
 
 function OnboardingDriver() {
@@ -66,7 +66,7 @@ function OnboardingDriver() {
       });
       if (error) throw error;
       await grantProviderRole({ data: { role: "driver" } });
-      toast.success(`تم تفعيل ملفك — ${CATEGORY_META[selected.category].label}`);
+      toast.success("تم تفعيل ملفك — " + CATEGORY_META[selected.category].label);
       navigate({ to: "/home" });
     } catch (e: any) {
       toast.error(e.message || "حدث خطأ");
@@ -90,7 +90,7 @@ function OnboardingDriver() {
       </div>
 
       {cat && selected && (
-        <div className={`mb-4 rounded-3xl p-4 bg-gradient-to-br ${cat.gradient} text-white shadow-lg">
+        <div className={"mb-4 rounded-3xl p-4 bg-gradient-to-br " + cat.gradient + " text-white shadow-lg"}>
           <div className="flex items-center gap-3">
             <div className="text-3xl">{cat.emoji}</div>
             <div className="flex-1 min-w-0">
@@ -114,9 +114,16 @@ function OnboardingDriver() {
 
       <div className="mb-2 text-xs font-bold text-muted-foreground">الشركة المصنعة</div>
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 mb-3">
-        <button onClick={() => setMakeFilter("")} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press ${!makeFilter ? "bg-primary text-primary-foreground" : "glass"}`}>الكل</button>
+        <button
+          onClick={() => setMakeFilter("")}
+          className={makeFilter === "" ? "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press bg-primary text-primary-foreground" : "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press glass"}
+        >الكل</button>
         {makes.map((m) => (
-          <button key={m} onClick={() => setMakeFilter(m)} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press ${makeFilter === m ? "bg-primary text-primary-foreground" : "glass"}`}>{m}</button>
+          <button
+            key={m}
+            onClick={() => setMakeFilter(m)}
+            className={makeFilter === m ? "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press bg-primary text-primary-foreground" : "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press glass"}
+          >{m}</button>
         ))}
       </div>
 
@@ -125,15 +132,18 @@ function OnboardingDriver() {
         {filtered.map((m) => {
           const c = CATEGORY_META[m.category];
           const active = selected?.id === m.id;
+          const btnClass = active
+            ? "relative text-right p-3 rounded-2xl btn-press transition-all bg-white ring-2 ring-primary shadow-md scale-[1.02]"
+            : "relative text-right p-3 rounded-2xl btn-press transition-all bg-white/70";
           return (
             <button
               key={m.id}
               onClick={() => setSelected(m)}
-              className={`relative text-right p-3 rounded-2xl btn-press transition-all ${active ? "bg-white ring-2 ring-primary shadow-md scale-[1.02]" : "bg-white/70"}`}
+              className={btnClass}
             >
               {active && <Check className="absolute top-2 left-2 h-4 w-4 text-primary" />}
               <div className="flex items-center gap-2">
-                <div className={`h-9 w-9 rounded-xl bg-gradient-to-br ${c.gradient} grid place-items-center text-lg shadow`}>{c.emoji}</div>
+                <div className={"h-9 w-9 rounded-xl bg-gradient-to-br " + c.gradient + " grid place-items-center text-lg shadow"}>{c.emoji}</div>
                 <div className="min-w-0">
                   <div className="text-xs text-muted-foreground truncate">{m.make}</div>
                   <div className="font-black text-sm truncate">{m.model}</div>
