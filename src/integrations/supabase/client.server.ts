@@ -14,9 +14,12 @@ function createSupabaseAdminClient() {
       ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
       ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY'] : []),
     ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
+    console.error(`[Supabase] Missing env var(s): ${missing.join(', ')}. Server functions will return errors until this is fixed.`);
+    // Return a stub client that throws per-call instead of crashing the entire SSR render.
+    // This keeps the app shell loadable even when the service role key isn't configured.
+    return new Proxy({} as ReturnType<typeof createClient<Database>>, {
+      get() { throw new Error("Server error: SUPABASE_SERVICE_ROLE_KEY not configured"); }
+    }) as ReturnType<typeof createClient<Database>>;
   }
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {

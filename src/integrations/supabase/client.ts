@@ -9,6 +9,13 @@ function createSupabaseClient() {
   const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    // During SSR, return a no-op stub instead of crashing the entire render.
+    // The client will re-initialize in the browser where env vars are available.
+    if (typeof window === 'undefined') {
+      return new Proxy({} as ReturnType<typeof createClient<Database>>, {
+        get() { return () => Promise.resolve({ data: null, error: null }); }
+      }) as ReturnType<typeof createClient<Database>>;
+    }
     const missing = [
       ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
       ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
