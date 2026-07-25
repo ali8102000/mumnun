@@ -306,10 +306,7 @@ function PlansTab({ plans, onEdit, onToggle, onNew }: any) {
                 <div className="text-[10px] text-muted-foreground">{p.code}</div>
               </div>
             </div>
-            <button
-              onClick={() => onToggle(p.id, !p.is_active)}
-              className="text-xs"
-            >
+            <button onClick={() => onToggle(p.id, !p.is_active)} className="text-xs">
               {p.is_active ? <ToggleRight className="h-7 w-7 text-emerald-500" /> : <ToggleLeft className="h-7 w-7 text-muted-foreground" />}
             </button>
           </div>
@@ -328,10 +325,7 @@ function PlansTab({ plans, onEdit, onToggle, onNew }: any) {
             <span className="text-muted-foreground">سنوي: <span className="font-black text-foreground">{p.yearly_price.toLocaleString()} د.ع</span></span>
           </div>
 
-          <button
-            onClick={() => onEdit(p)}
-            className="w-full py-2 rounded-xl bg-primary/10 text-primary text-xs font-bold"
-          >
+          <button onClick={() => onEdit(p)} className="w-full py-2 rounded-xl bg-primary/10 text-primary text-xs font-bold">
             تعديل الباقة
           </button>
         </div>
