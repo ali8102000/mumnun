@@ -50,8 +50,13 @@ export type Database = {
         Row: {
           available: boolean
           completed_rides: number
+          professionalism_avg: number
+          punctuality_avg: number
+          quality_avg: number
           rating_avg: number
           ratings_count: number
+          reputation_level: string
+          reputation_score: number
           updated_at: string
           user_id: string
           vehicle_category:
@@ -66,8 +71,13 @@ export type Database = {
         Insert: {
           available?: boolean
           completed_rides?: number
+          professionalism_avg?: number
+          punctuality_avg?: number
+          quality_avg?: number
           rating_avg?: number
           ratings_count?: number
+          reputation_level?: string
+          reputation_score?: number
           updated_at?: string
           user_id: string
           vehicle_category?:
@@ -82,8 +92,13 @@ export type Database = {
         Update: {
           available?: boolean
           completed_rides?: number
+          professionalism_avg?: number
+          punctuality_avg?: number
+          quality_avg?: number
           rating_avg?: number
           ratings_count?: number
+          reputation_level?: string
+          reputation_score?: number
           updated_at?: string
           user_id?: string
           vehicle_category?:
@@ -307,6 +322,9 @@ export type Database = {
           comment: string | null
           created_at: string
           id: string
+          professionalism: number
+          punctuality: number
+          quality: number
           ratee_id: string
           rater_id: string
           request_id: string
@@ -316,6 +334,9 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          professionalism?: number
+          punctuality?: number
+          quality?: number
           ratee_id: string
           rater_id: string
           request_id: string
@@ -325,6 +346,9 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          professionalism?: number
+          punctuality?: number
+          quality?: number
           ratee_id?: string
           rater_id?: string
           request_id?: string
@@ -339,6 +363,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reputation_levels: {
+        Row: {
+          code: string
+          color: string
+          icon: string
+          id: string
+          min_score: number
+          name_ar: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          color?: string
+          icon?: string
+          id?: string
+          min_score?: number
+          name_ar: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          color?: string
+          icon?: string
+          id?: string
+          min_score?: number
+          name_ar?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      provider_badges: {
+        Row: {
+          awarded_at: string
+          badge_code: string
+          badge_color: string
+          badge_icon: string
+          badge_name_ar: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          badge_code: string
+          badge_color?: string
+          badge_icon?: string
+          badge_name_ar: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          badge_code?: string
+          badge_color?: string
+          badge_icon?: string
+          badge_name_ar?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       request_offers: {
         Row: {
@@ -625,8 +709,13 @@ export type Database = {
           bio: string | null
           completed_jobs: number
           level: Database["public"]["Enums"]["worker_level"]
+          professionalism_avg: number
+          punctuality_avg: number
+          quality_avg: number
           rating_avg: number
           ratings_count: number
+          reputation_level: string
+          reputation_score: number
           updated_at: string
           user_id: string
         }
@@ -635,8 +724,13 @@ export type Database = {
           bio?: string | null
           completed_jobs?: number
           level?: Database["public"]["Enums"]["worker_level"]
+          professionalism_avg?: number
+          punctuality_avg?: number
+          quality_avg?: number
           rating_avg?: number
           ratings_count?: number
+          reputation_level?: string
+          reputation_score?: number
           updated_at?: string
           user_id: string
         }
@@ -645,8 +739,13 @@ export type Database = {
           bio?: string | null
           completed_jobs?: number
           level?: Database["public"]["Enums"]["worker_level"]
+          professionalism_avg?: number
+          punctuality_avg?: number
+          quality_avg?: number
           rating_avg?: number
           ratings_count?: number
+          reputation_level?: string
+          reputation_score?: number
           updated_at?: string
           user_id?: string
         }
@@ -763,6 +862,19 @@ export type Database = {
           lng: number
           pin_id: string
         }[]
+      }
+      get_provider_reputation: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      grant_provider_role_safe: {
+        Args: {
+          p_user_id: string
+          p_role: string
+        }
+        Returns: boolean
       }
       has_role: {
         Args: {
