@@ -12,7 +12,6 @@ const firebaseConfig = {
 
 const hasFirebaseConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
 
-// Only initialize Firebase in the browser — never on the SSR server
 export const firebaseApp: FirebaseApp | null =
   typeof window !== "undefined" && hasFirebaseConfig
     ? initializeApp(firebaseConfig as any)
