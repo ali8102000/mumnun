@@ -44,6 +44,51 @@ export type Database = {
           },
         ]
       }
+      friend_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      friends: {
+        Row: {
+          created_at: string | null
+          friend_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          friend_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          friend_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       driver_profiles: {
         Row: {
           available: boolean
@@ -602,6 +647,137 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      subscription_plans: {
+        Row: {
+          id: string
+          code: string
+          name_ar: string
+          name_en: string
+          description_ar: string | null
+          tier: number
+          max_requests_per_month: number | null
+          priority_weight: number
+          offer_priority: number
+          badge_label: string | null
+          badge_color: string | null
+          show_stats: boolean
+          priority_support: boolean
+          monthly_price: number
+          yearly_price: number
+          currency: string
+          is_active: boolean
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          code: string
+          name_ar: string
+          name_en: string
+          description_ar?: string | null
+          tier: number
+          max_requests_per_month?: number | null
+          priority_weight?: number
+          offer_priority?: number
+          badge_label?: string | null
+          badge_color?: string | null
+          show_stats?: boolean
+          priority_support?: boolean
+          monthly_price?: number
+          yearly_price?: number
+          currency?: string
+          is_active?: boolean
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          code?: string
+          name_ar?: string
+          name_en?: string
+          description_ar?: string | null
+          tier?: number
+          max_requests_per_month?: number | null
+          priority_weight?: number
+          offer_priority?: number
+          badge_label?: string | null
+          badge_color?: string | null
+          show_stats?: boolean
+          priority_support?: boolean
+          monthly_price?: number
+          yearly_price?: number
+          currency?: string
+          is_active?: boolean
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      subscription_settings: {
+        Row: {
+          id: string
+          subscription_enabled: boolean
+          minimum_downloads_before_activation: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          subscription_enabled?: boolean
+          minimum_downloads_before_activation?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          subscription_enabled?: boolean
+          minimum_downloads_before_activation?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          plan_id: string
+          status: string
+          billing_cycle: string
+          current_period_start: string
+          current_period_end: string | null
+          request_count: number
+          auto_renew: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          plan_id: string
+          status?: string
+          billing_cycle?: string
+          current_period_start?: string
+          current_period_end?: string | null
+          request_count?: number
+          auto_renew?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          plan_id?: string
+          status?: string
+          billing_cycle?: string
+          current_period_start?: string
+          current_period_end?: string | null
+          request_count?: number
+          auto_renew?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {
