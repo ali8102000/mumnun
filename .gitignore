@@ -1,38 +1,32 @@
+# Environment variables
+.env
+.env.bak
+.env.local
+.env.*.local
+
+# Build output
+.output/
+.wrangler/
+dist/
+
 # Dependencies
 node_modules/
 
-# Build output
-dist/
-.output/
-.wrangler/
-
-# Environment files (contain secrets)
-.env
-.env.*
-!.env.example
-
-# Local config
-*.local
+# Logs
+*.log
+npm-debug.log*
 
 # Editor
 .vscode/
 .idea/
 
-# Logs
-*.log
-
 # OS
 .DS_Store
 Thumbs.db
 
-# Bolt/Lovable generated
+# Playwright
+test-results/
+playwright-report/
+
+# Bolt/Lovable
 .bolt/
-.lovable/
-
-# Migration fix scripts (local only)
-migration_fix_*.sql
-onboarding.*.txt
-
-# Nested duplicate project directories
-cc-agent/
-mumnun/
