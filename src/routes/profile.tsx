@@ -2,9 +2,12 @@ import { createFileRoute, Navigate, useNavigate, Link } from "@tanstack/react-ro
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { MobileShell } from "@/components/mobile-shell";
-import { LogOut, Star, Settings, Wallet, TrendingUp, ShieldCheck } from "lucide-react";
+import { LogOut, Star, Settings, Wallet, TrendingUp, ShieldCheck, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { useServerFn } from "@tanstack/react-start";
+import { getReputation, getProviderReviews, type ReputationData } from "@/lib/reputation.functions";
+import { ReputationCard, StarRating } from "@/components/reputation";
 
 export const Route = createFileRoute("/profile")({ ssr: false, component: ProfilePage });
 
@@ -14,8 +17,17 @@ function ProfilePage() {
   const [wallet, setWallet] = useState<any>(null);
   const [txs, setTxs] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [reputation, setReputation] = useState<ReputationData | null>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  urrently
+  const [showReviews, setShowReviews] = useState(false);
   const uid = session?.user.id;
   const isDriver = roles.includes("driver");
+  const isWorker = roles.includes("worker");
+  const isProvider = isDriver || isWorker;
+
+  const getRepFn = useServerFn(getReputation);
+  const getReviewsFn = useServerFn(getProviderReviews);
 
   useEffect(() => {
     if (!uid) return;
@@ -24,17 +36,30 @@ function ProfilePage() {
       (supabase as any).from("transactions").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(10).then(({ data }: any) => setTxs(data ?? []));
     }
     (supabase as any).rpc("has_role", { _user_id: uid, _role: "admin" }).then(({ data }: any) => setIsAdmin(!!data));
-  }, [uid, isDriver]);
+
+    if (isProvider && uid) {
+      getRepFn({ data: { userId: uid } }).then((rep) => setReputation(rep)).catch(() => {});
+    }
+  }, [uid, isDriver, isProvider]);
+
+  async function loadReviews() {
+    if (!uid) return;
+    try {
+      const r = await getReviewsFn({ data: { userId: uid } });
+      setReviews(r as any[]);
+    } catch {}
+  }
 
   if (loading) return null;
   if (!session) return <Navigate to="/auth" />;
 
   return (
     <MobileShell>
-      <div className="px-5 pt-10">
+      <div className="px-5 pt-10 pb-6">
         <div className="flex justify-end mb-3">
           <NotificationsBell />
         </div>
+
         <div className="glass rounded-3xl p-6 text-center shadow-card">
           <div className="h-20 w-20 mx-auto rounded-3xl bg-gradient-to-br from-primary to-primary-glow grid place-items-center text-primary-foreground text-3xl font-black glow-primary mb-3">
             {(profile?.full_name || "؟").charAt(0)}
@@ -48,7 +73,58 @@ function ProfilePage() {
               </span>
             ))}
           </div>
+          {isProvider && reputation && (
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <StarRating stars={Number(reputation.avg_stars)} size="sm" />
+              <span className="text-xs font-bold text-muted-foreground">
+                {Number(reputation.avg_stars).toFixed(1)} ({reputation.ratings_count})
+              </span>
+            </div>
+          )}
         </div>
+
+        {isProvider && reputation && (
+          <div className="mt-5">
+            <ReputationCard reputation={reputation} />
+
+            {reputation.ratings_count > 0 && (
+              <button
+                onClick={() => {
+                  if (!showReviews && reviews.length === 0) loadReviews();
+                  setShowReviews(!showReviews);
+                }}
+                className="w-full mt-3 glass rounded-2xl p-3 flex items-center justify-between btn-press"
+              >
+                <span className="text-xs font-bold">آراء العملاء</span>
+                <ChevronLeft className={`h-4 w-4 text-muted-foreground transition-transform ${showReviews ? "rotate-90" : ""}`} />
+              </button>
+            )}
+
+            {showReviews && reviews.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {reviews.map((rv) => (
+                  <div key={rv.id} className="glass rounded-2xl p-3">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-full bg-primary/20 grid place-items-center text-xs font-bold text-primary">
+                          {(rv.rater?.full_name || "؟").charAt(0)}
+                        </div>
+                        <span className="text-xs font-bold">{rv.rater?.full_name || "مستخدم"}</span>
+                      </div>
+                      <StarRating stars={rv.stars} size="sm" />
+                    </div>
+                    {rv.comment && (
+                      <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">«{rv.comment}»</p>
+                    )}
+                    <div className="text-[10px] text-muted-foreground/60 mt-1">
+                      {new Date(rv.created_at).toLocaleDateString("ar-IQ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {isDriver && (
           <div className="mt-5 rounded-3xl p-5 bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-elegant glow-primary">
