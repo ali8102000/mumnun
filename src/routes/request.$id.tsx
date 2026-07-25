@@ -10,6 +10,8 @@ import { useLiveTracking } from "@/lib/use-live-tracking";
 import { CancelReasonModal } from "@/components/cancel-reason-modal";
 import { QuickReplies } from "@/components/quick-replies";
 import { cancelRequest, providerCancelRequest, retryDispatch, startRide, completeRide } from "@/lib/dispatch.functions";
+import { getReputation, type ReputationData } from "@/lib/reputation.functions";
+import { ReputationBadge } from "@/components/reputation";
 
 
 const VEHICLE_CAT_META: Record<string, { label: string; emoji: string; gradient: string }> = {
@@ -33,7 +35,9 @@ function RequestDetail() {
   const [myRating, setMyRating] = useState<any>(null);
   const [showRating, setShowRating] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
+  const [otherRep, setOtherRep] = useState<ReputationData | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const getRepFn = useServerFn(getReputation);
   const cancelFn = useServerFn(cancelRequest);
   const providerCancelFn = useServerFn(providerCancelRequest);
   const retryFn = useServerFn(retryDispatch);
@@ -62,6 +66,7 @@ function RequestDetail() {
       if (otherId) {
         const { data: p } = await supabase.from("profiles").select("id, full_name, phone, avatar_url").eq("id", otherId).maybeSingle();
         setOther(p);
+        getRepFn({ data: { userId: otherId } }).then((rep) => setOtherRep(rep)).catch(() => {});
       }
       if (r.status !== "pending") {
         const { data: c } = await supabase.from("chats").select("*").eq("request_id", id).maybeSingle();
@@ -227,6 +232,13 @@ function RequestDetail() {
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm truncate">{other.full_name || "مستخدم"}</div>
               <div className="text-xs text-muted-foreground" dir="ltr">{other.phone}</div>
+              {otherRep?.badges?.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {otherRep.badges.map((b) => (
+                    <ReputationBadge key={b.code} badge={b} size="sm" />
+                  ))}
+                </div>
+              )}
             </div>
             {req.status === "accepted" && session.user.id === req.provider_id && (
               <button onClick={async () => {
@@ -254,14 +266,23 @@ function RequestDetail() {
 
         {req.status === "completed" && other && (
           myRating ? (
-            <div className="glass rounded-2xl p-4 flex items-center gap-2 text-sm">
-              <span className="font-bold">تقييمك:</span>
-              <div className="flex gap-0.5">
-                {[1,2,3,4,5].map(s => (
-                  <Star key={s} className={`h-4 w-4 ${s <= myRating.stars ? "text-primary fill-primary" : "text-muted-foreground"}`} />
-                ))}
+            <div className="glass rounded-2xl p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-bold">تقييمك:</span>
+                <div className="flex gap-0.5">
+                  {[1,2,3,4,5].map(s => (
+                    <Star key={s} className={`h-4 w-4 ${s <= myRating.stars ? "text-primary fill-primary" : "text-muted-foreground"}`} />
+                  ))}
+                </div>
               </div>
-              {myRating.comment && <span className="text-muted-foreground text-xs truncate">«{myRating.comment}»</span>}
+              {(myRating.professionalism || myRating.punctuality || myRating.quality) && (
+                <div className="flex gap-3 text-[10px] text-muted-foreground">
+                  <span>الاحترافية: {myRating.professionalism ?? "—"}</span>
+                  <span>الوقت: {myRating.punctuality ?? "—"}</span>
+                  <span>الجودة: {myRating.quality ?? "—"}</span>
+                </div>
+              )}
+              {myRating.comment && <p className="text-muted-foreground text-xs">«{myRating.comment}»</p>}
             </div>
           ) : (
             <button onClick={() => setShowRating(true)} className="w-full glass rounded-2xl p-4 flex items-center justify-center gap-2 btn-press font-bold text-sm text-primary">
@@ -358,13 +379,16 @@ function RequestDetail() {
         <RatingModal
           target={other}
           onClose={() => setShowRating(false)}
-          onSubmit={async (stars, comment) => {
+          onSubmit={async (stars, comment, subscores) => {
             const { data, error } = await supabase.from("ratings").insert({
               request_id: id,
               rater_id: session.user.id,
               ratee_id: other.id,
               stars,
               comment: comment || null,
+              professionalism: subscores.professionalism,
+              punctuality: subscores.punctuality,
+              quality: subscores.quality,
             }).select().single();
             if (error) { toast.error(error.message); return; }
             setMyRating(data);
@@ -377,11 +401,14 @@ function RequestDetail() {
   );
 }
 
-function RatingModal({ target, onClose, onSubmit }: { target: any; onClose: () => void; onSubmit: (stars: number, comment: string) => Promise<void> }) {
+function RatingModal({ target, onClose, onSubmit }: { target: any; onClose: () => void; onSubmit: (stars: number, comment: string, subscores: { professionalism: number; punctuality: number; quality: number }) => Promise<void> }) {
   const [stars, setStars] = useState(5);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const [prof, setProf] = useState(5);
+  const [punc, setPunc] = useState(5);
+  const [qual, setQual] = useState(5);
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/30 backdrop-blur-sm p-5" onClick={onClose}>
@@ -418,6 +445,13 @@ function RatingModal({ target, onClose, onSubmit }: { target: any; onClose: () =
           {["", "سيء جداً", "سيء", "مقبول", "جيد", "ممتاز"][hover || stars]}
         </div>
 
+        {/* Sub-scores */}
+        <div className="space-y-2.5 mb-3">
+          <SubScoreInput label="الاحترافية" value={prof} onChange={setProf} />
+          <SubScoreInput label="الالتزام بالوقت" value={punc} onChange={setPunc} />
+          <SubScoreInput label="جودة العمل" value={qual} onChange={setQual} />
+        </div>
+
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value.slice(0, 500))}
@@ -428,11 +462,31 @@ function RatingModal({ target, onClose, onSubmit }: { target: any; onClose: () =
 
         <button
           disabled={busy}
-          onClick={async () => { setBusy(true); await onSubmit(stars, comment.trim()); setBusy(false); }}
+          onClick={async () => { setBusy(true); await onSubmit(stars, comment.trim(), { professionalism: prof, punctuality: punc, quality: qual }); setBusy(false); }}
           className="mt-4 w-full h-12 rounded-2xl bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-black btn-press glow-primary disabled:opacity-50"
         >
           {busy ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "إرسال التقييم"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+function SubScoreInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-xs font-bold text-muted-foreground shrink-0">{label}</span>
+      <div className="flex gap-0.5">
+        {[1,2,3,4,5].map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onChange(s)}
+            className="btn-press p-0.5"
+          >
+            <Star className={`h-5 w-5 transition ${s <= value ? "text-amber-400 fill-amber-400" : "text-muted-foreground/30"}`} />
+          </button>
+        ))}
       </div>
     </div>
   );

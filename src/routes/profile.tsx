@@ -19,7 +19,6 @@ function ProfilePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [reputation, setReputation] = useState<ReputationData | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
-  urrently
   const [showReviews, setShowReviews] = useState(false);
   const uid = session?.user.id;
   const isDriver = roles.includes("driver");
