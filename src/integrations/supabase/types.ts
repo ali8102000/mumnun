@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -521,7 +519,7 @@ export type Database = {
           payment_method?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
-          pickup_text?: string
+          pickup_text: string
           price_estimate?: number | null
           provider_id?: string | null
           searching_started_at?: string | null
@@ -871,8 +869,8 @@ export type Database = {
       }
       grant_provider_role_safe: {
         Args: {
-          p_user_id: string
-          p_role: string
+          _user_id: string
+          _role: string
         }
         Returns: boolean
       }
