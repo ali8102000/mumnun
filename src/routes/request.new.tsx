@@ -94,6 +94,7 @@ function NewRequest() {
     active: !!pickupCoords,
   });
 
+
   useEffect(() => {
     if (type === "service") {
       supabase.from("services").select("id, slug, name_ar").order("sort_order").then(({ data }) => {
@@ -101,6 +102,8 @@ function NewRequest() {
       });
     }
   }, [type]);
+
+
 
   if (loading) return null;
   if (!session) return <Navigate to="/auth" />;
@@ -158,7 +161,7 @@ function NewRequest() {
 
   return (
     <div className="min-h-screen px-5 pt-10 pb-36">
-      <button onClick={() => history.back()} className="text-sm text-muted-foreground mb-4 flex items-center gap-1">
+      <button onClick={() => window.history.length > 1 ? history.back() : navigate({ to: "/home" })} className="text-sm text-muted-foreground mb-4 flex items-center gap-1">
         رجوع
       </button>
       <h1 className="text-3xl font-black">

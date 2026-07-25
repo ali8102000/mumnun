@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/auth-context";
@@ -22,6 +22,7 @@ export const Route = createFileRoute("/request/$id")({ ssr: false, component: Re
 
 function RequestDetail() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
   const [req, setReq] = useState<any>(null);
   const [other, setOther] = useState<any>(null);
@@ -53,28 +54,33 @@ function RequestDetail() {
 
 
   async function loadAll() {
-    const { data: r } = await supabase.from("service_requests").select("*").eq("id", id).single();
-    if (!r) return;
-    setReq(r);
-    const otherId = session?.user.id === r.customer_id ? r.provider_id : r.customer_id;
-    if (otherId) {
-      const { data: p } = await supabase.from("profiles").select("id, full_name, phone, avatar_url").eq("id", otherId).single();
-      setOther(p);
-    }
-    if (r.status !== "pending") {
-      const { data: c } = await supabase.from("chats").select("*").eq("request_id", id).maybeSingle();
-      setChat(c);
-      if (c) {
-        const { data: m } = await supabase.from("messages").select("*").eq("chat_id", c.id).order("created_at");
-        setMessages(m ?? []);
+    try {
+      const { data: r } = await supabase.from("service_requests").select("*").eq("id", id).maybeSingle();
+      if (!r) { setLoading(false); return; }
+      setReq(r);
+      const otherId = session?.user.id === r.customer_id ? r.provider_id : r.customer_id;
+      if (otherId) {
+        const { data: p } = await supabase.from("profiles").select("id, full_name, phone, avatar_url").eq("id", otherId).maybeSingle();
+        setOther(p);
       }
+      if (r.status !== "pending") {
+        const { data: c } = await supabase.from("chats").select("*").eq("request_id", id).maybeSingle();
+        setChat(c);
+        if (c) {
+          const { data: m } = await supabase.from("messages").select("*").eq("chat_id", c.id).order("created_at");
+          setMessages(m ?? []);
+        }
+      }
+      if (session?.user) {
+        const { data: rate } = await supabase.from("ratings").select("*").eq("request_id", id).eq("rater_id", session.user.id).maybeSingle();
+        setMyRating(rate);
+        if (r.status === "completed" && !rate) setShowRating(true);
+      }
+    } catch (e) {
+      console.error("[request] loadAll error:", e);
+    } finally {
+      setLoading(false);
     }
-    if (session?.user) {
-      const { data: rate } = await supabase.from("ratings").select("*").eq("request_id", id).eq("rater_id", session.user.id).maybeSingle();
-      setMyRating(rate);
-      if (r.status === "completed" && !rate) setShowRating(true);
-    }
-    setLoading(false);
   }
 
   useEffect(() => { if (session) loadAll(); }, [session, id]);
@@ -146,7 +152,7 @@ function RequestDetail() {
   return (
     <div className="min-h-screen flex flex-col">
       <div className="glass-strong px-5 pt-10 pb-4 sticky top-0 z-30">
-        <button onClick={() => history.back()} className="text-xs text-muted-foreground mb-2">← رجوع</button>
+        <button onClick={() => window.history.length > 1 ? history.back() : navigate({ to: "/home" })} className="text-xs text-muted-foreground mb-2">← رجوع</button>
         <div className="flex items-center justify-between">
           <div>
             <div className="text-lg font-black">{req.type === "taxi" ? "رحلة تكسي" : "خدمة فنية"}</div>
