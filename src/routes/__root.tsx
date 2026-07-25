@@ -14,7 +14,6 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "sonner";
 import { DriverOfferPopup } from "@/components/driver-offer-popup";
-import "@/lib/firebase";
 
 function NotFoundComponent() {
   return (
