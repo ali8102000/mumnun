@@ -73,6 +73,9 @@ export function DriverOfferPopup() {
       const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
       setSecondsLeft(left);
       if (left === 0) {
+        if (offerRef.current) {
+          respond({ data: { offerId: offerRef.current.id, action: "reject" } }).catch(() => {});
+        }
         setOffer(null);
         setRequest(null);
       }
@@ -88,6 +91,9 @@ export function DriverOfferPopup() {
       const Ctx =
         (window as any).AudioContext || (window as any).webkitAudioContext;
       if (Ctx && !audioCtxRef.current) audioCtxRef.current = new Ctx();
+      if (audioCtxRef.current?.state === "suspended") {
+        audioCtxRef.current.resume().catch(() => {});
+      }
     } catch {}
 
     const beep = () => {
@@ -110,10 +116,6 @@ export function DriverOfferPopup() {
     return () => {
       if (beepIntervalRef.current) clearInterval(beepIntervalRef.current);
       beepIntervalRef.current = null;
-      if (audioCtxRef.current) {
-        try { audioCtxRef.current.close(); } catch {}
-        audioCtxRef.current = null;
-      }
     };
   }, [offer]);
 
@@ -192,7 +194,7 @@ export function DriverOfferPopup() {
               <span
                 className={`text-3xl font-black ${
                   urgent ? "text-rose-500" : "text-primary"
-                }`}
+                }`
               >
                 {secondsLeft}
               </span>
