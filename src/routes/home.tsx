@@ -1,12 +1,11 @@
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth, type AppRole } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
 import {
-  Car, Wrench, Power, Sun, Moon, Zap, ShieldCheck,
-  Sparkles, ArrowUpLeft, Clock, MapPin, TrendingUp,
-  Users, Send,
+  Car, Wrench, Power, Bell, Sun, Moon, Zap, ShieldCheck,
+  Sparkles, ArrowUpLeft, TrendingUp, Clock,
 } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { toast } from "sonner";
@@ -40,16 +39,19 @@ function HomePage() {
   if (!roles.length) return <Navigate to="/select-role" />;
 
   const firstName = (profile?.full_name || "صديقنا").split(" ")[0];
-  const isWorker = activeRole === "worker" || activeRole === "driver";
 
   return (
     <MobileShell>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-96 overflow-hidden">
+        <div className="absolute -top-16 -right-16 h-72 w-72 rounded-full bg-primary/25 blur-3xl animate-float" />
+        <div className="absolute -top-10 -left-24 h-64 w-64 rounded-full bg-accent/25 blur-3xl animate-float" style={{ animationDelay: "-3s" }} />
+      </div>
+
       <div className="relative px-5 pt-10 pb-6">
-        {/* Top bar */}
         <div className="flex items-center justify-between mb-6 animate-pop-in">
           <div>
             <div className="text-[11px] font-bold tracking-wider text-primary/80 uppercase">{greet}</div>
-            <div className="text-2xl font-black leading-tight mt-0.5 text-foreground">
+            <div className="text-2xl font-black leading-tight mt-0.5">
               {firstName} <span className="inline-block animate-float">👋</span>
             </div>
           </div>
@@ -66,7 +68,6 @@ function HomePage() {
           </div>
         </div>
 
-        {/* Role switch */}
         {roles.length > 1 && (
           <div className="relative flex bg-surface-2 rounded-2xl p-1 mb-5 text-xs font-bold animate-pop-in">
             {roles.map((r) => {
@@ -91,27 +92,6 @@ function HomePage() {
           </div>
         )}
 
-        {/* Friends tab — only for workers/drivers, NOT customers */}
-        {isWorker && (
-          <Link
-            to="/friends"
-            onClick={() => playClick("pop")}
-            className="relative rounded-2xl p-4 mb-5 flex items-center gap-3 btn-press tap-highlight-none animate-pop-in overflow-hidden animate-pulse-glow"
-            style={{ background: "var(--gradient-friends)" }}
-          >
-            <div className="absolute inset-0 shine opacity-25 mix-blend-overlay" />
-            <div className="absolute -top-6 -left-6 h-24 w-24 rounded-full bg-white/20 blur-2xl" />
-            <div className="relative h-12 w-12 rounded-2xl bg-white/25 backdrop-blur grid place-items-center text-friends-foreground shadow-lg">
-              <Users className="h-6 w-6" />
-            </div>
-            <div className="relative flex-1">
-              <div className="font-black text-sm text-friends-foreground">الأصدقاء والتعاون</div>
-              <div className="text-[11px] text-friends-foreground/80">ابحث واضيف أصدقاء للعمل المشترك</div>
-            </div>
-            <ArrowUpLeft className="relative h-5 w-5 text-friends-foreground" />
-          </Link>
-        )}
-
         {activeRole === "customer" && <CustomerHome />}
         {activeRole === "driver" && <ProviderHome type="taxi" />}
         {activeRole === "worker" && <ProviderHome type="service" />}
@@ -120,46 +100,62 @@ function HomePage() {
   );
 }
 
-/* ---------------- Customer ---------------- */
-
 function CustomerHome() {
   return (
     <div className="space-y-4">
       <div className="relative rounded-3xl p-6 overflow-hidden animate-pop-in shadow-elegant bg-gradient-to-br from-primary via-primary-glow to-accent text-primary-foreground">
-        <div className="absolute inset-0 shine opacity-30 mix-blend-overlay" />
+        <div className="absolute inset-0 shine opacity-40 mix-blend-overlay" />
         <div className="absolute -top-8 -left-8 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
-        <div className="absolute -bottom-12 -right-4 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
         <div className="relative">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur px-2.5 py-1 text-[10px] font-bold">
             <Sparkles className="h-3 w-3" /> مجاناً بلا عمولة
           </div>
-          <div className="text-2xl font-black mt-3 leading-tight">اطلب الآن<br/>ادفع للمزوّد مباشرة</div>
-          <div className="text-xs opacity-90 mt-2">ممنون منصّة مجانية — بدون أي نسبة على طلبك</div>
+          <div className="text-2xl font-black mt-2 leading-tight">اطلب الآن، ادفع للمزوّد مباشرة</div>
+          <div className="text-xs opacity-90 mt-1">ممنون منصّة مجانية — بدون أي نسبة على طلبك</div>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <QuickTile to="/request/new" type="taxi" title="طلب سيارة" subtitle="خلال دقائق"
-          icon={<Car className="h-7 w-7" />} gradient="from-amber-500 to-orange-500" span={2} delay={0.05} />
-        <QuickTile to="/request/new" type="service" title="طلب فني" subtitle="١٦ خدمة"
-          icon={<Wrench className="h-6 w-6" />} gradient="from-blue-500 to-indigo-500" delay={0.1} />
+        <QuickTile
+          to="/request/new" type="taxi"
+          title="طلب سيارة" subtitle="خلال دقائق"
+          icon={<Car className="h-7 w-7" />}
+          gradient="from-amber-500 to-orange-500"
+          span={2}
+          delay={0.05}
+        />
+        <QuickTile
+          to="/request/new" type="service"
+          title="طلب فني" subtitle="١٦ خدمة"
+          icon={<Wrench className="h-6 w-6" />}
+          gradient="from-emerald-500 to-teal-400"
+          delay={0.1}
+        />
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
-        <MiniStat icon={<Clock className="h-4 w-4" />} label="وصول خلال" value="٣ د" accent="text-amber-500" />
-        <MiniStat icon={<MapPin className="h-4 w-4" />} label="تغطية" value="كل العراق" accent="text-blue-500" />
-        <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="مزودون" value="موثق" accent="text-emerald-500" />
+      <div className="grid grid-cols-2 gap-2.5 animate-pop-in" style={{ animationDelay: "0.15s" }}>
+        <MiniStat icon={<Clock className="h-4 w-4" />} label="أقل من" value="٣ د" />
+        <MiniStat icon={<ShieldCheck className="h-4 w-4" />} label="مزودون" value="موثق" />
       </div>
 
       <div className="mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-black text-lg text-foreground">لماذا ممنون؟</h3>
+          <h3 className="font-black">لماذا ممنون؟</h3>
           <span className="text-[11px] text-muted-foreground">مميّزاتنا</span>
         </div>
         <div className="space-y-2.5">
-          <FeatureRow icon={<Zap className="h-5 w-5" />} title="سرعة في الاستجابة" desc="نوصلك بأقرب مزوّد خدمة" accent="from-amber-500 to-orange-500" />
-          <FeatureRow icon={<ShieldCheck className="h-5 w-5" />} title="أمان مضمون" desc="جميع المزوّدين موثّقون" accent="from-blue-500 to-indigo-500" />
-          <FeatureRow icon={<TrendingUp className="h-5 w-5" />} title="بدون عمولة" desc="تدفع للمزوّد مباشرة بدون وسطاء" accent="from-amber-400 to-yellow-500" />
+          <FeatureRow
+            icon={<Zap className="h-5 w-5" />}
+            title="سرعة في الاستجابة"
+            desc="نوصلك بأقرب مزوّد خدمة"
+            accent="from-amber-500 to-orange-500"
+          />
+          <FeatureRow
+            icon={<ShieldCheck className="h-5 w-5" />}
+            title="أمان مضمون"
+            desc="جميع المزوّدين موثّقون"
+            accent="from-emerald-500 to-teal-400"
+          />
         </div>
       </div>
     </div>
@@ -189,7 +185,7 @@ function QuickTile({
         </div>
         <div>
           <div className="flex items-center gap-1">
-            <div className="font-black text-base text-foreground">{title}</div>
+            <div className="font-black text-base">{title}</div>
             <ArrowUpLeft className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</div>
@@ -199,11 +195,11 @@ function QuickTile({
   );
 }
 
-function MiniStat({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent: string }) {
+function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="glass rounded-2xl p-3 flex flex-col items-center text-center gap-0.5">
-      <div className={accent}>{icon}</div>
-      <div className="font-black text-sm text-foreground">{value}</div>
+      <div className="text-primary">{icon}</div>
+      <div className="font-black text-sm">{value}</div>
       <div className="text-[10px] text-muted-foreground">{label}</div>
     </div>
   );
@@ -214,27 +210,24 @@ function FeatureRow({
 }: { icon: React.ReactNode; title: string; desc: string; accent: string }) {
   return (
     <div className="glass rounded-2xl p-3.5 flex items-center gap-3 btn-press">
-      <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${accent} grid place-items-center text-white shadow-md shrink-0`}>
+      <div className={`h-11 w-11 rounded-xl bg-gradient-to-br ${accent} grid place-items-center text-white shadow-md`}>
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-bold text-sm text-foreground">{title}</div>
+        <div className="font-bold text-sm">{title}</div>
         <div className="text-[11px] text-muted-foreground">{desc}</div>
       </div>
     </div>
   );
 }
 
-/* ---------------- Provider ---------------- */
-
 function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const { session } = useAuth();
+  const navigate = useNavigate();
   const acceptFn = useServerFn(acceptServiceRequest);
   const [available, setAvailable] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
   const [stats, setStats] = useState({ jobs: 0 });
-  const [friends, setFriends] = useState<{friend_id: string, profiles: {full_name: string} | null}[]>([]);
-  const [transferModal, setTransferModal] = useState<string | null>(null);
   const table = type === "taxi" ? "driver_profiles" : "worker_profiles";
 
   useEffect(() => {
@@ -256,13 +249,6 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     }
     loadRequests();
 
-    if (type === "service") {
-      supabase.from("friends")
-        .select("friend_id, profiles:friend_id(full_name)")
-        .eq("user_id", session.user.id)
-        .then(({ data }) => setFriends((data ?? []) as any));
-    }
-
     const channel = supabase.channel("provider-requests")
       .on("postgres_changes", { event: "*", schema: "public", table: "service_requests" }, () => loadRequests())
       .subscribe();
@@ -271,9 +257,14 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
 
   async function toggleAvail() {
     playClick("toggle");
-    const next = !available;
+    const prev = available;
+    const next = !prev;
     setAvailable(next);
-    await supabase.from(table).update({ available: next }).eq("user_id", session!.user.id);
+    const { error } = await supabase.from(table).update({ available: next }).eq("user_id", session!.user.id);
+    if (error) {
+      setAvailable(prev);
+      toast.error("تعذّر تحديث الحالة");
+    }
   }
 
   async function accept(id: string) {
@@ -281,22 +272,9 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     try {
       await acceptFn({ data: { requestId: id } });
       toast.success("تم قبول الطلب");
-      window.location.href = `/request/${id}`;
+      navigate({ to: `/request/$id`, params: { id } });
     } catch (e: any) {
       toast.error(e.message ?? "تعذّر قبول الطلب");
-    }
-  }
-
-  async function transferToFriend(requestId: string, friendId: string) {
-    try {
-      const { error } = await supabase.from("service_requests")
-        .update({ transferred_to: friendId })
-        .eq("id", requestId);
-      if (error) throw error;
-      toast.success("تم تحويل الطلب لصديقك");
-      setTransferModal(null);
-    } catch (e: any) {
-      toast.error(e.message || "حدث خطأ");
     }
   }
 
@@ -304,7 +282,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     <div className="space-y-4">
       <div className={`relative rounded-3xl p-5 overflow-hidden animate-pop-in shadow-card ${
         available
-          ? "bg-gradient-to-br from-blue-500 to-indigo-500 text-white"
+          ? "bg-gradient-to-br from-emerald-500 to-teal-400 text-white"
           : "glass"
       }`}>
         {available && <div className="absolute inset-0 shine opacity-30 mix-blend-overlay" />}
@@ -324,19 +302,13 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5 animate-pop-in" style={{ animationDelay: "0.05s" }}>
-        <div className="glass rounded-2xl p-4">
-          <div className="text-xs text-muted-foreground">الطلبات المكتملة</div>
-          <div className="font-black text-2xl mt-1 text-foreground">{stats.jobs}</div>
-        </div>
-        <div className="glass rounded-2xl p-4">
-          <div className="text-xs text-muted-foreground">الطلبات المتاحة</div>
-          <div className="font-black text-2xl mt-1 text-foreground">{available ? requests.length : "—"}</div>
-        </div>
+      <div className="glass rounded-2xl p-4 animate-pop-in" style={{ animationDelay: "0.05s" }}>
+        <div className="text-xs text-muted-foreground">الطلبات المكتملة</div>
+        <div className="font-black text-lg mt-1">{stats.jobs}</div>
       </div>
 
       <div>
-        <h3 className="font-black mb-3 mt-2 text-foreground">الطلبات المتاحة</h3>
+        <h3 className="font-black mb-3 mt-2">الطلبات المتاحة</h3>
         {!available && (
           <div className="glass rounded-2xl p-4 text-center text-sm text-muted-foreground">
             فعّل التوفر لعرض الطلبات
@@ -351,63 +323,20 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
           <div key={r.id} className="glass rounded-2xl p-4 mb-2.5 animate-pop-in" style={{ animationDelay: `${i * 0.04}s` }}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold truncate text-foreground">📍 {r.pickup_text || "بدون عنوان"}</div>
+                <div className="text-sm font-bold truncate">📍 {r.pickup_text || "بدون عنوان"}</div>
                 {r.dest_text && <div className="text-xs text-muted-foreground mt-1 truncate">🎯 {r.dest_text}</div>}
                 {r.notes && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">📝 {r.notes}</div>}
               </div>
-              <div className="flex flex-col gap-1.5 shrink-0">
-                <button
-                  onClick={() => accept(r.id)}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-br from-primary to-primary-glow text-primary-foreground font-bold text-xs btn-press shadow-md"
-                >
-                  قبول
-                </button>
-                {type === "service" && friends.length > 0 && (
-                  <button
-                    onClick={() => setTransferModal(r.id)}
-                    className="px-4 py-2 rounded-xl text-friends-foreground font-bold text-xs btn-press flex items-center gap-1"
-                    style={{ background: "var(--gradient-friends)" }}
-                  >
-                    <Send className="h-3 w-3" />
-                    تحويل
-                  </button>
-                )}
-              </div>
+              <button
+                onClick={() => accept(r.id)}
+                className="shrink-0 px-4 py-2 rounded-xl bg-gradient-to-br from-primary to-primary-glow text-primary-foreground font-bold text-xs btn-press shadow-md"
+              >
+                قبول
+              </button>
             </div>
           </div>
         ))}
       </div>
-
-      {transferModal && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-5 bg-black/40 backdrop-blur-sm" onClick={() => setTransferModal(null)}>
-          <div className="glass-strong rounded-3xl p-5 w-full max-w-sm animate-pop-in" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-black text-lg mb-3 text-foreground">حوّل الطلب لصديق</h3>
-            <p className="text-xs text-muted-foreground mb-4">اختر صديق لتحويل الطلب إليه للعمل المشترك</p>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {friends.map((f) => (
-                <button
-                  key={f.friend_id}
-                  onClick={() => transferToFriend(transferModal, f.friend_id)}
-                  className="w-full flex items-center gap-3 bg-surface-2 rounded-xl p-3 btn-press text-right"
-                >
-                  <div className="h-9 w-9 rounded-lg grid place-items-center font-black text-sm text-friends-foreground"
-                    style={{ background: "var(--gradient-friends)" }}>
-                    {(f.profiles?.full_name || "?").charAt(0)}
-                  </div>
-                  <div className="flex-1 text-sm font-bold text-foreground">{f.profiles?.full_name || "مستخدم"}</div>
-                  <Send className="h-4 w-4 text-friends" />
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setTransferModal(null)}
-              className="w-full mt-3 py-2.5 rounded-xl bg-surface-2 text-muted-foreground font-bold text-sm btn-press"
-            >
-              إلغاء
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

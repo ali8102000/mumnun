@@ -2,7 +2,7 @@ import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldCheck, Users, Car, ListChecks, Wallet, DollarSign } from "lucide-react";
+import { Loader2, ShieldCheck, Users, Car, ListChecks, Wallet, DollarSign, Crown, Activity } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({ ssr: false, component: AdminPage });
 
@@ -68,6 +68,28 @@ function AdminPage() {
         <Stat icon={DollarSign} label="مكتملة" value={stats?.completed} accent="text-emerald-600" />
         <Stat icon={Users} label="المستخدمون" value={stats?.users} />
       </div>
+
+      <Link
+        to="/admin/subscriptions"
+        className="glass rounded-2xl p-4 mb-3 flex items-center justify-between text-sm font-bold border-2 border-amber-500/20"
+      >
+        <div className="flex items-center gap-2">
+          <Crown className="h-5 w-5 text-amber-500" />
+          <span>إدارة الاشتراكات والباقات</span>
+        </div>
+        <span className="text-muted-foreground text-xs">→</span>
+      </Link>
+
+      <Link
+        to="/admin/monitoring"
+        className="glass rounded-2xl p-4 mb-6 flex items-center justify-between text-sm font-bold border-2 border-blue-500/20"
+      >
+        <div className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-blue-500" />
+          <span>المراقبة المباشرة والبلاغات</span>
+        </div>
+        <span className="text-muted-foreground text-xs">→</span>
+      </Link>
 
       <h2 className="font-black mb-2 flex items-center gap-2"><Wallet className="h-4 w-4" /> قواعد التسعير</h2>
       <div className="space-y-2 mb-6">
