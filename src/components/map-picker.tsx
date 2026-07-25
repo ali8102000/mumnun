@@ -43,8 +43,6 @@ export function MapPicker({
     Map<string, { marker: any; anim: { from: Coords; to: Coords; startedAt: number; raf: number | null; heading: number } | null }>
   >(new Map());
   const readyRef = useRef(false);
-  const searchDebounceRef = useRef<any>(null);
-  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -231,6 +229,9 @@ export function MapPicker({
     mapRef.current.panTo(value);
   }, [value?.lat, value?.lng]);
 
+  const searchDebounceRef = useRef<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
   useEffect(() => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     if (!searchQuery.trim()) { setSuggestions([]); return; }
@@ -272,7 +273,7 @@ export function MapPicker({
         setAddress(addr);
         setSearchOpen(false);
         setSuggestions([]);
-        setSearchQuery("");
+        if (inputRef.current) inputRef.current.value = "";
         suppressIdleRef.current = true;
         if (mapRef.current) {
           mapRef.current.panTo(p);
@@ -305,7 +306,7 @@ export function MapPicker({
                 onClick={() => {
                   setSearchOpen(false);
                   setSuggestions([]);
-                  setSearchQuery("");
+                  if (inputRef.current) inputRef.current.value = "";
                 }}
                 className="text-muted-foreground"
                 aria-label="إغلاق"
