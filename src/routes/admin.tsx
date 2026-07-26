@@ -20,25 +20,31 @@ function AdminPage() {
       .then(async ({ data }: any) => {
         if (!data) { setAuthorized(false); return; }
         setAuthorized(true);
-        const [reqAll, reqActive, reqDone, users, drivers, prices] = await Promise.all([
-          supabase.from("service_requests").select("id", { count: "exact", head: true }),
-          supabase.from("service_requests").select("id", { count: "exact", head: true }).in("status", ["pending","searching","accepted","in_progress"] as any),
-          supabase.from("service_requests").select("id", { count: "exact", head: true }).eq("status", "completed" as any),
-          supabase.from("profiles").select("id", { count: "exact", head: true }),
-          (supabase as any).from("driver_profiles").select("user_id", { count: "exact", head: true }),
-          (supabase as any).from("pricing_rules").select("*").order("vehicle_category"),
-        ]);
-        setStats({
-          requests: reqAll.count ?? 0,
-          active: reqActive.count ?? 0,
-          completed: reqDone.count ?? 0,
-          users: users.count ?? 0,
-          drivers: drivers.count ?? 0,
-        });
-        setPricing(prices.data ?? []);
-        const { data: rec } = await supabase.from("service_requests").select("id, type, status, price_estimate, created_at").order("created_at", { ascending: false }).limit(20);
-        setRecent(rec ?? []);
-      });
+        try {
+          const [reqAll, reqActive, reqDone, users, drivers, prices] = await Promise.all([
+            supabase.from("service_requests").select("id", { count: "exact", head: true }),
+            supabase.from("service_requests").select("id", { count: "exact", head: true }).in("status", ["pending","searching","accepted","in_progress"] as any),
+            supabase.from("service_requests").select("id", { count: "exact", head: true }).eq("status", "completed" as any),
+            supabase.from("profiles").select("id", { count: "exact", head: true }),
+            (supabase as any).from("driver_profiles").select("user_id", { count: "exact", head: true }),
+            (supabase as any).from("pricing_rules").select("*").order("vehicle_category"),
+          ]);
+          setStats({
+            requests: reqAll.count ?? 0,
+            active: reqActive.count ?? 0,
+            completed: reqDone.count ?? 0,
+            users: users.count ?? 0,
+            drivers: drivers.count ?? 0,
+          });
+          setPricing(prices.data ?? []);
+          const { data: rec } = await supabase.from("service_requests").select("id, type, status, price_estimate, created_at").order("created_at", { ascending: false }).limit(20);
+          setRecent(rec ?? []);
+        } catch (err) {
+          console.error("admin load error:", err);
+          setAuthorized(false);
+        }
+      })
+      .catch(() => setAuthorized(false));
   }, [session]);
 
   if (loading) return null;
@@ -69,10 +75,7 @@ function AdminPage() {
         <Stat icon={Users} label="المستخدمون" value={stats?.users} />
       </div>
 
-      <Link
-        to="/admin/subscriptions"
-        className="glass rounded-2xl p-4 mb-3 flex items-center justify-between text-sm font-bold border-2 border-amber-500/20"
-      >
+      <Link to="/admin/subscriptions" className="glass rounded-2xl p-4 mb-3 flex items-center justify-between text-sm font-bold border-2 border-amber-500/20">
         <div className="flex items-center gap-2">
           <Crown className="h-5 w-5 text-amber-500" />
           <span>إدارة الاشتراكات والباقات</span>
@@ -80,10 +83,7 @@ function AdminPage() {
         <span className="text-muted-foreground text-xs">→</span>
       </Link>
 
-      <Link
-        to="/admin/monitoring"
-        className="glass rounded-2xl p-4 mb-6 flex items-center justify-between text-sm font-bold border-2 border-blue-500/20"
-      >
+      <Link to="/admin/monitoring" className="glass rounded-2xl p-4 mb-6 flex items-center justify-between text-sm font-bold border-2 border-blue-500/20">
         <div className="flex items-center gap-2">
           <Activity className="h-5 w-5 text-blue-500" />
           <span>المراقبة المباشرة والبلاغات</span>

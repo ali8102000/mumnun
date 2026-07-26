@@ -17,9 +17,9 @@ type Mode = "signup" | "login";
 
 function AuthPage() {
   const [mode, setMode] = useState<Mode>("signup");
-  const [identifier, setIdentifier] = useState(""); // login: phone or email
-  const [phone, setPhone] = useState(""); // signup
-  const [email, setEmail] = useState(""); // signup (optional but recommended)
+  const [identifier, setIdentifier] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,7 +48,6 @@ function AuthPage() {
         }
         const normalized = normalizePhone(phone);
         const realEmail = email.trim().toLowerCase();
-        // Use real email if provided (enables password reset); otherwise synthetic.
         const authEmail = realEmail || phoneToEmail(normalized);
         const { data, error } = await supabase.auth.signUp({
           email: authEmail,
@@ -83,12 +82,12 @@ function AuthPage() {
           return;
         }
         const isEmail = id.includes("@");
-        const finalId = isEmail ? id : normalizePhone(id);
         if (!isEmail && !isValidPhone(id)) {
           toast.error("رقم الهاتف غير صالح");
           setBusy(false);
           return;
         }
+        const finalId = isEmail ? id : normalizePhone(id);
         const { email: authEmail } = await lookup({ data: { identifier: finalId } });
         const { error } = await supabase.auth.signInWithPassword({
           email: authEmail,

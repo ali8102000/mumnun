@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useAuth } from "@lib/auth-context";
-import { supabase } from "@integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft, Car, Check, Crown, Sparkles, Wallet } from "lucide-react";
-import { grantProviderRole } from "@lib/roles.functions";
+import { grantProviderRole } from "@/lib/roles.functions";
 
 export const Route = createFileRoute("/onboarding/driver")({
   ssr: false,
@@ -114,16 +114,9 @@ function OnboardingDriver() {
 
       <div className="mb-2 text-xs font-bold text-muted-foreground">الشركة المصنعة</div>
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 mb-3">
-        <button
-          onClick={() => setMakeFilter("")}
-          className={makeFilter === "" ? "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press bg-primary text-primary-foreground" : "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press glass"}
-        >الكل</button>
+        <button onClick={() => setMakeFilter("")} className={makeFilter === "" ? "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press bg-primary text-primary-foreground" : "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press glass"}>الكل</button>
         {makes.map((m) => (
-          <button
-            key={m}
-            onClick={() => setMakeFilter(m)}
-            className={makeFilter === m ? "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press bg-primary text-primary-foreground" : "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press glass"}
-          >{m}</button>
+          <button key={m} onClick={() => setMakeFilter(m)} className={makeFilter === m ? "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press bg-primary text-primary-foreground" : "shrink-0 px-3 py-1.5 rounded-full text-xs font-bold btn-press glass"}>{m}</button>
         ))}
       </div>
 
@@ -132,15 +125,9 @@ function OnboardingDriver() {
         {filtered.map((m) => {
           const c = CATEGORY_META[m.category];
           const active = selected?.id === m.id;
-          const btnClass = active
-            ? "relative text-right p-3 rounded-2xl btn-press transition-all bg-white ring-2 ring-primary shadow-md scale-[1.02]"
-            : "relative text-right p-3 rounded-2xl btn-press transition-all bg-white/70";
+          const btnClass = active ? "relative text-right p-3 rounded-2xl btn-press transition-all bg-white ring-2 ring-primary shadow-md scale-[1.02]" : "relative text-right p-3 rounded-2xl btn-press transition-all bg-white/70";
           return (
-            <button
-              key={m.id}
-              onClick={() => setSelected(m)}
-              className={btnClass}
-            >
+            <button key={m.id} onClick={() => setSelected(m)} className={btnClass}>
               {active && <Check className="absolute top-2 left-2 h-4 w-4 text-primary" />}
               <div className="flex items-center gap-2">
                 <div className={"h-9 w-9 rounded-xl bg-gradient-to-br " + c.gradient + " grid place-items-center text-lg shadow"}>{c.emoji}</div>
@@ -162,11 +149,7 @@ function OnboardingDriver() {
       </div>
 
       <div className="fixed bottom-0 inset-x-0 p-4 glass-strong border-t border-border">
-        <button
-          disabled={busy || !selected}
-          onClick={submit}
-          className="w-full max-w-md mx-auto py-4 rounded-2xl bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-bold btn-press glow-primary disabled:opacity-50 flex items-center justify-center gap-2"
-        >
+        <button disabled={busy || !selected} onClick={submit} className="w-full max-w-md mx-auto py-4 rounded-2xl bg-gradient-to-r from-primary to-primary-glow text-primary-foreground font-bold btn-press glow-primary disabled:opacity-50 flex items-center justify-center gap-2">
           {busy && <Loader2 className="h-5 w-5 animate-spin" />}
           حفظ والمتابعة
           <ArrowLeft className="h-5 w-5" />
@@ -180,12 +163,7 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
   return (
     <label className="block">
       <div className="text-xs font-bold text-muted-foreground mb-2">{label}</div>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-input border border-border rounded-2xl px-4 py-3.5 text-sm font-bold outline-none focus:border-ring"
-      />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-input border border-border rounded-2xl px-4 py-3.5 text-sm font-bold outline-none focus:border-ring" />
     </label>
   );
 }
