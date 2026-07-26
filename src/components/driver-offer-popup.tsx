@@ -167,35 +167,11 @@ export function DriverOfferPopup() {
           </div>
           <div className="relative w-24 h-24">
             <svg className="w-24 h-24 -rotate-90" viewBox="0 0 100 100">
-              <circle
-                cx="50"
-                cy="50"
-                r="45"
-                stroke="currentColor"
-                strokeWidth="8"
-                fill="none"
-                className="text-muted/30"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                r="45"
-                stroke="currentColor"
-                strokeWidth="8"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray={`${2 * Math.PI * 45}`}
-                strokeDashoffset={`${2 * Math.PI * 45 * (1 - pct / 100)}`}
-                className={urgent ? "text-rose-500" : "text-primary"}
-                style={{ transition: "stroke-dashoffset 0.25s linear" }}
-              />
+              <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted/30" />
+              <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="8" fill="none" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 45}`} strokeDashoffset={`${2 * Math.PI * 45 * (1 - pct / 100)}`} className={urgent ? "text-rose-500" : "text-primary"} style={{ transition: "stroke-dashoffset 0.25s linear" }} />
             </svg>
             <div className="absolute inset-0 grid place-items-center">
-              <span
-                className={`text-3xl font-black ${
-                  urgent ? "text-rose-500" : "text-primary"
-                }`
-              >
+              <span className={`text-3xl font-black ${urgent ? "text-rose-500" : "text-primary"}`}>
                 {secondsLeft}
               </span>
             </div>
@@ -206,9 +182,7 @@ export function DriverOfferPopup() {
           <div className="flex items-start gap-3 bg-emerald-500/10 rounded-2xl p-3">
             <MapPin className="h-5 w-5 text-emerald-500 mt-0.5 flex-shrink-0" />
             <div className="text-sm min-w-0 flex-1">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                نقطة الانطلاق
-              </div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">نقطة الانطلاق</div>
               <div className="font-bold truncate">{request.pickup_text ?? "—"}</div>
             </div>
           </div>
@@ -216,55 +190,31 @@ export function DriverOfferPopup() {
             <div className="flex items-start gap-3 bg-rose-500/10 rounded-2xl p-3">
               <Navigation className="h-5 w-5 text-rose-500 mt-0.5 flex-shrink-0" />
               <div className="text-sm min-w-0 flex-1">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  الوجهة
-                </div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">الوجهة</div>
                 <div className="font-bold truncate">{request.dest_text}</div>
               </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-muted/50 rounded-2xl px-3 py-2.5 text-center">
-              <div className="text-[10px] uppercase text-muted-foreground">
-                المسافة منك
-              </div>
-              <div className="font-black text-sm mt-0.5">
-                {offer.distance_km
-                  ? `${Number(offer.distance_km).toFixed(1)} كم`
-                  : "—"}
-              </div>
+              <div className="text-[10px] uppercase text-muted-foreground">المسافة منك</div>
+              <div className="font-black text-sm mt-0.5">{offer.distance_km ? `${Number(offer.distance_km).toFixed(1)} كم` : "—"}</div>
             </div>
             {request.price_estimate && (
               <div className="bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl px-3 py-2.5 text-center border border-primary/30">
-                <div className="text-[10px] uppercase text-primary/80">
-                  السعر
-                </div>
-                <div className="font-black text-primary text-sm mt-0.5">
-                  {Number(request.price_estimate).toLocaleString()} د.ع
-                </div>
+                <div className="text-[10px] uppercase text-primary/80">السعر</div>
+                <div className="font-black text-primary text-sm mt-0.5">{Number(request.price_estimate).toLocaleString()} د.ع</div>
               </div>
             )}
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => doRespond("reject")}
-            disabled={busy}
-            className="py-4 rounded-2xl border-2 border-border bg-card font-black text-base active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-60"
-          >
+          <button onClick={() => doRespond("reject")} disabled={busy} className="py-4 rounded-2xl border-2 border-border bg-card font-black text-base active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-60">
             <X className="h-5 w-5" /> رفض
           </button>
-          <button
-            onClick={() => doRespond("accept")}
-            disabled={busy}
-            className="py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-black text-base active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-60 shadow-lg shadow-emerald-500/40"
-          >
-            {busy ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Check className="h-5 w-5" />
-            )}
+          <button onClick={() => doRespond("accept")} disabled={busy} className="py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-black text-base active:scale-95 transition-transform flex items-center justify-center gap-2 disabled:opacity-60 shadow-lg shadow-emerald-500/40">
+            {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Check className="h-5 w-5" />}
             قبول
           </button>
         </div>
