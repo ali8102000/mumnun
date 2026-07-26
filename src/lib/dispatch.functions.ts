@@ -129,11 +129,11 @@ export const respondToOffer = createServerFn({ method: "POST" })
       .eq("status", "pending")
       .neq("id", offer.id);
 
-    await supabaseAdmin
+    const { error: chatErr } = await supabaseAdmin
       .from("chats")
-      .upsert({ request_id: offer.request_id, customer_id: updated.customer_id, provider_id: userId } as any)
-      .eq("request_id", offer.request_id)
-      .select();
+      .upsert({ request_id: offer.request_id, customer_id: updated.customer_id, provider_id: userId } as any, { onConflict: "request_id" });
+
+    if (chatErr) console.error("chat upsert error:", chatErr.message);
 
     await (supabaseAdmin as any).from("notifications").insert({
       user_id: updated.customer_id,
@@ -409,17 +409,18 @@ export const acceptServiceRequest = createServerFn({ method: "POST" })
       .select("id, customer_id")
       .maybeSingle();
 
-    if (error) throw new Error("Failed to grant role");
+    if (error) throw new Error("Failed to accept request");
     if (!updated) throw new Error("الطلب لم يعد متاحاً");
 
-    await supabaseAdmin
+    const { error: chatErr } = await supabaseAdmin
       .from("chats")
       .upsert({
         request_id: data.requestId,
         customer_id: updated.customer_id,
         provider_id: userId,
-      } as any)
-      .eq("request_id", data.requestId);
+      } as any, { onConflict: "request_id" });
+
+    if (chatErr) console.error("chat upsert error:", chatErr.message);
 
     await (supabaseAdmin as any).from("notifications").insert({
       user_id: updated.customer_id,
