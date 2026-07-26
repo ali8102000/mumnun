@@ -22,7 +22,7 @@ function Index() {
   }
 
   if (!session) return <Navigate to="/auth" />;
-  if (!profile) return <Navigate to="/auth" />;
+  if (!profile) return <Navigate to="/select-role" />;
   if (roles.length === 0) return <Navigate to="/select-role" />;
   return <Navigate to="/home" />;
 }

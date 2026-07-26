@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Star, Shield, Zap, Trophy, Award } from "lucide-react";
 
 export interface BadgeData {
@@ -96,7 +97,7 @@ export function StarRating({ stars, size = "md" }: { stars: number; size?: "sm" 
   );
 }
 
-export function SubScoreBar({ label, value, icon }: { label: string; value: number; icon: React.ReactNode }) {
+export function SubScoreBar({ label, value, icon }: { label: string; value: number; icon: ReactNode }) {
   const pct = (value / 5) * 100;
   return (
     <div className="flex items-center gap-2">

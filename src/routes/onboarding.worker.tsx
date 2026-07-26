@@ -46,6 +46,7 @@ function OnboardingWorker() {
     setBusy(true);
     try {
       const uid = session!.user.id;
+      await grantProviderRole({ data: { role: "worker" } });
       const { error: pErr } = await supabase.from("worker_profiles").upsert({
         user_id: uid, level, bio, available: true,
       });
@@ -54,7 +55,6 @@ function OnboardingWorker() {
       const rows = Array.from(selected).map((service_id) => ({ worker_id: uid, service_id }));
       const { error: sErr } = await supabase.from("worker_services").insert(rows);
       if (sErr) throw sErr;
-      await grantProviderRole({ data: { role: "worker" } });
       toast.success("تم تفعيل ملفك");
       navigate({ to: "/home" });
     } catch (e: any) {

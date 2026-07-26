@@ -26,11 +26,11 @@ function ForgotPasswordPage() {
       return;
     }
     const isEmail = value.includes("@");
-    const finalId = isEmail ? value : normalizePhone(value);
     if (!isEmail && !isValidPhone(value)) {
       toast.error("رقم هاتف غير صالح");
       return;
     }
+    const finalId = isEmail ? value : normalizePhone(value);
     setBusy(true);
     try {
       const res = await reset({
@@ -48,7 +48,6 @@ function ForgotPasswordPage() {
         toast.success("تم إرسال رابط الاستعادة إلى بريدك");
       }
     } catch (err: any) {
-      // Never leak whether the account exists — always show generic OK.
       setSent(true);
     } finally {
       setBusy(false);

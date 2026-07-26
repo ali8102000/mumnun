@@ -32,8 +32,8 @@ function MessagesPage() {
       .or(`customer_id.eq.${session!.user.id},provider_id.eq.${session!.user.id}`)
       .order("created_at", { ascending: false });
     if (!data) return;
-    const otherIds = data.map((c) => c.customer_id === session!.user.id ? c.provider_id : c.customer_id);
-    const { data: profs } = await supabase.from("profiles").select("id, full_name, phone").in("id", otherIds);
+    const otherIds = data.map((c) => c.customer_id === session!.user.id ? c.provider_id : c.customer_id).filter((id): id is string => !!id);
+    const { data: profs } = otherIds.length > 0 ? await supabase.from("profiles").select("id, full_name, phone").in("id", otherIds) : { data: [] };
     const map = new Map(profs?.map((p) => [p.id, p]) ?? []);
     setChats(data.map((c) => ({ ...c, other: map.get(c.customer_id === session!.user.id ? c.provider_id : c.customer_id) })));
   }

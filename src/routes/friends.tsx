@@ -1,9 +1,9 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
-import { Search, UserPlus, Loader2, Users, Check, X, Phone } from "lucide-react";
+import { Search, UserPlus, Loader2, Users, Check, X, Phone, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/friends")({ ssr: false, component: FriendsPage });
@@ -149,7 +149,13 @@ function FriendsPage() {
   if (!session) return <Navigate to="/auth" />;
 
   return (
-    <MobileShell title="الأصدقاء" backTo="/home">
+    <MobileShell>
+      <div className="flex items-center gap-3 mb-4">
+        <Link to="/home" className="glass rounded-xl p-2">
+          <ChevronLeft className="h-5 w-5" />
+        </Link>
+        <h1 className="text-lg font-black">الأصدقاء</h1>
+      </div>
       <div className="space-y-4">
         <div className="glass rounded-2xl p-3">
           <div className="flex items-center gap-2">
