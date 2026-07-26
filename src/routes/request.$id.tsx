@@ -198,7 +198,7 @@ function RequestDetail() {
               <span>تتبع مباشر — يتحدّث لحظياً</span>
             </div>
             <LiveTrackMap
-              me={myLive ?? (req && myRole === "customer" ? { lat: Number(req.pickup_lat), lng: Number(req.pickup_lng) } : null)}
+              me={myLive ?? (req && myRole === "customer" && req.pickup_lat != null && req.pickup_lng != null ? { lat: Number(req.pickup_lat), lng: Number(req.pickup_lng) } : null)}
               other={otherLive}
               meColor={myRole === "customer" ? "#0284c7" : "#16a34a"}
               otherColor={myRole === "customer" ? "#16a34a" : "#0284c7"}
