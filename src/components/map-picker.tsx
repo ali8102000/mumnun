@@ -35,6 +35,7 @@ export function MapPicker({
   const [address, setAddress] = useState<string>("");
   const [locating, setLocating] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Array<{ id: string; text: string; secondary: string }>>([]);
   const sessionTokenRef = useRef<any>(null);
   const acServiceRef = useRef<any>(null);
@@ -52,217 +53,219 @@ export function MapPicker({
         const center = value ?? DEFAULT_CENTER;
         const map = new g.maps.Map(containerRef.current, {
           center,
-          zoom: value ? 16 : 12,
+          zoom: 14,
           disableDefaultUI: true,
-          zoomControl: true,
-          gestureHandling: "greedy",
           clickableIcons: false,
-          styles: [
-            { featureType: "poi.business", stylers: [{ visibility: "off" }] },
-            { featureType: "transit", stylers: [{ visibility: "off" }] },
-          ],
+          gestureHandling: "greedy",
         });
         mapRef.current = map;
         geocoderRef.current = new g.maps.Geocoder();
-        try {
-          acServiceRef.current = new g.maps.places.AutocompleteService();
-          sessionTokenRef.current = new g.maps.places.AutocompleteSessionToken();
-          placesSvcRef.current = new g.maps.places.PlacesService(map);
-        } catch {}
+
+        const marker = new g.maps.Marker({
+          position: center,
+          map,
+          draggable: true,
+          animation: g.maps.Animation.DROP,
+        });
+
+        marker.addListener("dragend", () => {
+          const pos = marker.getPosition();
+          if (!pos) return;
+          const c = { lat: pos.lat(), lng: pos.lng() };
+          if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+          idleTimerRef.current = setTimeout(() => {
+            if (suppressIdleRef.current) {
+              suppressIdleRef.current = false;
+              return;
+            }
+            geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+              if (status === "OK" && results?.[0]) {
+                const addr = results[0].formatted_address;
+                setAddress(addr);
+                onChange(c, addr);
+              } else {
+                onChange(c);
+              }
+            });
+          }, 300);
+        });
 
         map.addListener("idle", () => {
           if (suppressIdleRef.current) {
             suppressIdleRef.current = false;
             return;
           }
+          const center = map.getCenter();
+          if (!center) return;
+          const c = { lat: center.lat(), lng: center.lng() };
+          marker.setPosition(center);
           if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
           idleTimerRef.current = setTimeout(() => {
-            const c = map.getCenter();
-            if (!c) return;
-            const pos = { lat: c.lat(), lng: c.lng() };
-            reverseGeocode(pos);
-          }, 250);
+            geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+              if (status === "OK" && results?.[0]) {
+                const addr = results[0].formatted_address;
+                setAddress(addr);
+                onChange(c, addr);
+              } else {
+                onChange(c);
+              }
+            });
+          }, 500);
         });
 
         setLoading(false);
         readyRef.current = true;
-
-        if (!value) {
-          autoLocate(map);
-        } else {
-          reverseGeocode(center);
-        }
       })
-      .catch((e) => {
-        setError(e.message ?? "تعذر تحميل الخريطة");
-        setLoading(false);
+      .catch(() => {
+        if (!cancelled) setError("تعذّر تحميل الخريطة. تحقق من اتصال الإنترنت.");
       });
+
     return () => {
       cancelled = true;
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-      nearbyMarkersRef.current.forEach((v) => {
-        if (v.anim?.raf) cancelAnimationFrame(v.anim.raf);
-        v.marker?.setMap?.(null);
-      });
-      nearbyMarkersRef.current.clear();
-      readyRef.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!readyRef.current || !mapRef.current) return;
+    if (!readyRef.current || !mapRef.current || !value) return;
+    suppressIdleRef.current = true;
+    mapRef.current.panTo(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (!nearby?.length || !mapRef.current) return;
     const g = (window as any).google;
     if (!g) return;
-    const map = mapRef.current;
-    const store = nearbyMarkersRef.current;
-    const incoming = new Set((nearby ?? []).map((p) => p.pin_id));
 
-    store.forEach((v, id) => {
-      if (!incoming.has(id)) {
-        if (v.anim?.raf) cancelAnimationFrame(v.anim.raf);
-        v.marker?.setMap?.(null);
-        store.delete(id);
-      }
-    });
-
-    const icon = (heading: number) =>
-      nearbyKind === "car"
-        ? {
-            path: g.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-            scale: 5,
-            fillColor: accent,
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 2,
-            rotation: heading,
+    nearby.forEach((pin) => {
+      const existing = nearbyMarkersRef.current.get(pin.pin_id);
+      if (existing) {
+        if (existing.anim) {
+          cancelAnimationFrame(existing.anim.raf ?? 0);
+        }
+        const from = existing.marker.getPosition?.();
+        const fromCoords: Coords = from ? { lat: from.lat(), lng: from.lng() } : { lat: pin.lat, lng: pin.lng };
+        existing.anim = {
+          from: fromCoords,
+          to: { lat: pin.lat, lng: pin.lng },
+          startedAt: Date.now(),
+          raf: null,
+          heading: pin.heading ?? 0,
+        };
+        const animate = () => {
+          if (!existing.anim) return;
+          const elapsed = Date.now() - existing.anim.startedAt;
+          const t = Math.min(1, elapsed / 1000);
+          const easeT = 1 - Math.pow(1 - t, 3);
+          const lat = existing.anim.from.lat + (existing.anim.to.lat - existing.anim.from.lat) * easeT;
+          const lng = existing.anim.from.lng + (existing.anim.to.lng - existing.anim.from.lng) * easeT;
+          existing.marker.setPosition({ lat, lng });
+          if (t < 1) {
+            existing.anim.raf = requestAnimationFrame(animate);
+          } else {
+            existing.anim = null;
           }
-        : {
-            path: g.maps.SymbolPath.CIRCLE,
-            scale: 7,
-            fillColor: accent,
-            fillOpacity: 1,
-            strokeColor: "#ffffff",
-            strokeWeight: 2,
-          };
-
-    (nearby ?? []).forEach((p) => {
-      const target: Coords = { lat: p.lat, lng: p.lng };
-      const heading = p.heading ?? 0;
-      const existing = store.get(p.pin_id);
-      if (!existing) {
-        const marker = new g.maps.Marker({
-          position: target,
-          map,
-          icon: icon(heading),
-          clickable: false,
-          zIndex: 10,
-          optimized: false,
+        };
+        existing.anim.raf = requestAnimationFrame(animate);
+      } else {
+        const icon: any = {
+          path: g.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: nearbyKind === "worker" ? "#10b981" : "#3b82f6",
+          fillOpacity: 0.8,
+          strokeColor: "#fff",
+          strokeWeight: 2,
+        };
+        const m = new g.maps.Marker({
+          position: { lat: pin.lat, lng: pin.lng },
+          map: mapRef.current,
+          icon,
         });
-        store.set(p.pin_id, { marker, anim: null });
-        return;
+        nearbyMarkersRef.current.set(pin.pin_id, { marker: m, anim: null });
       }
-      const cur = existing.marker.getPosition();
-      const from: Coords = cur ? { lat: cur.lat(), lng: cur.lng() } : target;
-      const dLat = target.lat - from.lat;
-      const dLng = target.lng - from.lng;
-      if (Math.abs(dLat) < 2e-5 && Math.abs(dLng) < 2e-5) {
-        existing.marker.setIcon(icon(heading));
-        return;
+    });
+
+    const currentIds = new Set(nearby.map((p) => p.pin_id));
+    nearbyMarkersRef.current.forEach((entry, id) => {
+      if (!currentIds.has(id)) {
+        entry.marker.setMap(null);
+        if (entry.anim) cancelAnimationFrame(entry.anim.raf ?? 0);
+        nearbyMarkersRef.current.delete(id);
       }
-      if (existing.anim?.raf) cancelAnimationFrame(existing.anim.raf);
-      existing.anim = { from, to: target, startedAt: performance.now(), raf: null, heading };
-      const step = () => {
-        const s = existing.anim;
-        if (!s) return;
-        const t = Math.min(1, (performance.now() - s.startedAt) / 1000);
-        const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-        const lat = s.from.lat + (s.to.lat - s.from.lat) * e;
-        const lng = s.from.lng + (s.to.lng - s.from.lng) * e;
-        existing.marker.setPosition({ lat, lng });
-        existing.marker.setIcon(icon(s.heading));
-        if (t < 1) s.raf = requestAnimationFrame(step);
-        else s.raf = null;
-      };
-      existing.anim.raf = requestAnimationFrame(step);
     });
-  }, [nearby, nearbyKind, accent]);
+  }, [nearby, nearbyKind]);
 
-  function reverseGeocode(pos: Coords) {
-    if (!geocoderRef.current) {
-      onChange(pos);
-      return;
-    }
-    geocoderRef.current.geocode({ location: pos, language: "ar" }, (results: any, status: any) => {
-      const addr = status === "OK" && results?.[0]?.formatted_address;
-      setAddress(addr || "");
-      onChange(pos, addr || undefined);
-    });
-  }
-
-  function autoLocate(map?: any) {
-    if (!navigator.geolocation) return;
+  function autoLocate() {
+    if (!navigator.geolocation || !mapRef.current) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        const m = map ?? mapRef.current;
-        if (m) {
-          m.panTo(p);
-          m.setZoom(16);
-        }
-        reverseGeocode(p);
-        setLocating(false);
+        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        suppressIdleRef.current = true;
+        mapRef.current.panTo(c);
+        mapRef.current.setZoom(16);
+        geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+          if (status === "OK" && results?.[0]) {
+            const addr = results[0].formatted_address;
+            setAddress(addr);
+            onChange(c, addr);
+          } else {
+            onChange(c);
+          }
+          setLocating(false);
+        });
       },
-      () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      () => {
+        setLocating(false);
+        setError("تعذّر تحديد موقعك");
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
     );
   }
 
   useEffect(() => {
-    if (!mapRef.current || !value) return;
-    const c = mapRef.current.getCenter();
-    if (!c) return;
-    if (Math.abs(c.lat() - value.lat) < 1e-6 && Math.abs(c.lng() - value.lng) < 1e-6) return;
-    suppressIdleRef.current = true;
-    mapRef.current.panTo(value);
-  }, [value?.lat, value?.lng]);
-
-  const searchDebounceRef = useRef<any>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    if (!searchQuery.trim()) { setSuggestions([]); return; }
-    searchDebounceRef.current = setTimeout(() => {
-      if (!acServiceRef.current) return;
+    if (!searchOpen || !searchQuery.trim()) {
+      setSuggestions([]);
+      return;
+    }
+    const g = (window as any).google;
+    if (!g) return;
+    if (!acServiceRef.current) {
+      acServiceRef.current = new g.maps.places.AutocompleteService();
+      sessionTokenRef.current = new g.maps.places.AutocompleteSessionToken();
+    }
+    const timer = setTimeout(() => {
       acServiceRef.current.getPlacePredictions(
         {
           input: searchQuery,
-          language: "ar",
-          componentRestrictions: { country: "iq" },
           sessionToken: sessionTokenRef.current,
+          componentRestrictions: { country: "iq" },
         },
-        (preds: any[], status: any) => {
-          if (status !== "OK" || !preds) { setSuggestions([]); return; }
+        (predictions: any, status: any) => {
+          if (status !== "OK" || !predictions) {
+            setSuggestions([]);
+            return;
+          }
           setSuggestions(
-            preds.slice(0, 6).map((p) => ({
+            predictions.map((p: any) => ({
               id: p.place_id,
-              text: p.structured_formatting?.main_text ?? p.description,
-              secondary: p.structured_formatting?.secondary_text ?? "",
-            }))
+              text: p.structured_formatting?.main_text || p.description,
+              secondary: p.structured_formatting?.secondary_text || "",
+            })),
           );
-        }
+        },
       );
     }, 300);
-    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
-  }, [searchQuery]);
+    return () => clearTimeout(timer);
+  }, [searchQuery, searchOpen]);
 
-  function pickSuggestion(id: string, label: string) {
-    if (!placesSvcRef.current) return;
+  function pickSuggestion(placeId: string, label: string) {
+    const g = (window as any).google;
+    if (!g || !placesSvcRef.current) {
+      placesSvcRef.current = new g.maps.places.PlacesService(mapRef.current);
+    }
     placesSvcRef.current.getDetails(
-      { placeId: id, fields: ["geometry", "formatted_address", "name"] },
+      { placeId, fields: ["geometry", "formatted_address", "name"] },
       (place: any, status: any) => {
         if (status !== "OK" || !place?.geometry?.location) return;
         const p = {
@@ -273,7 +276,7 @@ export function MapPicker({
         setAddress(addr);
         setSearchOpen(false);
         setSuggestions([]);
-        if (inputRef.current) inputRef.current.value = "";
+        setSearchQuery("");
         suppressIdleRef.current = true;
         if (mapRef.current) {
           mapRef.current.panTo(p);
@@ -306,7 +309,7 @@ export function MapPicker({
                 onClick={() => {
                   setSearchOpen(false);
                   setSuggestions([]);
-                  if (inputRef.current) inputRef.current.value = "";
+                  setSearchQuery("");
                 }}
                 className="text-muted-foreground"
                 aria-label="إغلاق"
