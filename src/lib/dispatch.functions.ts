@@ -50,27 +50,60 @@ export const dispatchRequest = createServerFn({ method: "POST" })
       request_id: req.id,
       provider_id: d.user_id,
       distance_km: d.distance_km,
-      expires_at: new Date(Date.now() + 45_000).toISOString(),
+      eta_min: d.eta_min,
+      status: "pending",
+      expires_at: new Date(Date.now() + 30_000).toISOString(),
     }));
 
-    const { error: insErr } = await supabaseAdmin.from("request_offers" as any).upsert(rows, {
-      onConflict: "request_id,provider_id",
-    });
-    if (insErr) throw new Error("Failed to create offers");
+    const { error: insertError } = await supabaseAdmin
+      .from("driver_offers")
+      .insert(rows);
+    if (insertError) throw new Error("Failed to create offers");
 
-    const notifs = drivers.map((d: any) => ({
-      user_id: d.user_id,
-      type: "new_offer",
-      title: "طلب جديد قريب منك",
-      body: `على بُعد ${Number(d.distance_km).toFixed(1)} كم`,
-      link: `/`,
-      data: { request_id: req.id },
-    }));
-    await supabaseAdmin.from("notifications" as any).insert(notifs);
-
-    return { offers: drivers.length };
+    return { offers: rows.length, reason: "ok" };
   });
 
+/**
+ * Provider accepts a service request offer.
+ */
+export const acceptServiceRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: req, error } = await supabase
+      .from("service_requests")
+      .select("id, status, customer_id")
+      .eq("id", data.requestId)
+      .single();
+    if (error || !req) throw new Error("Request not found");
+    if (req.status !== "searching") throw new Error("Request is no longer available");
+
+    const { error: updateError } = await supabaseAdmin
+      .from("service_requests")
+      .update({
+        status: "accepted",
+        provider_id: userId,
+        accepted_at: new Date().toISOString(),
+      })
+      .eq("id", data.requestId)
+      .eq("status", "searching");
+    if (updateError) throw new Error("Failed to accept request");
+
+    await supabaseAdmin
+      .from("driver_offers")
+      .delete()
+      .eq("request_id", data.requestId)
+      .neq("provider_id", userId);
+
+    return { ok: true };
+  });
+
+/**
+ * Provider responds to a specific offer (accept/reject/expire).
+ */
 export const respondToOffer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -82,183 +115,160 @@ export const respondToOffer = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { userId } = context;
+    const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: offer, error } = await (supabaseAdmin as any)
-      .from("request_offers")
-      .select("*")
+    const { data: offer, error } = await supabase
+      .from("driver_offers")
+      .select("id, request_id, provider_id, status")
       .eq("id", data.offerId)
       .single();
     if (error || !offer) throw new Error("Offer not found");
     if (offer.provider_id !== userId) throw new Error("Forbidden");
-    if (offer.status !== "pending") throw new Error("Offer no longer pending");
-    if (new Date(offer.expires_at) < new Date()) throw new Error("Offer expired");
+    if (offer.status !== "pending") throw new Error("Offer is no longer pending");
 
-    if (data.action === "reject") {
-      await (supabaseAdmin as any)
-        .from("request_offers")
-        .update({ status: "rejected", responded_at: new Date().toISOString() })
-        .eq("id", offer.id);
-      return { ok: true, accepted: false };
+    if (data.action === "accept") {
+      const { error: reqUpdateError } = await supabaseAdmin
+        .from("service_requests")
+        .update({
+          status: "accepted",
+          provider_id: userId,
+          accepted_at: new Date().toISOString(),
+        })
+        .eq("id", offer.request_id)
+        .eq("status", "searching");
+      if (reqUpdateError) throw new Error("Failed to accept request");
+
+      await supabaseAdmin
+        .from("driver_offers")
+        .delete()
+        .eq("request_id", offer.request_id)
+        .neq("provider_id", userId);
+
+      return { ok: true, action: "accepted", requestId: offer.request_id };
+    } else {
+      await supabaseAdmin
+        .from("driver_offers")
+        .delete()
+        .eq("id", data.offerId);
+      return { ok: true, action: "rejected" };
     }
-
-    const { data: updated, error: updErr } = await supabaseAdmin
-      .from("service_requests")
-      .update({
-        provider_id: userId,
-        status: "accepted" as any,
-        accepted_at: new Date().toISOString(),
-      })
-      .eq("id", offer.request_id)
-      .in("status", ["pending", "searching"] as any)
-      .select("id, customer_id")
-      .maybeSingle();
-
-    if (updErr) throw new Error("Failed to accept request");
-    if (!updated) throw new Error("الطلب لم يعد متاحاً");
-
-    await (supabaseAdmin as any)
-      .from("request_offers")
-      .update({ status: "accepted", responded_at: new Date().toISOString() })
-      .eq("id", offer.id);
-    await (supabaseAdmin as any)
-      .from("request_offers")
-      .update({ status: "cancelled" })
-      .eq("request_id", offer.request_id)
-      .eq("status", "pending")
-      .neq("id", offer.id);
-
-    const { error: chatErr } = await supabaseAdmin
-      .from("chats")
-      .upsert({ request_id: offer.request_id, customer_id: updated.customer_id, provider_id: userId } as any, { onConflict: "request_id" });
-
-    if (chatErr) console.error("chat upsert error:", chatErr.message);
-
-    await (supabaseAdmin as any).from("notifications").insert({
-      user_id: updated.customer_id,
-      type: "offer_accepted",
-      title: "تم قبول طلبك",
-      body: "الكابتن في طريقه إليك",
-      link: `/request/${offer.request_id}`,
-    });
-
-    return { ok: true, accepted: true, requestId: offer.request_id };
   });
 
+/**
+ * Customer cancels a request.
+ */
 export const cancelRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ requestId: z.string().uuid(), reason: z.string().max(200).optional() }).parse(d),
+    z.object({
+      requestId: z.string().uuid(),
+      reason: z.string().max(500).optional(),
+    }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: req } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: req, error } = await supabase
       .from("service_requests")
-      .select("id, customer_id, provider_id, status")
+      .select("id, customer_id, status")
       .eq("id", data.requestId)
       .single();
-    if (!req || req.customer_id !== userId) throw new Error("Forbidden");
-    if (!["pending", "searching", "accepted"].includes(req.status as string))
-      throw new Error("لا يمكن الإلغاء");
+    if (error || !req) throw new Error("Request not found");
+    if (req.customer_id !== userId) throw new Error("Forbidden");
+    if (req.status === "completed" || req.status === "cancelled")
+      throw new Error("Request is already finished");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("service_requests")
       .update({
-        status: "cancelled" as any,
-        cancellation_reason: data.reason ?? null,
-        cancelled_by: userId,
+        status: "cancelled",
+        cancelled_at: new Date().toISOString(),
+        cancel_reason: data.reason ?? null,
       })
-      .eq("id", req.id);
-    await (supabaseAdmin as any)
-      .from("request_offers")
-      .update({ status: "cancelled" })
-      .eq("request_id", req.id)
-      .eq("status", "pending");
-    if (req.provider_id) {
-      await (supabaseAdmin as any).from("notifications").insert({
-        user_id: req.provider_id,
-        type: "request_cancelled",
-        title: "تم إلغاء الطلب",
-        body: "قام الزبون بإلغاء الرحلة",
-      });
-    }
+      .eq("id", data.requestId);
+    if (updateError) throw new Error("Failed to cancel request");
+
+    await supabaseAdmin
+      .from("driver_offers")
+      .delete()
+      .eq("request_id", data.requestId);
+
     return { ok: true };
   });
 
+/**
+ * Provider cancels a request they accepted.
+ */
 export const providerCancelRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ requestId: z.string().uuid(), reason: z.string().max(300).min(2) }).parse(d),
+    z.object({
+      requestId: z.string().uuid(),
+      reason: z.string().max(500).optional(),
+    }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: req } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: req, error } = await supabase
       .from("service_requests")
-      .select("id, customer_id, provider_id, status")
+      .searching_started_at,
+      provider_id,
+      status,
+    })
       .eq("id", data.requestId)
       .single();
-    if (!req || req.provider_id !== userId) throw new Error("Forbidden");
-    if (!["accepted", "in_progress"].includes(req.status as string))
-      throw new Error("لا يمكن الإلغاء الآن");
+    if (error || !req) throw new Error("Request not found");
+    if (req.provider_id !== userId) throw new Error("Forbidden");
+    if (req.status !== "accepted" && req.status !== "arriving")
+      throw new Error("Cannot cancel at this stage");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("service_requests")
       .update({
-        status: "cancelled" as any,
-        cancellation_reason: data.reason,
-        cancelled_by: userId,
+        status: "searching",
+        provider_id: null,
+        accepted_at: null,
+        cancelled_at: null,
+        cancel_reason: data.reason ?? null,
       })
-      .eq("id", req.id);
-    await (supabaseAdmin as any).from("notifications").insert({
-      user_id: req.customer_id,
-      type: "request_cancelled",
-      title: "تم إلغاء الطلب من قِبل المزود",
-      body: data.reason,
-      link: `/request/${req.id}`,
-    });
+      .eq("id", data.requestId);
+    if (updateError) throw new Error("Failed to cancel request");
+
     return { ok: true };
   });
 
+/**
+ * Retry dispatch for a request that is still searching.
+ */
 export const retryDispatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: req } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: req, error } = await supabase
       .from("service_requests")
-      .select("id, customer_id, status, vehicle_category, pickup_lat, pickup_lng")
+      .select("id, customer_id, status, type, vehicle_category, pickup_lat, pickup_lng")
       .eq("id", data.requestId)
       .single();
-    if (!req || req.customer_id !== userId) throw new Error("Forbidden");
-    if (!["pending", "searching"].includes(req.status as string))
-      return { ok: false, reason: "not_searching" };
+    if (error || !req) throw new Error("Request not found");
+    if (req.customer_id !== userId) throw new Error("Forbidden");
+    if (req.status !== "searching") throw new Error("Request is not searching");
+    if (req.type !== "taxi") return { offers: 0, reason: "not_taxi" };
+    if (!req.pickup_lat || !req.pickup_lng) throw new Error("Missing pickup location");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await (supabaseAdmin as any)
-      .from("request_offers")
-      .update({ status: "expired" })
-      .eq("request_id", req.id)
-      .eq("status", "pending")
+    await supabaseAdmin
+      .from("driver_offers")
+      .delete()
+      .eq("request_id", data.requestId)
       .lt("expires_at", new Date().toISOString());
 
-    const { data: active } = await (supabaseAdmin as any)
-      .from("request_offers")
-      .select("id")
-      .eq("request_id", req.id)
-      .eq("status", "pending")
-      .limit(1);
-    if (active && active.length) return { ok: true, offers: 0, reason: "still_pending" };
-
-    const { data: prior } = await (supabaseAdmin as any)
-      .from("request_offers")
-      .select("provider_id")
-      .eq("request_id", req.id);
-    const skipIds: string[] = (prior ?? []).map((p: any) => p.provider_id);
-
-    const radii = [3, 6, 12];
+    const radii = [2, 5, 10];
     let drivers: any[] = [];
     for (const r of radii) {
       const { data: found } = await (supabaseAdmin as any).rpc("find_nearby_drivers", {
@@ -266,37 +276,36 @@ export const retryDispatch = createServerFn({ method: "POST" })
         _lng: req.pickup_lng,
         _category: req.vehicle_category ?? "economy",
         _radius_km: r,
-        _limit: 15,
+        _limit: 10,
       });
-      const filtered = (found ?? []).filter((d: any) => !skipIds.includes(d.user_id));
-      if (filtered.length) {
-        drivers = filtered;
+      if (found && found.length) {
+        drivers = found;
         break;
       }
     }
-    if (!drivers.length) return { ok: true, offers: 0, reason: "no_drivers" };
+
+    if (!drivers.length) return { offers: 0, reason: "no_drivers" };
 
     const rows = drivers.map((d: any) => ({
       request_id: req.id,
       provider_id: d.user_id,
       distance_km: d.distance_km,
-      expires_at: new Date(Date.now() + 45_000).toISOString(),
+      eta_min: d.eta_min,
       status: "pending",
+      expires_at: new Date(Date.now() + 30_000).toISOString(),
     }));
-    await (supabaseAdmin as any).from("request_offers").upsert(rows, {
-      onConflict: "request_id,provider_id",
-    });
-    const notifs = drivers.map((d: any) => ({
-      user_id: d.user_id,
-      type: "new_offer",
-      title: "طلب جديد قريب منك",
-      body: `على بُعد ${Number(d.distance_km).toFixed(1)} كم`,
-      data: { request_id: req.id },
-    }));
-    await (supabaseAdmin as any).from("notifications").insert(notifs);
-    return { ok: true, offers: drivers.length };
+
+    const { error: insertError } = await supabaseAdmin
+      .from("driver_offers")
+      .insert(rows);
+    if (insertError) throw new Error("Failed to create offers");
+
+    return { offers: rows.length, reason: "ok" };
   });
 
+/**
+ * Start a ride (provider arrives at pickup).
+ */
 export const startRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
@@ -304,31 +313,27 @@ export const startRide = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: req } = await supabase
+    const { data: req, error } = await supabase
       .from("service_requests")
-      .select("id, provider_id, status, customer_id")
+      .select("id, provider_id, status")
       .eq("id", data.requestId)
       .single();
-    if (!req) throw new Error("Request not found");
+    if (error || !req) throw new Error("Request not found");
     if (req.provider_id !== userId) throw new Error("Forbidden");
-    if (req.status !== "accepted") throw new Error("Request not in accepted state");
+    if (req.status !== "accepted") throw new Error("Request is not accepted");
 
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("service_requests")
-      .update({ status: "in_progress", started_at: new Date().toISOString() } as any)
-      .eq("id", req.id);
-
-    await (supabaseAdmin as any).from("notifications").insert({
-      user_id: req.customer_id,
-      type: "ride_started",
-      title: "بدأت الرحلة",
-      body: "الكابتن بدأ الرحلة",
-      link: `/request/${req.id}`,
-    });
+      .update({ status: "in_progress", started_at: new Date().toISOString() })
+      .eq("id", data.requestId);
+    if (updateError) throw new Error("Failed to start ride");
 
     return { ok: true };
   });
 
+/**
+ * Complete a ride.
+ */
 export const completeRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
@@ -336,99 +341,60 @@ export const completeRide = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: req } = await supabase
+    const { data: req, error } = await supabase
       .from("service_requests")
-      .select("id, provider_id, status, customer_id, price_estimate")
+      .select("id, provider_id, status, customer_id")
       .eq("id", data.requestId)
       .single();
-    if (!req) throw new Error("Request not found");
+    if (error || !req) throw new Error("Request not found");
     if (req.provider_id !== userId) throw new Error("Forbidden");
-    if (req.status !== "in_progress") throw new Error("Request not in progress");
+    if (req.status !== "in_progress") throw new Error("Ride is not in progress");
 
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from("service_requests")
-      .update({ status: "completed" as any, completed_at: new Date().toISOString() })
-      .eq("id", req.id);
-
-    if (req.price_estimate) {
-      const { data: wallet } = await (supabaseAdmin as any)
-        .from("driver_wallets")
-        .select("balance, total_earned, total_commission")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (wallet) {
-        const commission = Math.round(Number(req.price_estimate) * 0.1);
-        const net = Number(req.price_estimate) - commission;
-        await (supabaseAdmin as any)
-          .from("driver_wallets")
-          .update({
-            balance: Number(wallet.balance) + net,
-            total_earned: Number(wallet.total_earned) + net,
-            total_commission: Number(wallet.total_commission) + commission,
-          })
-          .eq("user_id", userId);
-
-        await (supabaseAdmin as any).from("transactions").insert({
-          user_id: userId,
-          request_id: req.id,
-          type: "earnings",
-          amount: net,
-          note: `أرباح رحلة #${req.id.slice(0, 8)}`,
-        });
-      }
-    }
-
-    await (supabaseAdmin as any).from("notifications").insert({
-      user_id: req.customer_id,
-      type: "ride_completed",
-      title: "تم إنهاء الرحلة",
-      body: "وصلت إلى وجهتك. يرجى تقييم الخدمة.",
-      link: `/request/${req.id}`,
-    });
+      .update({ status: "completed", completed_at: new Date().toISOString() })
+      .eq("id", data.requestId);
+    if (updateError) throw new Error("Failed to complete ride");
 
     return { ok: true };
   });
 
-export const acceptServiceRequest = createServerFn({ method: "POST" })
+export type ProviderPin = {
+  pin_id: string;
+  lat: number;
+  lng: number;
+  heading: number | null;
+};
+
+export const findNearbyProviderPins = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: updated, error } = await supabaseAdmin
-      .from("service_requests")
-      .update({
-        provider_id: userId,
-        status: "accepted" as any,
-        accepted_at: new Date().toISOString(),
+  .inputValidator((d) =>
+    z
+      .object({
+        lat: z.number(),
+        lng: z.number(),
+        type: z.enum(["taxi", "service"]),
+        category: z.string().nullable().optional(),
+        serviceId: z.string().uuid().nullable().optional(),
+        radiusKm: z.number().min(0.1).max(100).default(5),
+        limit: z.number().int().min(1).max(100).default(30),
       })
-      .eq("id", data.requestId)
-      .eq("status", "pending")
-      .select("id, customer_id")
-      .maybeSingle();
-
-    if (error) throw new Error("Failed to accept request");
-    if (!updated) throw new Error("الطلب لم يعد متاحاً");
-
-    const { error: chatErr } = await supabaseAdmin
-      .from("chats")
-      .upsert({
-        request_id: data.requestId,
-        customer_id: updated.customer_id,
-        provider_id: userId,
-      } as any, { onConflict: "request_id" });
-
-    if (chatErr) console.error("chat upsert error:", chatErr.message);
-
-    await (supabaseAdmin as any).from("notifications").insert({
-      user_id: updated.customer_id,
-      type: "offer_accepted",
-      title: "تم قبول طلبك",
-      body: "المزود في طريقه إليك",
-      link: `/request/${data.requestId}`,
-    });
-
-    return { ok: true, requestId: data.requestId };
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await (supabaseAdmin as any).rpc(
+      "find_nearby_provider_pins",
+      {
+        _lat: data.lat,
+        _lng: data.lng,
+        _type: data.type,
+        _category: data.category ?? null,
+        _service_id: data.serviceId ?? null,
+        _radius_km: data.radiusKm,
+        _limit: data.limit,
+      },
+    );
+    if (error) return [];
+    return (rows ?? []) as ProviderPin[];
   });

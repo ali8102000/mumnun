@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface FriendStatus {
@@ -43,4 +44,20 @@ export const getFriendsStatuses = createServerFn({ method: "GET" })
       }
     }
     return results;
+  });
+
+export const searchProfileByPhone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ phone: z.string().trim().min(1).max(50) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await (supabaseAdmin as any).rpc(
+      "search_profile_by_phone",
+      { _phone: data.phone },
+    );
+    if (error || !rows) return [];
+    return (rows as any[]).filter((r) => r.id !== userId).slice(0, 10);
   });

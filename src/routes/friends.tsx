@@ -1,252 +1,191 @@
-import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
+import { useState, useEffect, useCallback } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { getFriendsStatuses, searchProfileByPhone, type FriendStatus } from "@/lib/friends.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { MobileShell } from "@/components/mobile-shell";
-import { Search, UserPlus, Loader2, Users, Check, X, Phone, ChevronLeft } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { UserPlus, Phone, Search, X } from "lucide-react";
+import { normalizePhone } from "@/lib/phone";
 
-export const Route = createFileRoute("/friends")({ ssr: false, component: FriendsPage });
-
-interface FriendRow {
-  friend_id: string;
-  profiles: { full_name: string; phone: string } | null;
-}
-
-interface RequestRow {
-  id: string;
-  sender_id: string;
-  status: string;
-  sender_profile: { full_name: string; phone: string } | null;
-}
-
-function FriendsPage() {
-  const { session, loading } = useAuth();
+export default function Friends() {
+  const { session } = useAuth();
+  const [friends, setFriends] = useState<FriendStatus[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
-  const [friends, setFriends] = useState<FriendRow[]>([]);
-  const [pendingReqs, setPendingReqs] = useState<RequestRow[]>([]);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
+
+  const getStatusesFn = useServerFn(getFriendsStatuses);
+  const searchProfilesFn = useServerFn(searchProfileByPhone);
+
+  const loadFriends = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getStatusesFn();
+      setFriends(data as FriendStatus[]);
+    } catch {
+      toast.error("Failed to load friends");
+    } finally {
+      setLoading(false);
+    }
+  }, [getStatusesFn]);
 
   useEffect(() => {
-    if (!session) return;
     loadFriends();
-    loadRequests();
-
-    const ch = supabase
-      .channel(`friend-reqs-${session.user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "friend_requests", filter: `receiver_id=eq.${session.user.id}` },
-        () => {
-          loadRequests();
-          toast.success("لديك طلب صداقة جديد!");
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "friends", filter: `user_id=eq.${session.user.id}` },
-        () => loadFriends()
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(ch); };
-  }, [session]);
-
-  async function loadFriends() {
-    const { data } = await supabase
-      .from("friends")
-      .select("friend_id, profiles!friends_friend_id_fkey(full_name, phone)")
-      .eq("user_id", session!.user.id);
-    setFriends((data as any) ?? []);
-  }
-
-  async function loadRequests() {
-    const { data } = await supabase
-      .from("friend_requests")
-      .select("id, sender_id, status, profiles!friend_requests_sender_id_fkey(full_name, phone)")
-      .eq("receiver_id", session!.user.id)
-      .eq("status", "pending");
-    setPendingReqs((data as any) ?? []);
-  }
+  }, [loadFriends]);
 
   async function doSearch() {
     if (!search.trim()) { setResults([]); return; }
     setSearching(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, phone")
-      .or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`)
-      .neq("id", session!.user.id)
-      .limit(10);
-    setResults(data ?? []);
-    setSearching(false);
-  }
-
-  async function sendRequest(receiverId: string) {
-    setBusy(receiverId);
     try {
-      const { error } = await supabase.from("friend_requests").insert({
-        sender_id: session!.user.id,
-        receiver_id: receiverId,
-        status: "pending",
-      });
-      if (error) throw error;
-      toast.success("تم إرسال طلب الصداقة");
-    } catch (e: any) {
-      toast.error(e.message || "حدث خطأ");
+      const rows = await searchProfilesFn({ phone: search.trim() });
+      setResults(rows as any[]);
+    } catch {
+      setResults([]);
     } finally {
-      setBusy(null);
+      setSearching(false);
     }
   }
 
-  async function acceptRequest(reqId: string, senderId: string) {
-    setBusy(reqId);
+  async function addFriend(phone: string) {
+    setAdding(phone);
     try {
-      const { error: err1 } = await supabase.from("friends").insert({
+      const normalized = normalizePhone(phone);
+      const { error } = await supabase.from("friends").insert({
         user_id: session!.user.id,
-        friend_id: senderId,
+        friend_phone: normalized,
       });
-      if (err1) throw err1;
-      const { error: err2 } = await supabase.from("friends").insert({
-        user_id: senderId,
-        friend_id: session!.user.id,
-      });
-      if (err2) throw err2;
-      const { error: err3 } = await supabase
-        .from("friend_requests")
-        .update({ status: "accepted" })
-        .eq("id", reqId);
-      if (err3) throw err3;
-      toast.success("تم قبول طلب الصداقة");
-      loadFriends();
-      loadRequests();
-    } catch (e: any) {
-      toast.error(e.message || "حدث خطأ");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function rejectRequest(reqId: string) {
-    setBusy(reqId);
-    try {
-      const { error } = await supabase
-        .from("friend_requests")
-        .update({ status: "rejected" })
-        .eq("id", reqId);
       if (error) throw error;
-      loadRequests();
+      toast.success("Friend added");
+      setSearch("");
+      setResults([]);
+      loadFriends();
     } catch (e: any) {
-      toast.error(e.message || "حدث خطأ");
+      toast.error(e.message || "Failed to add friend");
     } finally {
-      setBusy(null);
+      setAdding(null);
     }
   }
-
-  if (loading) return null;
-  if (!session) return <Navigate to="/auth" />;
 
   return (
-    <MobileShell>
-      <div className="flex items-center gap-3 mb-4">
-        <Link to="/home" className="glass rounded-xl p-2">
-          <ChevronLeft className="h-5 w-5" />
-        </Link>
-        <h1 className="text-lg font-black">الأصدقاء</h1>
-      </div>
-      <div className="space-y-4">
-        <div className="glass rounded-2xl p-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); }}
-              onKeyUp={doSearch}
-              placeholder="ابحث بالاسم أو رقم الهاتف..."
-              className="flex-1 bg-transparent outline-none text-sm"
-            />
-            {searching && <Loader2 className="h-4 w-4 animate-spin" />}
-          </div>
-        </div>
+    <div className="container max-w-2xl mx-auto p-4 space-y-6">
+      <h1 className="text-2xl font-bold">Friends</h1>
 
-        {results.length > 0 && (
-          <div className="space-y-2">
-            <div className="text-xs font-bold text-muted-foreground px-2">نتائج البحث</div>
-            {results.map((r) => (
-              <div key={r.id} className="glass rounded-2xl p-3 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-sm">{r.full_name}</div>
-                  <div className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Phone className="h-3 w-3" /> {r.phone}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5" />
+            Add Friend
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Search by phone number…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && doSearch()}
+              className="flex-1"
+            />
+            <Button onClick={doSearch} disabled={searching} size="icon">
+              <Search className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {searching && (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+            </div>
+          )}
+
+          {!searching && results.length > 0 && (
+            <div className="space-y-2">
+              {results.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center justify-between rounded-lg border p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src={r.avatar_url ?? undefined} />
+                      <AvatarFallback>
+                        {r.full_name?.[0]?.toUpperCase() ?? "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{r.full_name ?? "Unknown"}</p>
+                      <p className="text-sm text-muted-foreground">{r.phone}</p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => addFriend(r.phone)}
+                    disabled={adding === r.phone}
+                  >
+                    Add
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!searching && search.trim() && results.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-2">
+              No users found with that phone number.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Friends</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : friends.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              You haven't added any friends yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {friends.map((f) => (
+                <div
+                  key={f.friend_id}
+                  className="flex items-center justify-between rounded-lg border p-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src={f.avatar_url ?? undefined} />
+                      <AvatarFallback>
+                        {f.full_name?.[0]?.toUpperCase() ?? "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{f.full_name ?? "Unknown"}</p>
+                      <Badge variant="secondary" className="mt-1">
+                        {f.status}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-                <button
-                  onClick={() => sendRequest(r.id)}
-                  disabled={busy === r.id}
-                  className="glass rounded-xl px-3 py-2 text-xs font-bold text-primary flex items-center gap-1"
-                >
-                  {busy === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
-                  إضافة
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {pendingReqs.length > 0 && (
-          <div className="space-y-2">
-            <div className="text-xs font-bold text-muted-foreground px-2">طلبات الصداقة</div>
-            {pendingReqs.map((req) => (
-              <div key={req.id} className="glass rounded-2xl p-3 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-sm">{req.sender_profile?.full_name ?? "غير معروف"}</div>
-                  <div className="text-xs text-muted-foreground">{req.sender_profile?.phone}</div>
-                </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => acceptRequest(req.id, req.sender_id)}
-                    disabled={busy === req.id}
-                    className="rounded-xl p-2 bg-emerald-500/10 text-emerald-600"
-                  >
-                    {busy === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                  </button>
-                  <button
-                    onClick={() => rejectRequest(req.id)}
-                    disabled={busy === req.id}
-                    className="rounded-xl p-2 bg-red-500/10 text-red-500"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <div className="text-xs font-bold text-muted-foreground px-2">أصدقاؤك ({friends.length})</div>
-          {friends.length === 0 ? (
-            <div className="glass rounded-2xl p-8 text-center">
-              <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <div className="text-sm text-muted-foreground">لا يوجد أصدقاء بعد — ابحث وأضف أصدقاء!</div>
+              ))}
             </div>
-          ) : (
-            friends.map((f) => (
-              <div key={f.friend_id} className="glass rounded-2xl p-3 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-primary-glow grid place-items-center text-white font-bold">
-                  {(f.profiles?.full_name ?? "?").charAt(0)}
-                </div>
-                <div>
-                  <div className="font-bold text-sm">{f.profiles?.full_name ?? "غير معروف"}</div>
-                  <div className="text-xs text-muted-foreground">{f.profiles?.phone}</div>
-                </div>
-              </div>
-            ))
           )}
-        </div>
-      </div>
-    </MobileShell>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
