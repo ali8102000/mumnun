@@ -50,13 +50,12 @@ export const dispatchRequest = createServerFn({ method: "POST" })
       request_id: req.id,
       provider_id: d.user_id,
       distance_km: d.distance_km,
-      eta_min: d.eta_min,
       status: "pending",
       expires_at: new Date(Date.now() + 30_000).toISOString(),
     }));
 
     const { error: insertError } = await supabaseAdmin
-      .from("driver_offers")
+      .from("request_offers")
       .insert(rows);
     if (insertError) throw new Error("Failed to create offers");
 
@@ -93,7 +92,7 @@ export const acceptServiceRequest = createServerFn({ method: "POST" })
     if (updateError) throw new Error("Failed to accept request");
 
     await supabaseAdmin
-      .from("driver_offers")
+      .from("request_offers")
       .delete()
       .eq("request_id", data.requestId)
       .neq("provider_id", userId);
@@ -119,7 +118,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: offer, error } = await supabase
-      .from("driver_offers")
+      .from("request_offers")
       .select("id, request_id, provider_id, status")
       .eq("id", data.offerId)
       .single();
@@ -140,7 +139,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
       if (reqUpdateError) throw new Error("Failed to accept request");
 
       await supabaseAdmin
-        .from("driver_offers")
+        .from("request_offers")
         .delete()
         .eq("request_id", offer.request_id)
         .neq("provider_id", userId);
@@ -148,7 +147,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
       return { ok: true, action: "accepted", requestId: offer.request_id };
     } else {
       await supabaseAdmin
-        .from("driver_offers")
+        .from("request_offers")
         .delete()
         .eq("id", data.offerId);
       return { ok: true, action: "rejected" };
@@ -184,14 +183,14 @@ export const cancelRequest = createServerFn({ method: "POST" })
       .from("service_requests")
       .update({
         status: "cancelled",
-        cancelled_at: new Date().toISOString(),
-        cancel_reason: data.reason ?? null,
+        cancelled_by: "customer",
+        cancellation_reason: data.reason ?? null,
       })
       .eq("id", data.requestId);
     if (updateError) throw new Error("Failed to cancel request");
 
     await supabaseAdmin
-      .from("driver_offers")
+      .from("request_offers")
       .delete()
       .eq("request_id", data.requestId);
 
@@ -220,7 +219,7 @@ export const providerCancelRequest = createServerFn({ method: "POST" })
       .single();
     if (error || !req) throw new Error("Request not found");
     if (req.provider_id !== userId) throw new Error("Forbidden");
-    if (req.status !== "accepted" && req.status !== "arriving")
+    if (req.status !== "accepted")
       throw new Error("Cannot cancel at this stage");
 
     const { error: updateError } = await supabaseAdmin
@@ -229,8 +228,8 @@ export const providerCancelRequest = createServerFn({ method: "POST" })
         status: "searching",
         provider_id: null,
         accepted_at: null,
-        cancelled_at: null,
-        cancel_reason: data.reason ?? null,
+        cancelled_by: "provider",
+        cancellation_reason: data.reason ?? null,
       })
       .eq("id", data.requestId);
     if (updateError) throw new Error("Failed to cancel request");
@@ -260,7 +259,7 @@ export const retryDispatch = createServerFn({ method: "POST" })
     if (!req.pickup_lat || !req.pickup_lng) throw new Error("Missing pickup location");
 
     await supabaseAdmin
-      .from("driver_offers")
+      .from("request_offers")
       .delete()
       .eq("request_id", data.requestId)
       .lt("expires_at", new Date().toISOString());
@@ -287,13 +286,12 @@ export const retryDispatch = createServerFn({ method: "POST" })
       request_id: req.id,
       provider_id: d.user_id,
       distance_km: d.distance_km,
-      eta_min: d.eta_min,
       status: "pending",
       expires_at: new Date(Date.now() + 30_000).toISOString(),
     }));
 
     const { error: insertError } = await supabaseAdmin
-      .from("driver_offers")
+      .from("request_offers")
       .insert(rows);
     if (insertError) throw new Error("Failed to create offers");
 
@@ -321,7 +319,7 @@ export const startRide = createServerFn({ method: "POST" })
 
     const { error: updateError } = await supabaseAdmin
       .from("service_requests")
-      .update({ status: "in_progress", started_at: new Date().toISOString() })
+      .update({ status: "in_progress" })
       .eq("id", data.requestId);
     if (updateError) throw new Error("Failed to start ride");
 

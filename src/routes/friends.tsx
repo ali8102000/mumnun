@@ -45,7 +45,7 @@ export default function Friends() {
     if (!search.trim()) { setResults([]); return; }
     setSearching(true);
     try {
-      const rows = await searchProfilesFn({ phone: search.trim() });
+      const rows = await searchProfilesFn({ data: { phone: search.trim() } });
       setResults(rows as any[]);
     } catch {
       setResults([]);
@@ -58,7 +58,7 @@ export default function Friends() {
     setAdding(phone);
     try {
       const normalized = normalizePhone(phone);
-      const { error } = await supabase.from("friends").insert({
+      const { error } = await (supabase as any).from("friends").insert({
         user_id: session!.user.id,
         friend_phone: normalized,
       });

@@ -380,7 +380,7 @@ function RequestDetail() {
           target={other}
           onClose={() => setShowRating(false)}
           onSubmit={async (stars, comment, subscores) => {
-            const { data, error } = await supabase.from("ratings").insert({
+            const { data, error } = await (supabase as any).from("ratings").insert({
               request_id: id,
               rater_id: session.user.id,
               ratee_id: other.id,

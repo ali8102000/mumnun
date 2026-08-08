@@ -7,7 +7,15 @@ import {
   LayoutDashboard, Tag, MessageSquare, UserCheck, Flag, Bell, ScrollText,
   Map, ChevronLeft, Settings, AlertCircle,
 } from "lucide-react";
-import { adminGetDashboardStats } from "@/lib/admin.functions";
+import {
+  adminAdjustWallet, adminBlockUser, adminBroadcastNotification, adminCancelRequest,
+  adminDeleteCoupon, adminDeleteFriendRequest, adminDeleteFriendship, adminDeleteMessage,
+  adminGetDashboardStats, adminGetLiveLocations, adminGetLiveRequests, adminGetUserDetail,
+  adminGrantRole, adminListAuditLogs, adminListChats, adminListCoupons, adminListFriendRequests,
+  adminListFriends, adminListMessages, adminListProviders, adminListReports, adminListRequests,
+  adminListTransactions, adminListUsers, adminReopenRequest, adminResolveReport, adminRevokeRole,
+  adminSaveCoupon, adminSearchUsers, adminSetProviderStatus, adminUnblockUser,
+} from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/admin")({ ssr: false, component: AdminPage });
@@ -131,7 +139,7 @@ function OverviewSection() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const getStats = useServerFn(adminGetDashboardStats);
-  useEffect(() => { (async () => { try { setStats(await getStats.fn()); } catch (e) {} finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (e) {} finally { setLoading(false); } })(); }, []);
   if (loading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   if (!stats) return <div className="text-sm text-muted-foreground">تعذّر تحميل البيانات</div>;
   return (
@@ -165,7 +173,7 @@ function StatsSection() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const getStats = useServerFn(adminGetDashboardStats);
-  useEffect(() => { (async () => { try { setStats(await getStats.fn()); } catch (e) {} finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (e) {} finally { setLoading(false); } })(); }, []);
   if (loading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   if (!stats) return <div className="text-sm text-muted-foreground">تعذّر تحميل البيانات</div>;
   return (

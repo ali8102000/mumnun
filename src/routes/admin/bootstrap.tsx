@@ -18,7 +18,7 @@ function BootstrapPage() {
   useEffect(() => {
     if (!session) return;
     (async () => {
-      try { const result = await checkExists.fn(); setExists(result.exists); }
+      try { const result = await checkExists(); setExists(result.exists); }
       catch (e) { setExists(false); }
     })();
   }, [session]);
@@ -41,7 +41,7 @@ function BootstrapPage() {
 
   async function handleBootstrap() {
     setBootstrapping(true);
-    try { await bootstrap.fn(); toast.success("تم إنشاء المدير الأعلى بنجاح"); setTimeout(() => window.location.href = "/admin", 1500); }
+    try { await bootstrap(); toast.success("تم إنشاء المدير الأعلى بنجاح"); setTimeout(() => window.location.href = "/admin", 1500); }
     catch (e: any) { toast.error(e.message ?? "فشل إنشاء المدير الأعلى"); }
     finally { setBootstrapping(false); }
   }

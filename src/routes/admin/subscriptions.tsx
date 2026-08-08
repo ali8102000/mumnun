@@ -35,7 +35,7 @@ function SubscriptionsAdmin() {
     if (!session) { setAuthorized(false); return; }
     (async () => {
       try {
-        const { data: roleData } = await supabase.rpc("has_admin_access", { p_user_id: session.user.id });
+        const { data: roleData } = await (supabase as any).rpc("has_admin_access", { p_user_id: session.user.id });
         if (roleData) { setAuthorized(true); loadAll(); } else { setAuthorized(false); }
       } catch { setAuthorized(false); }
     })();

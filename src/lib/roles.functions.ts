@@ -13,7 +13,7 @@ export const grantProviderRole = createServerFn({ method: "POST" })
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { error } = await supabaseAdmin.rpc("grant_provider_role_safe", {
+    const { error } = await (supabaseAdmin as any).rpc("grant_provider_role_safe", {
       _user_id: userId,
       _role: data.role,
     });
