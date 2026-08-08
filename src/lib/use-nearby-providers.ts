@@ -38,15 +38,9 @@ export function useNearbyProviders(opts: {
       if (inflightRef.current) return;
       inflightRef.current = true;
       try {
-        const rows = await findPinsFn({
-          lat: center.lat,
-          lng: center.lng,
-          type,
-          category,
-          serviceId,
-          radiusKm,
-          limit: 30,
-        });
+        const rows = await findPinsFn({ data: {
+          lat: center.lat, lng: center.lng, type, category, serviceId, radiusKm, limit: 30,
+        } });
         if (cancelled) return;
         setPins(
           (rows as ServerPin[]).map((r) => ({

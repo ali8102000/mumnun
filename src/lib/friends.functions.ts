@@ -15,7 +15,7 @@ export const getFriendsStatuses = createServerFn({ method: "GET" })
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: friends } = await supabaseAdmin
+    const { data: friends } = await (supabaseAdmin as any)
       .from("friends")
       .select("friend_id")
       .eq("user_id", userId);

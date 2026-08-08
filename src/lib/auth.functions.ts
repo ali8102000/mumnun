@@ -18,7 +18,7 @@ export const lookupAuthEmail = createServerFn({ method: "POST" })
       return { email: id.toLowerCase() };
     }
 
-    const { data: email } = await supabaseAdmin
+    const { data: email } = await (supabaseAdmin as any)
       .rpc("lookup_email_by_phone", { _phone: id });
 
     if (email) return { email: String(email).toLowerCase() };
@@ -45,7 +45,7 @@ export const sendPasswordReset = createServerFn({ method: "POST" })
     if (isEmail) {
       email = id.toLowerCase();
     } else {
-      const { data: emailResult } = await supabaseAdmin
+      const { data: emailResult } = await (supabaseAdmin as any)
         .rpc("lookup_email_by_phone", { _phone: id });
       email = emailResult ? String(emailResult) : null;
     }

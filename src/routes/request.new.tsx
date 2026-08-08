@@ -91,7 +91,7 @@ function NewRequest() {
     category: type === "taxi" ? vehicleCategory : null,
     serviceId: type === "service" ? serviceId : null,
     radiusKm: 5,
-    active: !!pickupCoords,
+    enabled: !!pickupCoords,
   });
 
 
