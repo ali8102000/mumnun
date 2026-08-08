@@ -215,10 +215,7 @@ export const providerCancelRequest = createServerFn({ method: "POST" })
 
     const { data: req, error } = await supabase
       .from("service_requests")
-      .searching_started_at,
-      provider_id,
-      status,
-    })
+      .select("searching_started_at, provider_id, status")
       .eq("id", data.requestId)
       .single();
     if (error || !req) throw new Error("Request not found");

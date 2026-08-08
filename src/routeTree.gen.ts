@@ -9,13 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SupportRouteImport } from './routes/support'
 import { Route as SelectRoleRouteImport } from './routes/select-role'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as HistoryRouteImport } from './routes/history'
-import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -24,7 +26,20 @@ import { Route as RequestNewRouteImport } from './routes/request.new'
 import { Route as RequestIdRouteImport } from './routes/request.$id'
 import { Route as OnboardingWorkerRouteImport } from './routes/onboarding.worker'
 import { Route as OnboardingDriverRouteImport } from './routes/onboarding.driver'
+import { Route as AdminSubscriptionsRouteImport } from './routes/admin/subscriptions'
+import { Route as AdminMonitoringRouteImport } from './routes/admin/monitoring'
+import { Route as AdminBootstrapRouteImport } from './routes/admin/bootstrap'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SelectRoleRoute = SelectRoleRouteImport.update({
   id: '/select-role',
   path: '/select-role',
@@ -40,6 +55,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MessagesRoute = MessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
@@ -53,11 +73,6 @@ const HomeRoute = HomeRouteImport.update({
 const HistoryRoute = HistoryRouteImport.update({
   id: '/history',
   path: '/history',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FriendsRoute = FriendsRouteImport.update({
-  id: '/friends',
-  path: '/friends',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -100,19 +115,39 @@ const OnboardingDriverRoute = OnboardingDriverRouteImport.update({
   path: '/onboarding/driver',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSubscriptionsRoute = AdminSubscriptionsRouteImport.update({
+  id: '/subscriptions',
+  path: '/subscriptions',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMonitoringRoute = AdminMonitoringRouteImport.update({
+  id: '/monitoring',
+  path: '/monitoring',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBootstrapRoute = AdminBootstrapRouteImport.update({
+  id: '/bootstrap',
+  path: '/bootstrap',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/friends': typeof FriendsRoute
   '/history': typeof HistoryRoute
   '/home': typeof HomeRoute
   '/messages': typeof MessagesRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/select-role': typeof SelectRoleRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
+  '/admin/bootstrap': typeof AdminBootstrapRoute
+  '/admin/monitoring': typeof AdminMonitoringRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/onboarding/driver': typeof OnboardingDriverRoute
   '/onboarding/worker': typeof OnboardingWorkerRoute
   '/request/$id': typeof RequestIdRoute
@@ -120,16 +155,21 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/friends': typeof FriendsRoute
   '/history': typeof HistoryRoute
   '/home': typeof HomeRoute
   '/messages': typeof MessagesRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/select-role': typeof SelectRoleRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
+  '/admin/bootstrap': typeof AdminBootstrapRoute
+  '/admin/monitoring': typeof AdminMonitoringRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/onboarding/driver': typeof OnboardingDriverRoute
   '/onboarding/worker': typeof OnboardingWorkerRoute
   '/request/$id': typeof RequestIdRoute
@@ -138,16 +178,21 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
-  '/friends': typeof FriendsRoute
   '/history': typeof HistoryRoute
   '/home': typeof HomeRoute
   '/messages': typeof MessagesRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/select-role': typeof SelectRoleRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
+  '/admin/bootstrap': typeof AdminBootstrapRoute
+  '/admin/monitoring': typeof AdminMonitoringRoute
+  '/admin/subscriptions': typeof AdminSubscriptionsRoute
   '/onboarding/driver': typeof OnboardingDriverRoute
   '/onboarding/worker': typeof OnboardingWorkerRoute
   '/request/$id': typeof RequestIdRoute
@@ -160,13 +205,18 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/forgot-password'
-    | '/friends'
     | '/history'
     | '/home'
     | '/messages'
+    | '/privacy'
     | '/profile'
     | '/reset-password'
     | '/select-role'
+    | '/support'
+    | '/terms'
+    | '/admin/bootstrap'
+    | '/admin/monitoring'
+    | '/admin/subscriptions'
     | '/onboarding/driver'
     | '/onboarding/worker'
     | '/request/$id'
@@ -177,13 +227,18 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/forgot-password'
-    | '/friends'
     | '/history'
     | '/home'
     | '/messages'
+    | '/privacy'
     | '/profile'
     | '/reset-password'
     | '/select-role'
+    | '/support'
+    | '/terms'
+    | '/admin/bootstrap'
+    | '/admin/monitoring'
+    | '/admin/subscriptions'
     | '/onboarding/driver'
     | '/onboarding/worker'
     | '/request/$id'
@@ -194,13 +249,18 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/forgot-password'
-    | '/friends'
     | '/history'
     | '/home'
     | '/messages'
+    | '/privacy'
     | '/profile'
     | '/reset-password'
     | '/select-role'
+    | '/support'
+    | '/terms'
+    | '/admin/bootstrap'
+    | '/admin/monitoring'
+    | '/admin/subscriptions'
     | '/onboarding/driver'
     | '/onboarding/worker'
     | '/request/$id'
@@ -209,16 +269,18 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
-  FriendsRoute: typeof FriendsRoute
   HistoryRoute: typeof HistoryRoute
   HomeRoute: typeof HomeRoute
   MessagesRoute: typeof MessagesRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SelectRoleRoute: typeof SelectRoleRoute
+  SupportRoute: typeof SupportRoute
+  TermsRoute: typeof TermsRoute
   OnboardingDriverRoute: typeof OnboardingDriverRoute
   OnboardingWorkerRoute: typeof OnboardingWorkerRoute
   RequestIdRoute: typeof RequestIdRoute
@@ -227,6 +289,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/select-role': {
       id: '/select-role'
       path: '/select-role'
@@ -248,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/messages': {
       id: '/messages'
       path: '/messages'
@@ -267,13 +350,6 @@ declare module '@tanstack/react-router' {
       path: '/history'
       fullPath: '/history'
       preLoaderRoute: typeof HistoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/friends': {
-      id: '/friends'
-      path: '/friends'
-      fullPath: '/friends'
-      preLoaderRoute: typeof FriendsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -332,21 +408,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingDriverRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/subscriptions': {
+      id: '/admin/subscriptions'
+      path: '/subscriptions'
+      fullPath: '/admin/subscriptions'
+      preLoaderRoute: typeof AdminSubscriptionsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/monitoring': {
+      id: '/admin/monitoring'
+      path: '/monitoring'
+      fullPath: '/admin/monitoring'
+      preLoaderRoute: typeof AdminMonitoringRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/bootstrap': {
+      id: '/admin/bootstrap'
+      path: '/bootstrap'
+      fullPath: '/admin/bootstrap'
+      preLoaderRoute: typeof AdminBootstrapRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminBootstrapRoute: typeof AdminBootstrapRoute
+  AdminMonitoringRoute: typeof AdminMonitoringRoute
+  AdminSubscriptionsRoute: typeof AdminSubscriptionsRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminBootstrapRoute: AdminBootstrapRoute,
+  AdminMonitoringRoute: AdminMonitoringRoute,
+  AdminSubscriptionsRoute: AdminSubscriptionsRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
-  FriendsRoute: FriendsRoute,
   HistoryRoute: HistoryRoute,
   HomeRoute: HomeRoute,
   MessagesRoute: MessagesRoute,
+  PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SelectRoleRoute: SelectRoleRoute,
+  SupportRoute: SupportRoute,
+  TermsRoute: TermsRoute,
   OnboardingDriverRoute: OnboardingDriverRoute,
   OnboardingWorkerRoute: OnboardingWorkerRoute,
   RequestIdRoute: RequestIdRoute,
