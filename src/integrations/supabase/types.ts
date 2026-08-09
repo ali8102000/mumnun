@@ -733,6 +733,11 @@ export type Database = {
       }
     }
     Functions: {
+      accept_service_request: {
+        Args: { _request_id: string }
+        Returns: boolean
+      }
+      dispatch_request: { Args: { _request_id: string }; Returns: number }
       find_nearby_drivers: {
         Args: {
           _category: string
@@ -764,10 +769,22 @@ export type Database = {
           pin_id: string
         }[]
       }
+      grant_provider_role_safe: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
+        }
+        Returns: boolean
+      }
+      transition_service_request: {
+        Args: {
+          _reason?: string
+          _request_id: string
+          _status: Database["public"]["Enums"]["request_status"]
         }
         Returns: boolean
       }
