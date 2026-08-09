@@ -18,3 +18,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+export async function authProxy<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/auth-proxy${path}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', apikey: supabaseAnonKey }, body: JSON.stringify(body),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result?.error || 'تعذر تنفيذ الطلب');
+  return result as T;
+}
