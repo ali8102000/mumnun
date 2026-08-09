@@ -14,17 +14,18 @@ export default function WorkerOnboarding() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { supabase.from('services').select('*').order('name').then(({ data }) => { setServices((data || []).filter((s) => s.slug !== 'taxi')); }); }, []);
-  function toggleService(slug: string) { setSelected((prev) => prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]); }
+  function toggleService(id: string) { setSelected((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]); }
 
   async function submit() {
     if (selected.length === 0) { Alert.alert('خطأ', 'الرجاء اختيار خدمة واحدة على الأقل'); return; }
     setBusy(true);
     try {
-      const { error } = await supabase.from('worker_profiles').upsert({ user_id: user?.id, level, bio: bio || null, is_available: false });
+      const { error } = await supabase.from('worker_profiles').upsert({ user_id: user?.id, level, bio: bio || null, available: false });
       if (error) throw error;
       await supabase.from('worker_services').delete().eq('worker_id', user?.id);
-      await supabase.from('worker_services').insert(selected.map((slug) => ({ worker_id: user?.id, service_slug: slug })));
-      await supabase.from('user_roles').upsert({ user_id: user?.id, role: 'worker' });
+      await supabase.from('worker_services').insert(selected.map((serviceId) => ({ worker_id: user?.id, service_id: serviceId })));
+      const { error: roleError } = await supabase.rpc('grant_provider_role_safe', { _role: 'worker' });
+      if (roleError) throw roleError;
       router.replace('/home');
     } catch (err: any) { Alert.alert('خطأ', err?.message || 'حدث خطأ'); } finally { setBusy(false); }
   }
@@ -33,7 +34,7 @@ export default function WorkerOnboarding() {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={styles.title}>تسجيل الفني</Text>
       <Text style={styles.label}>الخدمات</Text>
-      <View style={styles.servicesGrid}>{services.map((s) => (<TouchableOpacity key={s.slug} style={[styles.serviceChip, selected.includes(s.slug) && styles.serviceChipActive]} onPress={() => toggleService(s.slug)}><Text style={[styles.serviceChipText, selected.includes(s.slug) && styles.serviceChipTextActive]}>{s.name}</Text></TouchableOpacity>))}</View>
+      <View style={styles.servicesGrid}>{services.map((s) => (<TouchableOpacity key={s.id} style={[styles.serviceChip, selected.includes(s.id) && styles.serviceChipActive]} onPress={() => toggleService(s.id)}><Text style={[styles.serviceChipText, selected.includes(s.id) && styles.serviceChipTextActive]}>{s.name_ar}</Text></TouchableOpacity>))}</View>
       <Text style={styles.label}>المستوى</Text>
       <View style={styles.levelRow}><TouchableOpacity style={[styles.levelChip, level === 'fani' && styles.levelChipActive]} onPress={() => setLevel('fani')}><Text style={[styles.levelText, level === 'fani' && styles.levelTextActive]}>فني</Text></TouchableOpacity><TouchableOpacity style={[styles.levelChip, level === 'khabir' && styles.levelChipActive]} onPress={() => setLevel('khabir')}><Text style={[styles.levelText, level === 'khabir' && styles.levelTextActive]}>خبير</Text></TouchableOpacity></View>
       <Text style={styles.label}>نبذة (اختياري)</Text><TextInput style={[styles.input, { height: 80 }]} value={bio} onChangeText={setBio} placeholder="خبراتك ومهاراتك..." multiline placeholderTextColor="#94a3b8" />

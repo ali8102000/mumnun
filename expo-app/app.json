@@ -14,7 +14,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTableable": true,
+      "supportsTablet": true,
       "bundleIdentifier": "com.mamnoon.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "نحتاج موقعك لعرض الخدمات القريبة وتتبع الرحلات",
@@ -55,8 +55,8 @@
       "eas": {
         "projectId": ""
       },
-      "supabaseUrl": "https://hvfiwjryffjwaynkpgar.supabase.co",
-      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2Zml3anJ5ZmZqd2F5bmtwZ2FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2NDExMzMsImV4cCI6MjEwMDIxNzEzM30.dq0PGhVGypweYvDnTuOjWC-GuPOPEyFk5ElVO_ao-EQ",
+      "supabaseUrl": "https://zvfdymcalzqhvwnipuup.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2ZmR5bWNhbHpxaHZ3bmlwdXVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzgxNzUsImV4cCI6MjA5Njc1NDE3NX0.eUgHgV8VMpemI32SA4V8dcgQtb-w6ahAiytOAsXU7e8",
       "googleMapsApiKey": "AIzaSyBPxHJt9E92tCiIlVQa36Nrq6HBeY8ss7M"
     },
     "updates": {
