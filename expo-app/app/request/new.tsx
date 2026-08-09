@@ -39,16 +39,18 @@ export default function NewRequest() {
     if (!pickup.trim() || !destination.trim()) { Alert.alert('خطأ', 'الرجاء إدخال نقطة الانطلاق والوجهة'); return; }
     setBusy(true);
     try {
+      const chosenService = SERVICES.find((item) => item.slug === selectedService);
+      const { data: serviceRow } = isTaxi ? { data: null } : await supabase.from('services').select('id').eq('name_ar', chosenService?.label || '').maybeSingle();
       const { data, error } = await supabase.from('service_requests').insert({
-        customer_id: user?.id, type: selectedService, status: 'searching',
-        pickup_location: pickup, destination_location: destination,
+        customer_id: user?.id, type: isTaxi ? 'taxi' : 'service', status: isTaxi ? 'searching' : 'pending',
+        service_id: serviceRow?.id || null, pickup_text: pickup, dest_text: destination,
         vehicle_category: isTaxi ? vehicleCat : null,
-        worker_level: !isTaxi ? workerLevel : null,
-        additional_workers: !isTaxi ? extraWorkers : 0,
-        notes: notes || null, estimated_price: price,
+        level_required: !isTaxi ? workerLevel : null,
+        workers_count: !isTaxi ? extraWorkers + 1 : 1,
+        notes: notes || null, price_estimate: price,
       }).select().single();
       if (error) throw error;
-      if (isTaxi && data) await supabase.rpc('dispatch_request', { _request_id: data.id });
+      if (isTaxi && data) { const { error: dispatchError } = await supabase.rpc('dispatch_request', { _request_id: data.id }); if (dispatchError) throw dispatchError; }
       router.replace({ pathname: '/request/[id]', params: { id: data.id } });
     } catch (err: any) { Alert.alert('خطأ', err?.message || 'حدث خطأ'); }
     finally { setBusy(false); }

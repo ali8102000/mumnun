@@ -22,9 +22,10 @@ export default function DriverOnboarding() {
     if (!selectedModel || !year || !plate) { Alert.alert('خطأ', 'الرجاء تعبئة جميع الحقول'); return; }
     setBusy(true);
     try {
-      const { error } = await supabase.from('driver_profiles').upsert({ user_id: user?.id, vehicle_model_id: selectedModel.id, year: parseInt(year), plate_number: plate, color: color || null, is_available: false });
+      const { error } = await supabase.from('driver_profiles').upsert({ user_id: user?.id, vehicle_model: `${selectedMake} ${selectedModel.model}`, vehicle_plate: plate, vehicle_color: color || null, available: false });
       if (error) throw error;
-      await supabase.from('user_roles').upsert({ user_id: user?.id, role: 'driver' });
+      const { error: roleError } = await supabase.rpc('grant_provider_role_safe', { _role: 'driver' });
+      if (roleError) throw roleError;
       router.replace('/home');
     } catch (err: any) { Alert.alert('خطأ', err?.message || 'حدث خطأ'); } finally { setBusy(false); }
   }

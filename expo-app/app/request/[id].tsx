@@ -46,9 +46,9 @@ export default function RequestDetail() {
     loadMessages();
   }
 
-  async function acceptRequest() { const { error } = await supabase.from('service_requests').update({ status: 'accepted', provider_id: user?.id }).eq('id', id); if (error) Alert.alert('خطأ', error.message); else loadRequest(); }
-  async function startRide() { const { error } = await supabase.from('service_requests').update({ status: 'in_progress' }).eq('id', id); if (error) Alert.alert('خطأ', error.message); else loadRequest(); }
-  async function completeRide() { const { error } = await supabase.from('service_requests').update({ status: 'completed' }).eq('id', id); if (error) Alert.alert('خطأ', error.message); else { loadRequest(); setShowRating(true); } }
+  async function acceptRequest() { const { error } = await supabase.rpc('accept_service_request', { _request_id: id }); if (error) Alert.alert('خطأ', error.message); else loadRequest(); }
+  async function startRide() { const { error } = await supabase.rpc('transition_service_request', { _request_id: id, _new_status: 'in_progress' }); if (error) Alert.alert('خطأ', error.message); else loadRequest(); }
+  async function completeRide() { const { error } = await supabase.rpc('transition_service_request', { _request_id: id, _new_status: 'completed' }); if (error) Alert.alert('خطأ', error.message); else { loadRequest(); setShowRating(true); } }
   async function cancelRequest() { Alert.alert('إلغاء الطلب', 'هل أنت متأكد؟', [{ text: 'تراجع', style: 'cancel' }, { text: 'إلغاء الطلب', style: 'destructive', onPress: async () => { await supabase.from('service_requests').update({ status: 'cancelled' }).eq('id', id); router.back(); } }]); }
   async function submitRating() { if (rating === 0) return; const otherId = isCustomer ? request?.provider_id : request?.customer_id; await supabase.from('ratings').insert({ request_id: id, rater_id: user?.id, ratee_id: otherId, stars: rating }); setShowRating(false); router.back(); }
 
@@ -62,7 +62,7 @@ export default function RequestDetail() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.container}>
         <View style={styles.header}><TouchableOpacity onPress={() => router.back()}><Text style={styles.backBtn}>→</Text></TouchableOpacity><Text style={styles.headerTitle}>{statusLabel[request.status] || request.status}</Text><View style={{ width: 30 }} /></View>
-        <View style={styles.infoCard}><Text style={styles.infoType}>{request.type === 'taxi' ? '🚕 طلب سيارة' : `🔧 ${request.type}`}</Text>{request.pickup_location && <Text style={styles.infoRow}>من: {request.pickup_location}</Text>}{request.destination_location && <Text style={styles.infoRow}>إلى: {request.destination_location}</Text>}{request.estimated_price && <Text style={styles.infoPrice}>{request.estimated_price.toLocaleString('en')} د.ع</Text>}</View>
+        <View style={styles.infoCard}><Text style={styles.infoType}>{request.type === 'taxi' ? '🚕 طلب سيارة' : '🔧 خدمة منزلية'}</Text>{request.pickup_text && <Text style={styles.infoRow}>من: {request.pickup_text}</Text>}{request.dest_text && <Text style={styles.infoRow}>إلى: {request.dest_text}</Text>}{request.price_estimate && <Text style={styles.infoPrice}>{request.price_estimate.toLocaleString('en')} د.ع</Text>}</View>
         <View style={styles.actionsRow}>
           {request.status === 'searching' && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={acceptRequest}><Text style={styles.actionBtnText}>قبول الطلب</Text></TouchableOpacity>}
           {request.status === 'accepted' && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={startRide}><Text style={styles.actionBtnText}>بدء الرحلة</Text></TouchableOpacity>}

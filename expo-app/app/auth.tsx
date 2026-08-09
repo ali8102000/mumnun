@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
-import { supabase } from '@/lib/supabase';
+import { authProxy, supabase } from '@/lib/supabase';
 import { isValidPhone, normalizePhone, phoneToEmail } from '@/lib/phone';
 import { useAuth } from '@/lib/auth-context';
 import { Button, RealInput } from '@/components/ui';
@@ -39,21 +39,10 @@ export default function AuthScreen() {
         const normalized = normalizePhone(phone);
         const realEmail = email.trim().toLowerCase();
         const authEmail = realEmail || phoneToEmail(normalized);
-        const { data, error } = await supabase.auth.signUp({
-          email: authEmail,
-          password,
-          options: { data: { phone: normalized, full_name: name.trim() } },
-        });
+        const result = await authProxy<{ session: any }>('/signup', { email: authEmail, password, phone: normalized, full_name: name.trim() });
+        if (!result.session) { Alert.alert('تم التسجيل', 'تحقق من بريدك الإلكتروني ثم سجل الدخول'); setMode('login'); return; }
+        const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
-        const uid = data.user?.id;
-        if (uid) {
-          await supabase.from('profiles').upsert({
-            id: uid,
-            phone: normalized,
-            full_name: name.trim(),
-            email: realEmail || null,
-          });
-        }
         await refresh();
         router.replace('/select-role');
       } else {
@@ -72,15 +61,16 @@ export default function AuthScreen() {
         }
         let authEmail = finalId;
         if (!isEmail) {
-          const { data: emailResult } = await supabase.rpc('lookup_email_by_phone', { _phone: finalId });
-          if (emailResult) {
-            authEmail = String(emailResult).toLowerCase();
+          const lookup = await authProxy<{ email: string | null }>('/lookup-email', { phone: finalId });
+          if (lookup.email) {
+            authEmail = lookup.email.toLowerCase();
           } else {
             const digits = finalId.replace(/[^\d]/g, '');
             authEmail = `phone${digits}@mamnoon.app`;
           }
         }
-        const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password });
+        const result = await authProxy<{ session: any }>('/login', { email: authEmail, password });
+        const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
         await refresh();
         router.replace('/');
