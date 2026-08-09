@@ -76,15 +76,20 @@ Deno.serve(async (req: Request) => {
       const client = createClient(supabaseUrl, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
-      const { data, error } = await client.auth.signUp({ email, password });
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name, phone } },
+      });
       if (error) return json({ error: safeError(error.message) }, 400);
       if (data.user) {
-        await supabase.from("profiles").upsert({
+        const { error: profileError } = await supabase.from("profiles").upsert({
           id: data.user.id,
           phone,
           full_name,
           email: email.includes("@mamnoon.app") ? null : email,
         });
+        if (profileError) return json({ error: "Account created but profile setup failed" }, 500);
       }
       return json({ user: data.user, session: data.session });
     }
