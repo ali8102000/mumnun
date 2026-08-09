@@ -31,7 +31,7 @@
 - Realtime channels لتدفّق `service_requests` و`live_locations` للطرفين فقط (RLS صارمة).
 - خريطة Uber-style موحّدة: نقطة الانطلاق، الوجهة، خط المسار، أيقونة الكابتن تتحرّك بسلاسة (تخفيف interpolation).
 
-**جداول:** `request_offers` جديد، `driver_profiles` (+ `is_online`, `current_lat/lng`, `last_seen_at`), تعديلات على `service_requests`.
+**جداول:** `request_offers` جديد، `driver_profiles` (+ `is_online`, `current_lat/lng`, `last_seen_at`)، تعديلات على `service_requests`.
 
 ---
 
