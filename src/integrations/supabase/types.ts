@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -46,12 +44,62 @@ export type Database = {
           },
         ]
       }
+      friend_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      friends: {
+        Row: {
+          created_at: string | null
+          friend_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          friend_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          friend_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       driver_profiles: {
         Row: {
           available: boolean
           completed_rides: number
+          professionalism_avg: number
+          punctuality_avg: number
+          quality_avg: number
           rating_avg: number
           ratings_count: number
+          reputation_level: string
+          reputation_score: number
           updated_at: string
           user_id: string
           vehicle_category:
@@ -66,8 +114,13 @@ export type Database = {
         Insert: {
           available?: boolean
           completed_rides?: number
+          professionalism_avg?: number
+          punctuality_avg?: number
+          quality_avg?: number
           rating_avg?: number
           ratings_count?: number
+          reputation_level?: string
+          reputation_score?: number
           updated_at?: string
           user_id: string
           vehicle_category?:
@@ -82,8 +135,13 @@ export type Database = {
         Update: {
           available?: boolean
           completed_rides?: number
+          professionalism_avg?: number
+          punctuality_avg?: number
+          quality_avg?: number
           rating_avg?: number
           ratings_count?: number
+          reputation_level?: string
+          reputation_score?: number
           updated_at?: string
           user_id?: string
           vehicle_category?:
@@ -307,6 +365,9 @@ export type Database = {
           comment: string | null
           created_at: string
           id: string
+          professionalism: number
+          punctuality: number
+          quality: number
           ratee_id: string
           rater_id: string
           request_id: string
@@ -316,6 +377,9 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          professionalism?: number
+          punctuality?: number
+          quality?: number
           ratee_id: string
           rater_id: string
           request_id: string
@@ -325,6 +389,9 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          professionalism?: number
+          punctuality?: number
+          quality?: number
           ratee_id?: string
           rater_id?: string
           request_id?: string
@@ -339,6 +406,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reputation_levels: {
+        Row: {
+          code: string
+          color: string
+          icon: string
+          id: string
+          min_score: number
+          name_ar: string
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          color?: string
+          icon?: string
+          id?: string
+          min_score?: number
+          name_ar: string
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          color?: string
+          icon?: string
+          id?: string
+          min_score?: number
+          name_ar?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      provider_badges: {
+        Row: {
+          awarded_at: string
+          badge_code: string
+          badge_color: string
+          badge_icon: string
+          badge_name_ar: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          badge_code: string
+          badge_color?: string
+          badge_icon?: string
+          badge_name_ar: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          badge_code?: string
+          badge_color?: string
+          badge_icon?: string
+          badge_name_ar?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       request_offers: {
         Row: {
@@ -437,7 +564,7 @@ export type Database = {
           payment_method?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
-          pickup_text?: string
+          pickup_text: string
           price_estimate?: number | null
           provider_id?: string | null
           searching_started_at?: string | null
@@ -471,7 +598,7 @@ export type Database = {
           payment_method?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
-          pickup_text?: string
+          pickup_text: string
           price_estimate?: number | null
           provider_id?: string | null
           searching_started_at?: string | null
@@ -520,6 +647,137 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      subscription_plans: {
+        Row: {
+          id: string
+          code: string
+          name_ar: string
+          name_en: string
+          description_ar: string | null
+          tier: number
+          max_requests_per_month: number | null
+          priority_weight: number
+          offer_priority: number
+          badge_label: string | null
+          badge_color: string | null
+          show_stats: boolean
+          priority_support: boolean
+          monthly_price: number
+          yearly_price: number
+          currency: string
+          is_active: boolean
+          sort_order: number
+        }
+        Insert: {
+          id?: string
+          code: string
+          name_ar: string
+          name_en: string
+          description_ar?: string | null
+          tier: number
+          max_requests_per_month?: number | null
+          priority_weight?: number
+          offer_priority?: number
+          badge_label?: string | null
+          badge_color?: string | null
+          show_stats?: boolean
+          priority_support?: boolean
+          monthly_price?: number
+          yearly_price?: number
+          currency?: string
+          is_active?: boolean
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          code?: string
+          name_ar?: string
+          name_en?: string
+          description_ar?: string | null
+          tier?: number
+          max_requests_per_month?: number | null
+          priority_weight?: number
+          offer_priority?: number
+          badge_label?: string | null
+          badge_color?: string | null
+          show_stats?: boolean
+          priority_support?: boolean
+          monthly_price?: number
+          yearly_price?: number
+          currency?: string
+          is_active?: boolean
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      subscription_settings: {
+        Row: {
+          id: string
+          subscription_enabled: boolean
+          minimum_downloads_before_activation: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          subscription_enabled?: boolean
+          minimum_downloads_before_activation?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          subscription_enabled?: boolean
+          minimum_downloads_before_activation?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          plan_id: string
+          status: string
+          billing_cycle: string
+          current_period_start: string
+          current_period_end: string | null
+          request_count: number
+          auto_renew: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          plan_id: string
+          status?: string
+          billing_cycle?: string
+          current_period_start?: string
+          current_period_end?: string | null
+          request_count?: number
+          auto_renew?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          plan_id?: string
+          status?: string
+          billing_cycle?: string
+          current_period_start?: string
+          current_period_end?: string | null
+          request_count?: number
+          auto_renew?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {
@@ -625,8 +883,13 @@ export type Database = {
           bio: string | null
           completed_jobs: number
           level: Database["public"]["Enums"]["worker_level"]
+          professionalism_avg: number
+          punctuality_avg: number
+          quality_avg: number
           rating_avg: number
           ratings_count: number
+          reputation_level: string
+          reputation_score: number
           updated_at: string
           user_id: string
         }
@@ -635,8 +898,13 @@ export type Database = {
           bio?: string | null
           completed_jobs?: number
           level?: Database["public"]["Enums"]["worker_level"]
+          professionalism_avg?: number
+          punctuality_avg?: number
+          quality_avg?: number
           rating_avg?: number
           ratings_count?: number
+          reputation_level?: string
+          reputation_score?: number
           updated_at?: string
           user_id: string
         }
@@ -645,8 +913,13 @@ export type Database = {
           bio?: string | null
           completed_jobs?: number
           level?: Database["public"]["Enums"]["worker_level"]
+          professionalism_avg?: number
+          punctuality_avg?: number
+          quality_avg?: number
           rating_avg?: number
           ratings_count?: number
+          reputation_level?: string
+          reputation_score?: number
           updated_at?: string
           user_id?: string
         }
@@ -674,6 +947,108 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      audit_logs: {
+        Row: { id: string; user_id: string | null; action: string; entity_type: string | null; entity_id: string | null; metadata: Json | null; ip_address: string | null; created_at: string | null }
+        Insert: { id?: string; user_id?: string | null; action: string; entity_type?: string | null; entity_id?: string | null; metadata?: Json | null; ip_address?: string | null; created_at?: string | null }
+        Update: { id?: string; user_id?: string | null; action?: string; entity_type?: string | null; entity_id?: string | null; metadata?: Json | null; ip_address?: string | null; created_at?: string | null }
+        Relationships: []
+      }
+      coupons: {
+        Row: { id: string; code: string; type: string; value: number; max_uses: number; used_count: number; expires_at: string | null; active: boolean; min_amount: number; created_at: string | null }
+        Insert: { id?: string; code: string; type: string; value: number; max_uses?: number; used_count?: number; expires_at?: string | null; active?: boolean; min_amount?: number; created_at?: string | null }
+        Update: { id?: string; code?: string; type?: string; value?: number; max_uses?: number; used_count?: number; expires_at?: string | null; active?: boolean; min_amount?: number; created_at?: string | null }
+        Relationships: []
+      }
+      coupon_redemptions: {
+        Row: { id: string; coupon_id: string; user_id: string; request_id: string | null; created_at: string | null }
+        Insert: { id?: string; coupon_id: string; user_id: string; request_id?: string | null; created_at?: string | null }
+        Update: { id?: string; coupon_id?: string; user_id?: string; request_id?: string | null; created_at?: string | null }
+        Relationships: []
+      }
+      device_fingerprints: {
+        Row: { id: string; user_id: string | null; fingerprint: string; device_info: Json | null; first_seen: string; last_seen: string; blocked: boolean }
+        Insert: { id?: string; user_id?: string | null; fingerprint: string; device_info?: Json | null; first_seen?: string; last_seen?: string; blocked?: boolean }
+        Update: { id?: string; user_id?: string | null; fingerprint?: string; device_info?: Json | null; first_seen?: string; last_seen?: string; blocked?: boolean }
+        Relationships: []
+      }
+      fcm_tokens: {
+        Row: { id: string; user_id: string; token: string; created_at: string | null }
+        Insert: { id?: string; user_id: string; token: string; created_at?: string | null }
+        Update: { id?: string; user_id?: string; token?: string; created_at?: string | null }
+        Relationships: []
+      }
+      provider_verifications: {
+        Row: { id: string; user_id: string; role: string; status: string; license_url: string | null; insurance_url: string | null; vehicle_photo_url: string | null; id_card_url: string | null; admin_notes: string | null; reviewed_by: string | null; submitted_at: string | null; reviewed_at: string | null; created_at: string | null }
+        Insert: { id?: string; user_id: string; role: string; status: string; license_url?: string | null; insurance_url?: string | null; vehicle_photo_url?: string | null; id_card_url?: string | null; admin_notes?: string | null; reviewed_by?: string | null; submitted_at?: string | null; reviewed_at?: string | null; created_at?: string | null }
+        Update: { id?: string; user_id?: string; role?: string; status?: string; license_url?: string | null; insurance_url?: string | null; vehicle_photo_url?: string | null; id_card_url?: string | null; admin_notes?: string | null; reviewed_by?: string | null; submitted_at?: string | null; reviewed_at?: string | null; created_at?: string | null }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: { id: string; user_id: string; action: string; created_at: string | null }
+        Insert: { id?: string; user_id: string; action: string; created_at?: string | null }
+        Update: { id?: string; user_id?: string; action?: string; created_at?: string | null }
+        Relationships: []
+      }
+      referrals: {
+        Row: { id: string; referrer_id: string; referred_id: string; referral_code: string; reward_amount: number; status: string; created_at: string | null }
+        Insert: { id?: string; referrer_id: string; referred_id: string; referral_code: string; reward_amount?: number; status?: string; created_at?: string | null }
+        Update: { id?: string; referrer_id?: string; referred_id?: string; referral_code?: string; reward_amount?: number; status?: string; created_at?: string | null }
+        Relationships: []
+      }
+      scheduled_rides: {
+        Row: { id: string; user_id: string; vehicle_category: string | null; pickup_text: string; pickup_lat: number; pickup_lng: number; dest_text: string; dest_lat: number; dest_lng: number; scheduled_at: string; status: string; request_id: string | null; notes: string | null; created_at: string | null }
+        Insert: { id?: string; user_id: string; vehicle_category?: string | null; pickup_text: string; pickup_lat: number; pickup_lng: number; dest_text: string; dest_lat: number; dest_lng: number; scheduled_at: string; status?: string; request_id?: string | null; notes?: string | null; created_at?: string | null }
+        Update: { id?: string; user_id?: string; vehicle_category?: string | null; pickup_text?: string; pickup_lat?: number; pickup_lng?: number; dest_text?: string; dest_lat?: number; dest_lng?: number; scheduled_at?: string; status?: string; request_id?: string | null; notes?: string | null; created_at?: string | null }
+        Relationships: []
+      }
+      subscription_payments: {
+        Row: { id: string; user_id: string; plan_id: string; amount: number; currency: string; billing_cycle: string; payment_method: string | null; status: string; period_start: string; period_end: string | null; created_at: string }
+        Insert: { id?: string; user_id: string; plan_id: string; amount: number; currency?: string; billing_cycle?: string; payment_method?: string | null; status?: string; period_start: string; period_end?: string | null; created_at?: string }
+        Update: { id?: string; user_id?: string; plan_id?: string; amount?: number; currency?: string; billing_cycle?: string; payment_method?: string | null; status?: string; period_start?: string; period_end?: string | null; created_at?: string }
+        Relationships: []
+      }
+      subscription_expiry_notifications: {
+        Row: { id: string; user_id: string; subscription_id: string; days_before: number; sent_at: string }
+        Insert: { id?: string; user_id: string; subscription_id: string; days_before: number; sent_at?: string }
+        Update: { id?: string; user_id?: string; subscription_id?: string; days_before?: number; sent_at?: string }
+        Relationships: []
+      }
+      support_tickets: {
+        Row: { id: string; user_id: string; subject: string; description: string; category: string; priority: string; status: string; created_at: string; updated_at: string; closed_at: string | null }
+        Insert: { id?: string; user_id: string; subject: string; description: string; category?: string; priority?: string; status?: string; created_at?: string; updated_at?: string; closed_at?: string | null }
+        Update: { id?: string; user_id?: string; subject?: string; description?: string; category?: string; priority?: string; status?: string; created_at?: string; updated_at?: string; closed_at?: string | null }
+        Relationships: []
+      }
+      support_ticket_messages: {
+        Row: { id: string; ticket_id: string; sender_id: string; message: string; is_staff: boolean; created_at: string }
+        Insert: { id?: string; ticket_id: string; sender_id: string; message: string; is_staff?: boolean; created_at?: string }
+        Update: { id?: string; ticket_id?: string; sender_id?: string; message?: string; is_staff?: boolean; created_at?: string }
+        Relationships: []
+      }
+      surge_zones: {
+        Row: { id: string; name: string; center_lat: number; center_lng: number; radius_km: number; multiplier: number; start_hour: number; end_hour: number; active: boolean; created_at: string | null }
+        Insert: { id?: string; name: string; center_lat: number; center_lng: number; radius_km: number; multiplier?: number; start_hour?: number; end_hour?: number; active?: boolean; created_at?: string | null }
+        Update: { id?: string; name?: string; center_lat?: number; center_lng?: number; radius_km?: number; multiplier?: number; start_hour?: number; end_hour?: number; active?: boolean; created_at?: string | null }
+        Relationships: []
+      }
+      user_blocks: {
+        Row: { id: string; user_id: string; blocked_by: string | null; reason: string | null; blocked_at: string; expires_at: string | null }
+        Insert: { id?: string; user_id: string; blocked_by?: string | null; reason?: string | null; blocked_at?: string; expires_at?: string | null }
+        Update: { id?: string; user_id?: string; blocked_by?: string | null; reason?: string | null; blocked_at?: string; expires_at?: string | null }
+        Relationships: []
+      }
+      user_devices: {
+        Row: { id: string; user_id: string; device_id: string; platform: string | null; app_version: string | null; last_seen: string | null; created_at: string | null }
+        Insert: { id?: string; user_id: string; device_id: string; platform?: string | null; app_version?: string | null; last_seen?: string | null; created_at?: string | null }
+        Update: { id?: string; user_id?: string; device_id?: string; platform?: string | null; app_version?: string | null; last_seen?: string | null; created_at?: string | null }
+        Relationships: []
+      }
+      user_reports: {
+        Row: { id: string; reporter_id: string; reported_id: string | null; reason: string; details: string | null; report_type: string; target_type: string | null; target_id: string | null; status: string; created_at: string; resolved_at: string | null; resolved_by: string | null; resolution_note: string | null }
+        Insert: { id?: string; reporter_id: string; reported_id?: string | null; reason: string; details?: string | null; report_type: string; target_type?: string | null; target_id?: string | null; status?: string; created_at?: string; resolved_at?: string | null; resolved_by?: string | null; resolution_note?: string | null }
+        Update: { id?: string; reporter_id?: string; reported_id?: string | null; reason?: string; details?: string | null; report_type?: string; target_type?: string | null; target_id?: string | null; status?: string; created_at?: string; resolved_at?: string | null; resolved_by?: string | null; resolution_note?: string | null }
+        Relationships: []
       }
     }
     Views: {
@@ -733,11 +1108,6 @@ export type Database = {
       }
     }
     Functions: {
-      accept_service_request: {
-        Args: { _request_id: string }
-        Returns: boolean
-      }
-      dispatch_request: { Args: { _request_id: string }; Returns: number }
       find_nearby_drivers: {
         Args: {
           _category: string
@@ -769,8 +1139,17 @@ export type Database = {
           pin_id: string
         }[]
       }
+      get_provider_reputation: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: Json
+      }
       grant_provider_role_safe: {
-        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Args: {
+          _user_id: string
+          _role: string
+        }
         Returns: boolean
       }
       has_role: {
@@ -780,12 +1159,21 @@ export type Database = {
         }
         Returns: boolean
       }
-      lookup_email_by_phone: { Args: { _phone: string }; Returns: string }
-      transition_service_request: {
+      lookup_email_by_phone: {
         Args: {
-          _reason?: string
-          _request_id: string
-          _status: Database["public"]["Enums"]["request_status"]
+          _phone: string
+        }
+        Returns: string
+      }
+      safe_lookup_email_by_phone: {
+        Args: {
+          p_phone: string
+        }
+        Returns: string
+      }
+      has_admin_access: {
+        Args: {
+          p_user_id: string
         }
         Returns: boolean
       }
