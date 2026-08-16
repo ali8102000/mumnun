@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getFriendsStatuses, searchProfileByPhone, type FriendStatus } from "@/lib/friends.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +14,22 @@ import { toast } from "sonner";
 import { UserPlus, Phone, Search, X } from "lucide-react";
 import { normalizePhone } from "@/lib/phone";
 
-export default function Friends() {
+export const Route = createFileRoute("/friends")({
+  ssr: false,
+  head: () => ({
+    meta: [
+      { title: "الأصدقاء | ممنون" },
+      { name: "description", content: "إدارة الأصدقاء ومتابعة حالتهم في تطبيق ممنون." },
+      { property: "og:title", content: "الأصدقاء | ممنون" },
+      { property: "og:description", content: "إدارة الأصدقاء ومتابعة حالتهم في تطبيق ممنون." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: Friends,
+});
+
+function Friends() {
   const { session } = useAuth();
   const [friends, setFriends] = useState<FriendStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,11 +71,16 @@ export default function Friends() {
   }
 
   async function addFriend(phone: string) {
+    const userId = session?.user.id;
+    if (!userId) {
+      toast.error("سجّل الدخول أولاً");
+      return;
+    }
     setAdding(phone);
     try {
       const normalized = normalizePhone(phone);
       const { error } = await (supabase as any).from("friends").insert({
-        user_id: session!.user.id,
+        user_id: userId,
         friend_phone: normalized,
       });
       if (error) throw error;
