@@ -23,7 +23,7 @@ export const dispatchRequest = createServerFn({ method: "POST" })
     if (req.type !== "taxi") return { offers: 0, reason: "not_taxi" };
     if (!req.pickup_lat || !req.pickup_lng) throw new Error("Missing pickup location");
 
-    await supabaseAdmin
+    await (supabaseAdmin as any)
       .from("service_requests")
       .update({ status: "searching" as any, searching_started_at: new Date().toISOString() })
       .eq("id", req.id);
@@ -80,7 +80,7 @@ export const acceptServiceRequest = createServerFn({ method: "POST" })
     if (error || !req) throw new Error("Request not found");
     if (req.status !== "searching") throw new Error("Request is no longer available");
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await (supabaseAdmin as any)
       .from("service_requests")
       .update({
         status: "accepted",
@@ -127,7 +127,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
     if (offer.status !== "pending") throw new Error("Offer is no longer pending");
 
     if (data.action === "accept") {
-      const { error: reqUpdateError } = await supabaseAdmin
+      const { error: reqUpdateError } = await (supabaseAdmin as any)
         .from("service_requests")
         .update({
           status: "accepted",
@@ -179,7 +179,7 @@ export const cancelRequest = createServerFn({ method: "POST" })
     if (req.status === "completed" || req.status === "cancelled")
       throw new Error("Request is already finished");
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await (supabaseAdmin as any)
       .from("service_requests")
       .update({
         status: "cancelled",
@@ -222,7 +222,7 @@ export const providerCancelRequest = createServerFn({ method: "POST" })
     if (req.status !== "accepted")
       throw new Error("Cannot cancel at this stage");
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await (supabaseAdmin as any)
       .from("service_requests")
       .update({
         status: "searching",
@@ -317,7 +317,7 @@ export const startRide = createServerFn({ method: "POST" })
     if (req.provider_id !== userId) throw new Error("Forbidden");
     if (req.status !== "accepted") throw new Error("Request is not accepted");
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await (supabaseAdmin as any)
       .from("service_requests")
       .update({ status: "in_progress" })
       .eq("id", data.requestId);
@@ -345,7 +345,7 @@ export const completeRide = createServerFn({ method: "POST" })
     if (req.provider_id !== userId) throw new Error("Forbidden");
     if (req.status !== "in_progress") throw new Error("Ride is not in progress");
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await (supabaseAdmin as any)
       .from("service_requests")
       .update({ status: "completed", completed_at: new Date().toISOString() })
       .eq("id", data.requestId);
