@@ -8,7 +8,7 @@
     "scheme": "mamnoon",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splashScreen": {
+    "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
@@ -16,12 +16,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mamnoon.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyBPxHJt9E92tCiIlVQa36Nrq6HBeY8ss7M"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "نحتاج موقعك لعرض الخدمات القريبة وتتبع الرحلات",
         "NSCameraUsageDescription": "نحتاج الكاميرا لالتقاط صور الملف الشخصي",
         "NSPhotoLibraryUsageDescription": "نحتاج معرض الصور لاختيار صورة الملف الشخصي"
-      },
-      "googleMapsApiKey": "AIzaSyBPxHJt9E92tCiIlVQa36Nrq6HBeY8ss7M"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -29,7 +31,11 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.mamnoon.app",
-      "googleMapsApiKey": "AIzaSyBPxHJt9E92tCiIlVQa36Nrq6HBeY8ss7M",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBPxHJt9E92tCiIlVQa36Nrq6HBeY8ss7M"
+        }
+      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -52,15 +58,9 @@
       ]
     ],
     "extra": {
-      "eas": {
-        "projectId": ""
-      },
       "supabaseUrl": "https://zvfdymcalzqhvwnipuup.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2ZmR5bWNhbHpxaHZ3bmlwdXVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNzgxNzUsImV4cCI6MjA5Njc1NDE3NX0.eUgHgV8VMpemI32SA4V8dcgQtb-w6ahAiytOAsXU7e8",
       "googleMapsApiKey": "AIzaSyBPxHJt9E92tCiIlVQa36Nrq6HBeY8ss7M"
-    },
-    "updates": {
-      "url": ""
     },
     "runtimeVersion": {
       "policy": "appVersion"

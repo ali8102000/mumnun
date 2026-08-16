@@ -18,6 +18,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as HistoryRouteImport } from './routes/history'
+import { Route as FriendsRouteImport } from './routes/friends'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -73,6 +74,11 @@ const HomeRoute = HomeRouteImport.update({
 const HistoryRoute = HistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FriendsRoute = FriendsRouteImport.update({
+  id: '/friends',
+  path: '/friends',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/friends': typeof FriendsRoute
   '/history': typeof HistoryRoute
   '/home': typeof HomeRoute
   '/messages': typeof MessagesRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/friends': typeof FriendsRoute
   '/history': typeof HistoryRoute
   '/home': typeof HomeRoute
   '/messages': typeof MessagesRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/friends': typeof FriendsRoute
   '/history': typeof HistoryRoute
   '/home': typeof HomeRoute
   '/messages': typeof MessagesRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/forgot-password'
+    | '/friends'
     | '/history'
     | '/home'
     | '/messages'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/forgot-password'
+    | '/friends'
     | '/history'
     | '/home'
     | '/messages'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/forgot-password'
+    | '/friends'
     | '/history'
     | '/home'
     | '/messages'
@@ -272,6 +284,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  FriendsRoute: typeof FriendsRoute
   HistoryRoute: typeof HistoryRoute
   HomeRoute: typeof HomeRoute
   MessagesRoute: typeof MessagesRoute
@@ -350,6 +363,13 @@ declare module '@tanstack/react-router' {
       path: '/history'
       fullPath: '/history'
       preLoaderRoute: typeof HistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/friends': {
+      id: '/friends'
+      path: '/friends'
+      fullPath: '/friends'
+      preLoaderRoute: typeof FriendsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -451,6 +471,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  FriendsRoute: FriendsRoute,
   HistoryRoute: HistoryRoute,
   HomeRoute: HomeRoute,
   MessagesRoute: MessagesRoute,
@@ -468,3 +489,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
