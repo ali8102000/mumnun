@@ -14,8 +14,7 @@
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundImage": "./assets/adaptive-icon-bg.png",
-        "minSdkVersion": 24
+        "backgroundImage": "./assets/adaptive-icon-bg.png"
       },
       "splash": {
         "image": "./assets/splash.png",
