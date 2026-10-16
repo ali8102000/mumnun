@@ -148,6 +148,7 @@ function AuthPage() {
             <Button
               key={m}
               type="button"
+              variant={mode === m ? "default" : "ghost"}
               onClick={() => setMode(m)}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition btn-press tap-highlight-none ${
                 mode === m ? "bg-primary text-primary-foreground shadow-card" : "text-muted-foreground"

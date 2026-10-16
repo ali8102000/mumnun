@@ -29,3 +29,8 @@ test("skip opens auth without requiring all steps", async ({ page }) => {
   await page.getByRole("button", { name: "تخطي", exact: true }).click();
   await expect(page).toHaveURL(/\/auth$/);
 });
+
+test("legacy preview index opens the working first-visit screen", async ({ page }) => {
+  await page.goto("/index");
+  await expect(page).toHaveURL(/\/welcome$/);
+});
