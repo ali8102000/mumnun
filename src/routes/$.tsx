@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate, notFound } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/$")({
+export const Route = createFileRoute("/index_")({
   ssr: false,
   beforeLoad: ({ params }) => {
     if (params._splat !== "index") throw notFound();
