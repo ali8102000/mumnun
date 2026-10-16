@@ -1,7 +1,10 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Navigate, notFound } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/index_")({
+export const Route = createFileRoute("/$")({
   ssr: false,
+  beforeLoad: ({ params }) => {
+    if (params._splat !== "index") throw notFound();
+  },
   head: () => ({ meta: [
     { title: "بدء ممنون" },
     { name: "description", content: "الانتقال إلى بداية تطبيق ممنون للنقل والخدمات." },
