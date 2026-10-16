@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as SelectRoleRouteImport } from './routes/select-role'
@@ -31,6 +32,11 @@ import { Route as AdminSubscriptionsRouteImport } from './routes/admin/subscript
 import { Route as AdminMonitoringRouteImport } from './routes/admin/monitoring'
 import { Route as AdminBootstrapRouteImport } from './routes/admin/bootstrap'
 
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/select-role': typeof SelectRoleRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/welcome': typeof WelcomeRoute
   '/admin/bootstrap': typeof AdminBootstrapRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/select-role': typeof SelectRoleRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/welcome': typeof WelcomeRoute
   '/admin/bootstrap': typeof AdminBootstrapRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -199,6 +207,7 @@ export interface FileRoutesById {
   '/select-role': typeof SelectRoleRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/welcome': typeof WelcomeRoute
   '/admin/bootstrap': typeof AdminBootstrapRoute
   '/admin/monitoring': typeof AdminMonitoringRoute
   '/admin/subscriptions': typeof AdminSubscriptionsRoute
@@ -224,6 +233,7 @@ export interface FileRouteTypes {
     | '/select-role'
     | '/support'
     | '/terms'
+    | '/welcome'
     | '/admin/bootstrap'
     | '/admin/monitoring'
     | '/admin/subscriptions'
@@ -247,6 +257,7 @@ export interface FileRouteTypes {
     | '/select-role'
     | '/support'
     | '/terms'
+    | '/welcome'
     | '/admin/bootstrap'
     | '/admin/monitoring'
     | '/admin/subscriptions'
@@ -270,6 +281,7 @@ export interface FileRouteTypes {
     | '/select-role'
     | '/support'
     | '/terms'
+    | '/welcome'
     | '/admin/bootstrap'
     | '/admin/monitoring'
     | '/admin/subscriptions'
@@ -294,6 +306,7 @@ export interface RootRouteChildren {
   SelectRoleRoute: typeof SelectRoleRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
+  WelcomeRoute: typeof WelcomeRoute
   OnboardingDriverRoute: typeof OnboardingDriverRoute
   OnboardingWorkerRoute: typeof OnboardingWorkerRoute
   RequestIdRoute: typeof RequestIdRoute
@@ -302,6 +315,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -481,6 +501,7 @@ const rootRouteChildren: RootRouteChildren = {
   SelectRoleRoute: SelectRoleRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
+  WelcomeRoute: WelcomeRoute,
   OnboardingDriverRoute: OnboardingDriverRoute,
   OnboardingWorkerRoute: OnboardingWorkerRoute,
   RequestIdRoute: RequestIdRoute,
