@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as IndexAliasRouteImport } from './routes/index-alias'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as FriendsRouteImport } from './routes/friends'
@@ -70,6 +71,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const MessagesRoute = MessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexAliasRoute = IndexAliasRouteImport.update({
+  id: '/index-alias',
+  path: '/index-alias',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HomeRoute = HomeRouteImport.update({
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/friends': typeof FriendsRoute
   '/history': typeof HistoryRoute
   '/home': typeof HomeRoute
+  '/index-alias': typeof IndexAliasRoute
   '/messages': typeof MessagesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/friends': typeof FriendsRoute
   '/history': typeof HistoryRoute
   '/home': typeof HomeRoute
+  '/index-alias': typeof IndexAliasRoute
   '/messages': typeof MessagesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/friends': typeof FriendsRoute
   '/history': typeof HistoryRoute
   '/home': typeof HomeRoute
+  '/index-alias': typeof IndexAliasRoute
   '/messages': typeof MessagesRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -226,6 +235,7 @@ export interface FileRouteTypes {
     | '/friends'
     | '/history'
     | '/home'
+    | '/index-alias'
     | '/messages'
     | '/privacy'
     | '/profile'
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/friends'
     | '/history'
     | '/home'
+    | '/index-alias'
     | '/messages'
     | '/privacy'
     | '/profile'
@@ -274,6 +285,7 @@ export interface FileRouteTypes {
     | '/friends'
     | '/history'
     | '/home'
+    | '/index-alias'
     | '/messages'
     | '/privacy'
     | '/profile'
@@ -299,6 +311,7 @@ export interface RootRouteChildren {
   FriendsRoute: typeof FriendsRoute
   HistoryRoute: typeof HistoryRoute
   HomeRoute: typeof HomeRoute
+  IndexAliasRoute: typeof IndexAliasRoute
   MessagesRoute: typeof MessagesRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
@@ -369,6 +382,13 @@ declare module '@tanstack/react-router' {
       path: '/messages'
       fullPath: '/messages'
       preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/index-alias': {
+      id: '/index-alias'
+      path: '/index-alias'
+      fullPath: '/index-alias'
+      preLoaderRoute: typeof IndexAliasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/home': {
@@ -494,6 +514,7 @@ const rootRouteChildren: RootRouteChildren = {
   FriendsRoute: FriendsRoute,
   HistoryRoute: HistoryRoute,
   HomeRoute: HomeRoute,
+  IndexAliasRoute: IndexAliasRoute,
   MessagesRoute: MessagesRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,

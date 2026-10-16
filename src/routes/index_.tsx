@@ -1,6 +1,6 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/index-alias")({
+export const Route = createFileRoute("/index_")({
   ssr: false,
   head: () => ({ meta: [
     { title: "بدء ممنون" },
