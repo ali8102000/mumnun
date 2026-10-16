@@ -9,7 +9,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { getReputation, getProviderReviews, type ReputationData } from "@/lib/reputation.functions";
 import { ReputationCard, StarRating } from "@/components/reputation";
 
-export const Route = createFileRoute("/profile")({ ssr: false, component: ProfilePage });
+export const Route = createFileRoute("/profile")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "الملف الشخصي | ممنون" },
+    { name: "description", content: "إدارة معلومات حسابك وتقييماتك في ممنون." },
+    { property: "og:title", content: "الملف الشخصي | ممنون" },
+    { property: "og:description", content: "إدارة معلومات حسابك وتقييماتك في ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: ProfilePage });
 
 function ProfilePage() {
   const { session, profile, roles, loading, signOut } = useAuth();

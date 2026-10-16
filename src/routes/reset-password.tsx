@@ -6,6 +6,14 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/reset-password")({
   ssr: false,
+  head: () => ({ meta: [
+    { title: "كلمة مرور جديدة | ممنون" },
+    { name: "description", content: "عيّن كلمة مرور جديدة لحساب ممنون." },
+    { property: "og:title", content: "كلمة مرور جديدة | ممنون" },
+    { property: "og:description", content: "عيّن كلمة مرور جديدة لحساب ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: ResetPasswordPage,
 });
 

@@ -5,7 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Headphones, Plus, MessageSquare, Send } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/support")({ ssr: false, component: SupportCenter });
+export const Route = createFileRoute("/support")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "الدعم | ممنون" },
+    { name: "description", content: "تواصل مع دعم ممنون وتابع طلبات المساعدة." },
+    { property: "og:title", content: "الدعم | ممنون" },
+    { property: "og:description", content: "تواصل مع دعم ممنون وتابع طلبات المساعدة." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: SupportCenter });
 
 type Ticket = {
   id: string;

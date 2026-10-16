@@ -8,6 +8,14 @@ import { grantProviderRole } from "@/lib/roles.functions";
 
 export const Route = createFileRoute("/onboarding/driver")({
   ssr: false,
+  head: () => ({ meta: [
+    { title: "تسجيل الكابتن | ممنون" },
+    { name: "description", content: "أكمل بيانات السيارة للانضمام إلى كباتن ممنون." },
+    { property: "og:title", content: "تسجيل الكابتن | ممنون" },
+    { property: "og:description", content: "أكمل بيانات السيارة للانضمام إلى كباتن ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: OnboardingDriver,
 });
 

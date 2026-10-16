@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/terms")({ ssr: false, component: TermsPage });
+export const Route = createFileRoute("/terms")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "الشروط والأحكام | ممنون" },
+    { name: "description", content: "اطلع على شروط استخدام منصة ممنون للنقل والخدمات." },
+    { property: "og:title", content: "الشروط والأحكام | ممنون" },
+    { property: "og:description", content: "اطلع على شروط استخدام منصة ممنون للنقل والخدمات." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: TermsPage });
 
 function TermsPage() {
   return (

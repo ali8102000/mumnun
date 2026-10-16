@@ -18,7 +18,15 @@ import {
 } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 
-export const Route = createFileRoute("/admin")({ ssr: false, component: AdminPage });
+export const Route = createFileRoute("/admin")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "إدارة ممنون | ممنون" },
+    { name: "description", content: "إدارة مستخدمي وطلبات منصة ممنون." },
+    { property: "og:title", content: "إدارة ممنون | ممنون" },
+    { property: "og:description", content: "إدارة مستخدمي وطلبات منصة ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: AdminPage });
 
 type Section = "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles";
 

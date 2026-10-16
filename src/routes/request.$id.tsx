@@ -20,7 +20,15 @@ const VEHICLE_CAT_META: Record<string, { label: string; emoji: string; gradient:
   luxury:  { label: "ممنون فاخر",   emoji: "🏎️", gradient: "from-amber-400 to-orange-500" },
 };
 
-export const Route = createFileRoute("/request/$id")({ ssr: false, component: RequestDetail });
+export const Route = createFileRoute("/request/$id")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "تفاصيل الطلب | ممنون" },
+    { name: "description", content: "تابع حالة طلبك وموقع مزود الخدمة وتواصل معه في ممنون." },
+    { property: "og:title", content: "تفاصيل الطلب | ممنون" },
+    { property: "og:description", content: "تابع حالة طلبك وموقع مزود الخدمة وتواصل معه في ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: RequestDetail });
 
 function RequestDetail() {
   const { id } = Route.useParams();

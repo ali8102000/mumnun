@@ -5,7 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
 import { ClipboardList } from "lucide-react";
 
-export const Route = createFileRoute("/history")({ ssr: false, component: HistoryPage });
+export const Route = createFileRoute("/history")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "سجل الطلبات | ممنون" },
+    { name: "description", content: "تابع طلبات النقل والخدمات السابقة والنشطة في ممنون." },
+    { property: "og:title", content: "سجل الطلبات | ممنون" },
+    { property: "og:description", content: "تابع طلبات النقل والخدمات السابقة والنشطة في ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: HistoryPage });
 
 function HistoryPage() {
   const { session, loading } = useAuth();

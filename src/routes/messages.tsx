@@ -5,7 +5,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
 import { MessageCircle } from "lucide-react";
 
-export const Route = createFileRoute("/messages")({ ssr: false, component: MessagesPage });
+export const Route = createFileRoute("/messages")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "الرسائل | ممنون" },
+    { name: "description", content: "تواصل مع الكابتن والفني بشأن طلباتك في ممنون." },
+    { property: "og:title", content: "الرسائل | ممنون" },
+    { property: "og:description", content: "تواصل مع الكابتن والفني بشأن طلباتك في ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: MessagesPage });
 
 function MessagesPage() {
   const { session, loading } = useAuth();
