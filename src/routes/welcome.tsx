@@ -52,16 +52,16 @@ function WelcomePage() {
   if (!loading && session) return <Navigate to="/" />;
   if (!slide) return null;
 
-  function finish() {
+  function finish(signIn = false) {
     save(language, true);
-    navigate({ to: "/auth" });
+    navigate({ to: "/auth", search: { mode: signIn ? "login" : undefined } });
   }
 
   return (
     <main dir={language === "ar" ? "rtl" : "ltr"} lang={language} className="min-h-dvh bg-surface text-foreground flex flex-col">
       <header className="mx-auto w-full max-w-3xl flex items-center justify-between px-6 pt-6 sm:pt-8">
         <span className="text-2xl font-black text-primary">{text.brand}<span className="text-accent">.</span></span>
-        <Button variant="ghost" onClick={finish} className="text-muted-foreground">{text.skip}<Forward /></Button>
+        <Button variant="ghost" onClick={() => finish()} className="text-muted-foreground">{text.skip}<Forward /></Button>
       </header>
 
       <div className="mx-auto w-full max-w-xl flex-1 px-6 pb-8 text-center">
@@ -94,7 +94,7 @@ function WelcomePage() {
           {step > 0 && <Button variant="outline" size="icon" onClick={() => setStep(step - 1)} aria-label={text.back} title={text.back} className="h-12 w-12 shrink-0"><Backward /></Button>}
           <Button className="h-12 flex-1 text-base font-bold" onClick={() => step < 2 ? setStep(step + 1) : finish()}>{step < 2 ? text.next : text.start}<Forward /></Button>
         </div>
-        <p className="mt-5 text-sm text-muted-foreground">{text.account} <Button variant="link" onClick={finish} className="h-auto p-0 font-bold">{text.login}</Button></p>
+        <p className="mt-5 text-sm text-muted-foreground">{text.account} <Button variant="link" onClick={() => finish(true)} className="h-auto p-0 font-bold">{text.login}</Button></p>
       </div>
     </main>
   );
