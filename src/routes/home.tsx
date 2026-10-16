@@ -14,7 +14,15 @@ import { acceptServiceRequest } from "@/lib/dispatch.functions";
 import { useTheme } from "@/lib/use-theme";
 import { playClick } from "@/lib/click-sound";
 
-export const Route = createFileRoute("/home")({ ssr: false, component: HomePage });
+export const Route = createFileRoute("/home")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "الرئيسية | ممنون" },
+    { name: "description", content: "اطلب تاكسي أو خدمات منزلية وتابع طلباتك في ممنون." },
+    { property: "og:title", content: "الرئيسية | ممنون" },
+    { property: "og:description", content: "اطلب تاكسي أو خدمات منزلية وتابع طلباتك في ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: HomePage });
 
 function greetingByHour() {
   const h = new Date().getHours();

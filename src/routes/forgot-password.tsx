@@ -8,6 +8,14 @@ import { isValidPhone, normalizePhone } from "@/lib/phone";
 
 export const Route = createFileRoute("/forgot-password")({
   ssr: false,
+  head: () => ({ meta: [
+    { title: "استعادة كلمة المرور | ممنون" },
+    { name: "description", content: "استعد الوصول إلى حساب ممنون باستخدام الهاتف أو البريد الإلكتروني." },
+    { property: "og:title", content: "استعادة كلمة المرور | ممنون" },
+    { property: "og:description", content: "استعد الوصول إلى حساب ممنون باستخدام الهاتف أو البريد الإلكتروني." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: ForgotPasswordPage,
 });
 

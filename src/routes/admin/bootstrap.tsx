@@ -6,7 +6,15 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2, ShieldCheck, Crown, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/admin/bootstrap")({ ssr: false, component: BootstrapPage });
+export const Route = createFileRoute("/admin/bootstrap")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "الإعداد الأولي | ممنون" },
+    { name: "description", content: "إعداد إدارة منصة ممنون." },
+    { property: "og:title", content: "الإعداد الأولي | ممنون" },
+    { property: "og:description", content: "إعداد إدارة منصة ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: BootstrapPage });
 
 function BootstrapPage() {
   const { session, loading } = useAuth();

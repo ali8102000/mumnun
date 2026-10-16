@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/privacy")({ ssr: false, component: PrivacyPage });
+export const Route = createFileRoute("/privacy")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "سياسة الخصوصية | ممنون" },
+    { name: "description", content: "تعرّف على استخدام بياناتك وحماية خصوصيتك في ممنون." },
+    { property: "og:title", content: "سياسة الخصوصية | ممنون" },
+    { property: "og:description", content: "تعرّف على استخدام بياناتك وحماية خصوصيتك في ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: PrivacyPage });
 
 function PrivacyPage() {
   return (

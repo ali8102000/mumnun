@@ -6,7 +6,15 @@ import { adminGetPlans, adminSavePlan, adminTogglePlan, adminGetSettings, adminS
 import { Loader2, ShieldCheck, Crown, Award, Sparkles, ToggleLeft, ToggleRight, Users, TrendingUp, Calendar, AlertCircle, Plus, Save, X, BadgeCheck, Headphones, BarChart3, Star, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/admin/subscriptions")({ ssr: false, component: SubscriptionsAdmin });
+export const Route = createFileRoute("/admin/subscriptions")({ ssr: false,
+  head: () => ({ meta: [
+    { title: "إدارة الاشتراكات | ممنون" },
+    { name: "description", content: "إدارة خطط واشتراكات منصة ممنون." },
+    { property: "og:title", content: "إدارة الاشتراكات | ممنون" },
+    { property: "og:description", content: "إدارة خطط واشتراكات منصة ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }), component: SubscriptionsAdmin });
 
 type Plan = { id: string; code: string; name_ar: string; name_en: string; description_ar: string | null; tier: number; max_requests_per_month: number | null; priority_weight: number; offer_priority: number; badge_label: string | null; badge_color: string | null; show_stats: boolean; priority_support: boolean; monthly_price: number; yearly_price: number; currency: string; is_active: boolean; sort_order: number };
 type Stats = { totalSubscribers: number; activeSubscriptions: number; expiredSubscriptions: number; monthlyRevenue: number; yearlyRevenue: number; freeCount: number; silverCount: number; goldCount: number };

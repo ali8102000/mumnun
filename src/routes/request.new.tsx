@@ -14,6 +14,14 @@ const search = z.object({ type: z.enum(["taxi", "service"]).default("taxi") });
 
 export const Route = createFileRoute("/request/new")({
   ssr: false,
+  head: () => ({ meta: [
+    { title: "طلب جديد | ممنون" },
+    { name: "description", content: "اختر موقعك وخدمتك لإنشاء طلب جديد في ممنون." },
+    { property: "og:title", content: "طلب جديد | ممنون" },
+    { property: "og:description", content: "اختر موقعك وخدمتك لإنشاء طلب جديد في ممنون." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   validateSearch: search,
   component: NewRequest,
 });
