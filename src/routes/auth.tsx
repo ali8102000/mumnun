@@ -118,7 +118,9 @@ function AuthPage() {
       if (/Failed to fetch|NetworkError|fetch.*failed/i.test(msg)) {
         toast.error(t("تعذّر الاتصال بالخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.", "Unable to connect. Check your internet and try again."));
       } else if (/already registered|User already/i.test(msg)) {
-        toast.error(t("هذا الحساب مسجّل مسبقاً. حاول تسجيل الدخول.", "This account already exists. Please sign in."));
+        toast.error(t("هذا الحساب مسجّل مسبقاً. أدخل كلمة المرور لتسجيل الدخول.", "This account already exists. Enter your password to sign in."));
+        setIdentifier(phone || email);
+        setMode("login");
       } else if (/Invalid login|Invalid credentials/i.test(msg)) {
         toast.error(t("بيانات الدخول غير صحيحة", "Incorrect sign-in details"));
       } else if (/Email rate limit/i.test(msg)) {
