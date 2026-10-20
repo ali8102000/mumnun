@@ -10,13 +10,16 @@ export const grantProviderRole = createServerFn({ method: "POST" })
     return input;
   })
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { error } = await (supabaseAdmin as any).rpc("grant_provider_role_safe", {
-      _user_id: userId,
+    // Runs as the signed-in user: the database function checks auth.uid()
+    // and requires the matching driver/worker profile to exist first.
+    const { error } = await (context.supabase as any).rpc("grant_provider_role_safe", {
       _role: data.role,
     });
-    if (error) throw new Error("Failed to grant role");
+    if (error) {
+      console.error("[grantProviderRole]", error.message);
+      if (/driver_profile_required/.test(error.message)) throw new Error("أكمل بيانات السيارة أولاً");
+      if (/worker_profile_required/.test(error.message)) throw new Error("أكمل بيانات الفني أولاً");
+      throw new Error("تعذّر تفعيل الدور، حاول مرة أخرى");
+    }
     return { ok: true };
   });
