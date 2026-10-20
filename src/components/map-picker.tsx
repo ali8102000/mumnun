@@ -196,30 +196,51 @@ export function MapPicker({
   }, [nearby, nearbyKind]);
 
   function autoLocate() {
-    if (!navigator.geolocation || !mapRef.current) return;
+    if (!mapRef.current) return;
+    if (!navigator.geolocation) {
+      setError("جهازك لا يدعم تحديد الموقع");
+      return;
+    }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        suppressIdleRef.current = true;
-        mapRef.current.panTo(c);
-        mapRef.current.setZoom(16);
+    setError(null);
+    const onSuccess = (pos: GeolocationPosition) => {
+      const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      suppressIdleRef.current = true;
+      mapRef.current.panTo(c);
+      mapRef.current.setZoom(16);
+      // Report the location immediately; the address is a bonus if available.
+      onChange(c);
+      setLocating(false);
+      try {
         geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
           if (status === "OK" && results?.[0]) {
             const addr = results[0].formatted_address;
             setAddress(addr);
             onChange(c, addr);
-          } else {
-            onChange(c);
           }
-          setLocating(false);
+        });
+      } catch {
+        /* address lookup optional */
+      }
+    };
+    const onFail = (err: GeolocationPositionError) => {
+      setLocating(false);
+      if (err.code === 1) setError("اسمح للتطبيق بالوصول لموقعك من إعدادات المتصفح ثم اضغط زر الموقع");
+      else if (err.code === 3) setError("تأخر تحديد الموقع، فعّل GPS وحاول مرة أخرى");
+      else setError("تعذّر تحديد موقعك، فعّل GPS وحاول مرة أخرى");
+    };
+    // Try precise GPS first, then fall back to a faster network-based fix.
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      (err) => {
+        if (err.code === 1) return onFail(err);
+        navigator.geolocation.getCurrentPosition(onSuccess, onFail, {
+          enableHighAccuracy: false,
+          timeout: 15000,
+          maximumAge: 120000,
         });
       },
-      () => {
-        setLocating(false);
-        setError("تعذّر تحديد موقعك");
-      },
-      { enableHighAccuracy: true, timeout: 10000 },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 },
     );
   }
 
