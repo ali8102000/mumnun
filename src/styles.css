@@ -154,7 +154,10 @@
 @layer base {
   * { border-color: var(--color-border); }
 
-  html { direction: rtl; }
+  /* Larger base size: all text, icons and spacing scale up together */
+  html { direction: rtl; font-size: 112.5%; }
+  h1, h2, h3 { letter-spacing: -0.01em; }
+  svg.lucide { stroke-width: 2.25; }
 
   body {
     background-color: var(--color-background);
