@@ -49,8 +49,15 @@ export function MapPicker({
 
   useEffect(() => {
     let cancelled = false;
+    const slow = setTimeout(() => {
+      if (!readyRef.current && !cancelled) {
+        setLoading(false);
+        setError("الخريطة بطيئة بالتحميل، تقدر تشارك موقعك مباشرة");
+      }
+    }, 12000);
     loadGoogleMaps()
       .then((g) => {
+        clearTimeout(slow);
         if (cancelled || !containerRef.current) return;
         const center = value ?? DEFAULT_CENTER;
         const map = new g.maps.Map(containerRef.current, {
@@ -119,11 +126,13 @@ export function MapPicker({
         readyRef.current = true;
       })
       .catch(() => {
+        clearTimeout(slow);
         if (!cancelled) setError("تعذّر تحميل الخريطة. تحقق من اتصال الإنترنت.");
       });
 
     return () => {
       cancelled = true;
+      clearTimeout(slow);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
   }, []);
