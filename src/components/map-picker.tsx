@@ -34,6 +34,8 @@ export function MapPicker({
   const [error, setError] = useState<string | null>(null);
   const [address, setAddress] = useState<string>("");
   const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const [sharedOk, setSharedOk] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Array<{ id: string; text: string; secondary: string }>>([]);
@@ -47,8 +49,15 @@ export function MapPicker({
 
   useEffect(() => {
     let cancelled = false;
+    const slow = setTimeout(() => {
+      if (!readyRef.current && !cancelled) {
+        setLoading(false);
+        setError("الخريطة بطيئة بالتحميل، تقدر تشارك موقعك مباشرة");
+      }
+    }, 12000);
     loadGoogleMaps()
       .then((g) => {
+        clearTimeout(slow);
         if (cancelled || !containerRef.current) return;
         const center = value ?? DEFAULT_CENTER;
         const map = new g.maps.Map(containerRef.current, {
@@ -117,11 +126,13 @@ export function MapPicker({
         readyRef.current = true;
       })
       .catch(() => {
+        clearTimeout(slow);
         if (!cancelled) setError("تعذّر تحميل الخريطة. تحقق من اتصال الإنترنت.");
       });
 
     return () => {
       cancelled = true;
+      clearTimeout(slow);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
   }, []);
@@ -196,18 +207,20 @@ export function MapPicker({
   }, [nearby, nearbyKind]);
 
   function autoLocate() {
-    if (!mapRef.current) return;
     if (!navigator.geolocation) {
-      setError("جهازك لا يدعم تحديد الموقع");
+      setGeoError("جهازك لا يدعم تحديد الموقع");
       return;
     }
     setLocating(true);
-    setError(null);
+    setGeoError(null);
     const onSuccess = (pos: GeolocationPosition) => {
       const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      suppressIdleRef.current = true;
-      mapRef.current.panTo(c);
-      mapRef.current.setZoom(16);
+      setSharedOk(true);
+      if (mapRef.current) {
+        suppressIdleRef.current = true;
+        mapRef.current.panTo(c);
+        mapRef.current.setZoom(16);
+      }
       // Report the location immediately; the address is a bonus if available.
       onChange(c);
       setLocating(false);
@@ -225,9 +238,9 @@ export function MapPicker({
     };
     const onFail = (err: GeolocationPositionError) => {
       setLocating(false);
-      if (err.code === 1) setError("اسمح للتطبيق بالوصول لموقعك من إعدادات المتصفح ثم اضغط زر الموقع");
-      else if (err.code === 3) setError("تأخر تحديد الموقع، فعّل GPS وحاول مرة أخرى");
-      else setError("تعذّر تحديد موقعك، فعّل GPS وحاول مرة أخرى");
+      if (err.code === 1) setGeoError("اسمح للتطبيق بالوصول لموقعك من إعدادات المتصفح ثم اضغط زر الموقع");
+      else if (err.code === 3) setGeoError("تأخر تحديد الموقع، فعّل GPS وحاول مرة أخرى");
+      else setGeoError("تعذّر تحديد موقعك، فعّل GPS وحاول مرة أخرى");
     };
     // Try precise GPS first, then fall back to a faster network-based fix.
     navigator.geolocation.getCurrentPosition(
@@ -393,7 +406,24 @@ export function MapPicker({
           <div className="text-sm text-muted-foreground flex flex-col items-center gap-2">
             <MapPin className="h-5 w-5" />
             {error}
+            <button
+              type="button"
+              onClick={() => autoLocate()}
+              disabled={locating}
+              className="mt-2 px-5 py-3 rounded-2xl font-bold text-white shadow-lg flex items-center gap-2 disabled:opacity-70"
+              style={{ background: accent }}
+            >
+              {locating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Crosshair className="h-5 w-5" />}
+              {sharedOk ? "تمت مشاركة موقعك ✓" : "شارك موقعي الحالي"}
+            </button>
           </div>
+        </div>
+      )}
+
+      {geoError && (
+        <div className="absolute bottom-16 left-3 right-3 z-30 bg-destructive text-destructive-foreground rounded-2xl px-3 py-2 text-xs font-bold shadow-lg flex items-start gap-2">
+          <span className="flex-1">{geoError}</span>
+          <button type="button" onClick={() => setGeoError(null)} aria-label="إغلاق"><X className="h-4 w-4" /></button>
         </div>
       )}
 
