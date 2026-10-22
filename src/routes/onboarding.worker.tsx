@@ -22,7 +22,7 @@ export const Route = createFileRoute("/onboarding/worker")({
 interface Service { id: string; name_ar: string; slug: string }
 
 function OnboardingWorker() {
-  const { session, loading } = useAuth();
+  const { session, loading, refresh } = useAuth();
   const navigate = useNavigate();
   const [services, setServices] = useState<Service[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -59,6 +59,8 @@ function OnboardingWorker() {
       });
       if (pErr) throw pErr;
       await grantProviderRole({ data: { role: "worker" } });
+      localStorage.setItem("mumnun-active-role", "worker");
+      await refresh();
       await supabase.from("worker_services").delete().eq("worker_id", uid);
       const rows = Array.from(selected).map((service_id) => ({ worker_id: uid, service_id }));
       const { error: sErr } = await supabase.from("worker_services").insert(rows);

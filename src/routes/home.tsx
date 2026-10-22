@@ -39,7 +39,10 @@ function HomePage() {
   const greet = useMemo(greetingByHour, []);
 
   useEffect(() => {
-    if (roles.length && !activeRole) setActiveRole(roles[0]);
+    if (!roles.length) return;
+    if (activeRole && roles.includes(activeRole)) return;
+    const saved = localStorage.getItem("mumnun-active-role") as AppRole | null;
+    setActiveRole(saved && roles.includes(saved) ? saved : roles[0]);
   }, [roles, activeRole]);
 
   if (loading) return null;
@@ -83,7 +86,7 @@ function HomePage() {
               return (
                 <button
                   key={r}
-                  onClick={() => { playClick("soft"); setActiveRole(r); }}
+                  onClick={() => { playClick("soft"); setActiveRole(r); localStorage.setItem("mumnun-active-role", r); }}
                   className={`relative flex-1 py-2.5 rounded-xl btn-press tap-highlight-none transition-colors ${
                     active ? "text-primary-foreground" : "text-muted-foreground"
                   }`}

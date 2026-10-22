@@ -35,7 +35,7 @@ const CATEGORY_META: Record<string, { label: string; emoji: string; gradient: st
 };
 
 function OnboardingDriver() {
-  const { session, loading } = useAuth();
+  const { session, loading, refresh } = useAuth();
   const navigate = useNavigate();
   const [models, setModels] = useState<VehicleModel[]>([]);
   const [makeFilter, setMakeFilter] = useState<string>("");
@@ -74,6 +74,8 @@ function OnboardingDriver() {
       });
       if (error) throw error;
       await grantProviderRole({ data: { role: "driver" } });
+      localStorage.setItem("mumnun-active-role", "driver");
+      await refresh();
       toast.success("تم تفعيل ملفك — " + CATEGORY_META[selected.category].label);
       navigate({ to: "/home" });
     } catch (e: any) {
