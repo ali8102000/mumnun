@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
-import { Loader2, MapPin, Crosshair, Search, X } from "lucide-react";
+import { getCurrentLocation, locationError } from "@/lib/location";
+import { Loader2, MapPin, Crosshair, Search, X, CheckCircle2 } from "lucide-react";
 import type { ProviderPin } from "@/lib/use-nearby-providers";
 
 type Coords = { lat: number; lng: number };
@@ -15,6 +16,8 @@ export function MapPicker({
   placeholder = "ابحث عن مكان...",
   nearby,
   nearbyKind = "car",
+  autoLocateOnMount = false,
+  showLocateButton = true,
 }: {
   value: Coords | null;
   onChange: (c: Coords, address?: string) => void;
@@ -23,6 +26,8 @@ export function MapPicker({
   placeholder?: string;
   nearby?: ProviderPin[];
   nearbyKind?: "car" | "worker";
+  autoLocateOnMount?: boolean;
+  showLocateButton?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +73,8 @@ export function MapPicker({
           gestureHandling: "greedy",
         });
         mapRef.current = map;
+        // Don't report the default city centre as the user's location.
+        if (!value) suppressIdleRef.current = true;
         geocoderRef.current = new g.maps.Geocoder();
 
         const marker = new g.maps.Marker({
@@ -207,55 +214,44 @@ export function MapPicker({
   }, [nearby, nearbyKind]);
 
   function autoLocate() {
-    if (!navigator.geolocation) {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
       setGeoError("جهازك لا يدعم تحديد الموقع");
       return;
     }
     setLocating(true);
     setGeoError(null);
-    const onSuccess = (pos: GeolocationPosition) => {
-      const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setSharedOk(true);
-      if (mapRef.current) {
-        suppressIdleRef.current = true;
-        mapRef.current.panTo(c);
-        mapRef.current.setZoom(16);
-      }
-      // Report the location immediately; the address is a bonus if available.
-      onChange(c);
-      setLocating(false);
-      try {
-        geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
-          if (status === "OK" && results?.[0]) {
-            const addr = results[0].formatted_address;
-            setAddress(addr);
-            onChange(c, addr);
-          }
-        });
-      } catch {
-        /* address lookup optional */
-      }
-    };
-    const onFail = (err: GeolocationPositionError) => {
-      setLocating(false);
-      if (err.code === 1) setGeoError("اسمح للتطبيق بالوصول لموقعك من إعدادات المتصفح ثم اضغط زر الموقع");
-      else if (err.code === 3) setGeoError("تأخر تحديد الموقع، فعّل GPS وحاول مرة أخرى");
-      else setGeoError("تعذّر تحديد موقعك، فعّل GPS وحاول مرة أخرى");
-    };
-    // Try precise GPS first, then fall back to a faster network-based fix.
-    navigator.geolocation.getCurrentPosition(
-      onSuccess,
-      (err) => {
-        if (err.code === 1) return onFail(err);
-        navigator.geolocation.getCurrentPosition(onSuccess, onFail, {
-          enableHighAccuracy: false,
-          timeout: 15000,
-          maximumAge: 120000,
-        });
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 },
-    );
+    getCurrentLocation(navigator.geolocation)
+      .then((c) => {
+        setSharedOk(true);
+        setLocating(false);
+        if (mapRef.current) {
+          suppressIdleRef.current = true;
+          mapRef.current.panTo(c);
+          mapRef.current.setZoom(16);
+        }
+        onChange(c);
+        try {
+          geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+            if (status === "OK" && results?.[0]) {
+              const addr = results[0].formatted_address;
+              setAddress(addr);
+              onChange(c, addr);
+            }
+          });
+        } catch {
+          /* address optional */
+        }
+      })
+      .catch((err) => {
+        setLocating(false);
+        setGeoError(locationError(err ?? {}));
+      });
   }
+
+  useEffect(() => {
+    if (autoLocateOnMount && !value) autoLocate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!searchOpen || !searchQuery.trim()) {
@@ -322,6 +318,7 @@ export function MapPicker({
   }
 
   return (
+    <>
     <div className="relative rounded-3xl overflow-hidden border border-border shadow-sm" style={{ height }}>
       <div ref={containerRef} className="absolute inset-0" style={{ background: "#e5edf5" }} />
 
@@ -443,6 +440,24 @@ export function MapPicker({
         </button>
       )}
     </div>
+    {showLocateButton && (
+      <button
+        type="button"
+        onClick={() => autoLocate()}
+        disabled={locating}
+        className="mt-3 w-full h-14 rounded-2xl font-black text-base shadow-lg flex items-center justify-center gap-2 btn-press disabled:opacity-80 text-primary-foreground"
+        style={{ background: accent }}
+      >
+        {locating ? (
+          <><Loader2 className="h-5 w-5 animate-spin" /> جاري تحديد موقعك...</>
+        ) : sharedOk ? (
+          <><CheckCircle2 className="h-5 w-5" /> تم تحديد موقعك ✓ (اضغط للتحديث)</>
+        ) : (
+          <><Crosshair className="h-5 w-5" /> 📍 حدد موقعي الحالي تلقائياً</>
+        )}
+      </button>
+    )}
+    </>
   );
 }
 
