@@ -309,6 +309,8 @@ function NewRequest() {
         accent={mapStep === "pickup" ? "#0284c7" : "#e11d48"}
         nearby={mapStep === "pickup" ? nearby : undefined}
         nearbyKind={type === "taxi" ? "car" : "worker"}
+        autoLocateOnMount
+        showLocateButton={mapStep === "pickup"}
         onChange={(c, addr) => {
           if (mapStep === "pickup") {
             setPickupCoords(c);

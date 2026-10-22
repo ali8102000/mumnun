@@ -318,6 +318,7 @@ export function MapPicker({
   }
 
   return (
+    <>
     <div className="relative rounded-3xl overflow-hidden border border-border shadow-sm" style={{ height }}>
       <div ref={containerRef} className="absolute inset-0" style={{ background: "#e5edf5" }} />
 
@@ -439,6 +440,24 @@ export function MapPicker({
         </button>
       )}
     </div>
+    {showLocateButton && (
+      <button
+        type="button"
+        onClick={() => autoLocate()}
+        disabled={locating}
+        className="mt-3 w-full h-14 rounded-2xl font-black text-base shadow-lg flex items-center justify-center gap-2 btn-press disabled:opacity-80 text-primary-foreground"
+        style={{ background: accent }}
+      >
+        {locating ? (
+          <><Loader2 className="h-5 w-5 animate-spin" /> جاري تحديد موقعك...</>
+        ) : sharedOk ? (
+          <><CheckCircle2 className="h-5 w-5" /> تم تحديد موقعك ✓ (اضغط للتحديث)</>
+        ) : (
+          <><Crosshair className="h-5 w-5" /> 📍 حدد موقعي الحالي تلقائياً</>
+        )}
+      </button>
+    )}
+    </>
   );
 }
 
