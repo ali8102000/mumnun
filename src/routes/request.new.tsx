@@ -313,6 +313,7 @@ function NewRequest() {
         nearby={mapStep === "pickup" ? nearby : undefined}
         nearbyKind={type === "taxi" ? "car" : "worker"}
         autoLocateOnMount
+        placeholder={mapStep === "pickup" ? "ابحث عن موقع الانطلاق..." : "ابحث عن الوجهة..."}
         showLocateButton={mapStep === "pickup"}
         onChange={(c, addr) => {
           if (mapStep === "pickup") {
