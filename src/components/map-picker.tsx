@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
 import { getCurrentLocation, locationError } from "@/lib/location";
+import { lookupMapPlace } from "@/lib/maps.functions";
 import { Loader2, MapPin, Crosshair, Search, X, CheckCircle2 } from "lucide-react";
 import type { ProviderPin } from "@/lib/use-nearby-providers";
 
@@ -253,68 +254,77 @@ export function MapPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Place search: Google Places (via our server) first, OpenStreetMap as backup.
+  const placeCacheRef = useRef<Map<string, { coords: Coords; address: string }>>(new Map());
   useEffect(() => {
-    if (!searchOpen || !searchQuery.trim()) {
+    if (!searchOpen || searchQuery.trim().length < 2) {
       setSuggestions([]);
       return;
     }
-    const g = (window as any).google;
-    if (!g) return;
-    if (!acServiceRef.current) {
-      acServiceRef.current = new g.maps.places.AutocompleteService();
-      sessionTokenRef.current = new g.maps.places.AutocompleteSessionToken();
-    }
-    const timer = setTimeout(() => {
-      acServiceRef.current.getPlacePredictions(
-        {
-          input: searchQuery,
-          sessionToken: sessionTokenRef.current,
-          componentRestrictions: { country: "iq" },
-        },
-        (predictions: any, status: any) => {
-          if (status !== "OK" || !predictions) {
-            setSuggestions([]);
-            return;
-          }
-          setSuggestions(
-            predictions.map((p: any) => ({
-              id: p.place_id,
-              text: p.structured_formatting?.main_text || p.description,
-              secondary: p.structured_formatting?.secondary_text || "",
-            })),
-          );
-        },
-      );
-    }, 300);
-    return () => clearTimeout(timer);
+    let stale = false;
+    const q = searchQuery.trim();
+    const timer = setTimeout(async () => {
+      if (!sessionTokenRef.current) sessionTokenRef.current = crypto.randomUUID();
+      const center = mapRef.current?.getCenter?.();
+      const c = center
+        ? { lat: typeof center.lat === "function" ? center.lat() : center.lat, lng: typeof center.lng === "function" ? center.lng() : center.lng }
+        : value ?? DEFAULT_CENTER;
+      try {
+        const res: any = await lookupMapPlace({ data: { action: "autocomplete", input: q, sessionToken: sessionTokenRef.current, center: c } });
+        if (stale) return;
+        if (res.suggestions?.length) {
+          setSuggestions(res.suggestions.map((s: any) => ({ id: "g:" + s.id, text: s.text, secondary: "" })));
+          return;
+        }
+      } catch {
+        /* fall back below */
+      }
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=iq&accept-language=ar&limit=6`);
+        const data = await r.json();
+        if (stale) return;
+        setSuggestions(
+          (data || []).map((d: any) => {
+            const id = "o:" + d.place_id;
+            const parts = String(d.display_name || "").split(",");
+            placeCacheRef.current.set(id, { coords: { lat: parseFloat(d.lat), lng: parseFloat(d.lon) }, address: d.display_name });
+            return { id, text: d.name || parts[0], secondary: parts.slice(1, 3).join("،").trim() };
+          }),
+        );
+      } catch {
+        if (!stale) setSuggestions([]);
+      }
+    }, 350);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
   }, [searchQuery, searchOpen]);
 
-  function pickSuggestion(placeId: string, label: string) {
-    const g = (window as any).google;
-    if (!g || !placesSvcRef.current) {
-      placesSvcRef.current = new g.maps.places.PlacesService(mapRef.current);
-    }
-    placesSvcRef.current.getDetails(
-      { placeId, fields: ["geometry", "formatted_address", "name"] },
-      (place: any, status: any) => {
-        if (status !== "OK" || !place?.geometry?.location) return;
-        const p = {
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng(),
-        };
-        const addr = place.formatted_address || place.name || label;
-        setAddress(addr);
-        setSearchOpen(false);
-        setSuggestions([]);
-        setSearchQuery("");
-        suppressIdleRef.current = true;
-        if (mapRef.current) {
-          mapRef.current.panTo(p);
-          mapRef.current.setZoom(16);
-        }
-        onChange(p, addr);
+  async function pickSuggestion(id: string, label: string) {
+    let place = placeCacheRef.current.get(id);
+    if (!place && id.startsWith("g:")) {
+      try {
+        const res: any = await lookupMapPlace({ data: { action: "details", placeId: id.slice(2), sessionToken: sessionTokenRef.current ?? crypto.randomUUID() } });
+        place = { coords: res.coords, address: res.address || label };
+      } catch {
+        setGeoError("تعذّر فتح هذا المكان، جرّب مكان ثاني");
+        return;
       }
-    );
+      sessionTokenRef.current = null;
+    }
+    if (!place) return;
+    const addr = place.address || label;
+    setAddress(addr);
+    setSearchOpen(false);
+    setSuggestions([]);
+    setSearchQuery("");
+    suppressIdleRef.current = true;
+    if (mapRef.current) {
+      mapRef.current.panTo(place.coords);
+      mapRef.current.setZoom(16);
+    }
+    onChange(place.coords, addr);
   }
 
   return (

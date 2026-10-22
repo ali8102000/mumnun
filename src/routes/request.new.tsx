@@ -295,14 +295,17 @@ function NewRequest() {
       )}
 
       <div className="mt-2 mb-2 flex items-center gap-2">
-        <div className={`flex-1 text-sm font-bold transition-colors ${mapStep === "pickup" ? "text-primary" : "text-muted-foreground"}`}>
-          ١. موقع {type === "taxi" ? "الانطلاق" : "الخدمة"}
-        </div>
+        <button type="button" onClick={() => setMapStep("pickup")} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold transition-all btn-press ${mapStep === "pickup" ? "bg-sky-600 text-white shadow-lg" : "bg-white/70 text-muted-foreground"}`}>
+          ١. {type === "taxi" ? "الانطلاق" : "موقع الخدمة"}
+        </button>
         {type === "taxi" && (
-          <div className={`flex-1 text-sm font-bold transition-colors ${mapStep === "dest" ? "text-rose-600" : pickupCoords ? "text-muted-foreground" : "text-muted-foreground/40"}`}>
+          <button type="button" onClick={() => setMapStep("dest")} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold transition-all btn-press ${mapStep === "dest" ? "bg-rose-600 text-white shadow-lg" : "bg-white/70 text-muted-foreground"}`}>
             ٢. الوجهة
-          </div>
+          </button>
         )}
+      </div>
+      <div className="mb-2 text-xs text-muted-foreground">
+        ابحث عن أي مكان من الشريط فوق الخريطة، أو حرّك الخريطة وخلي الدبوس على المكان بالضبط.
       </div>
       <MapPicker
         value={mapStep === "pickup" ? pickupCoords : destCoords}
