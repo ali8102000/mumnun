@@ -46,7 +46,7 @@ export function loadGoogleMaps(): Promise<any> {
       delete (window as any)[cbName];
     };
     const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async&callback=${cbName}&language=ar&region=IQ${channel ? `&channel=${channel}` : ""}`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&loading=async&callback=${cbName}&language=ar&region=IQ${channel ? `&channel=${channel}` : ""}`;
     s.async = true;
     s.defer = true;
     s.onerror = () => {
@@ -145,6 +145,9 @@ function createLeafletAdapter(L: any): any {
           }).addTo(opts.map?._map || opts.map);
         }
         _marker: any;
+        addListener(event: string, cb: Function) {
+          this._marker.on(event, cb);
+        }
         setPosition(pos: any) {
           this._marker.setLatLng([pos.lat, pos.lng]);
         }

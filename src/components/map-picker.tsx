@@ -82,7 +82,7 @@ export function MapPicker({
           position: center,
           map,
           draggable: true,
-          animation: g.maps.Animation.DROP,
+          animation: g.maps.Animation?.DROP,
         });
 
         marker.addListener("dragend", () => {
@@ -133,8 +133,9 @@ export function MapPicker({
         setLoading(false);
         readyRef.current = true;
       })
-      .catch(() => {
+      .catch((e) => {
         clearTimeout(slow);
+        console.error("map init failed", e);
         if (!cancelled) setError("تعذّر تحميل الخريطة. تحقق من اتصال الإنترنت.");
       });
 
@@ -330,7 +331,7 @@ export function MapPicker({
   return (
     <>
     <div className="relative rounded-3xl overflow-hidden border border-border shadow-sm" style={{ height }}>
-      <div ref={containerRef} className="absolute inset-0" style={{ background: "#e5edf5" }} />
+      <div ref={containerRef} className="absolute inset-0 z-0" style={{ background: "#e5edf5" }} />
 
       {!loading && !error && (
         <div className="absolute top-3 left-3 right-3 z-10">
