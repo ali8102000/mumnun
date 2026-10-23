@@ -82,7 +82,7 @@ export function MapPicker({
           position: center,
           map,
           draggable: true,
-          animation: g.maps.Animation.DROP,
+          animation: g.maps.Animation?.DROP,
         });
 
         marker.addListener("dragend", () => {
