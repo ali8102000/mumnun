@@ -330,7 +330,7 @@ export function MapPicker({
   return (
     <>
     <div className="relative rounded-3xl overflow-hidden border border-border shadow-sm" style={{ height }}>
-      <div ref={containerRef} className="absolute inset-0" style={{ background: "#e5edf5" }} />
+      <div ref={containerRef} className="absolute inset-0 z-0" style={{ background: "#e5edf5" }} />
 
       {!loading && !error && (
         <div className="absolute top-3 left-3 right-3 z-10">
