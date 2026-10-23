@@ -46,7 +46,7 @@ export function loadGoogleMaps(): Promise<any> {
       delete (window as any)[cbName];
     };
     const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&loading=async&callback=${cbName}&language=ar&region=IQ${channel ? `&channel=${channel}` : ""}`;
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&loading=async&callback=${cbName}&language=ar&region=IQ${channel ? `&channel=${channel}` : ""}`;
     s.async = true;
     s.defer = true;
     s.onerror = () => {
