@@ -133,8 +133,9 @@ export function MapPicker({
         setLoading(false);
         readyRef.current = true;
       })
-      .catch(() => {
+      .catch((e) => {
         clearTimeout(slow);
+        console.error("map init failed", e);
         if (!cancelled) setError("تعذّر تحميل الخريطة. تحقق من اتصال الإنترنت.");
       });
 

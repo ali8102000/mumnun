@@ -145,6 +145,9 @@ function createLeafletAdapter(L: any): any {
           }).addTo(opts.map?._map || opts.map);
         }
         _marker: any;
+        addListener(event: string, cb: Function) {
+          this._marker.on(event, cb);
+        }
         setPosition(pos: any) {
           this._marker.setLatLng([pos.lat, pos.lng]);
         }
