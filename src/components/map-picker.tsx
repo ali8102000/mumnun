@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
 import { getCurrentLocation, locationError } from "@/lib/location";
 import { lookupMapPlace } from "@/lib/maps.functions";
-import { Loader2, MapPin, Crosshair, Search, X, CheckCircle2 } from "lucide-react";
+import { Loader2, MapPin, Crosshair, Search, X, CheckCircle2, Maximize2, Minimize2 } from "lucide-react";
 import type { ProviderPin } from "@/lib/use-nearby-providers";
 
 type Coords = { lat: number; lng: number };
@@ -19,6 +19,8 @@ export function MapPicker({
   nearbyKind = "car",
   autoLocateOnMount = false,
   showLocateButton = true,
+  onConfirm,
+  confirmLabel = "تأكيد الموقع",
 }: {
   value: Coords | null;
   onChange: (c: Coords, address?: string) => void;
@@ -29,7 +31,22 @@ export function MapPicker({
   nearbyKind?: "car" | "worker";
   autoLocateOnMount?: boolean;
   showLocateButton?: boolean;
+  onConfirm?: () => void;
+  confirmLabel?: string;
 }) {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const [full, setFull] = useState(false);
+  const [picked, setPicked] = useState(false);
+  const report = (c: Coords, addr?: string) => {
+    setPicked(true);
+    onChangeRef.current(c, addr);
+  };
+  const reverseFallback = (c: Coords) => {
+    lookupMapPlace({ data: { action: "reverse", center: c } })
+      .then((r: any) => { if (r?.address) { setAddress(r.address); onChangeRef.current(c, r.address); } })
+      .catch(() => {});
+  };
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<any>(null);
@@ -99,9 +116,10 @@ export function MapPicker({
               if (status === "OK" && results?.[0]) {
                 const addr = results[0].formatted_address;
                 setAddress(addr);
-                onChange(c, addr);
+                report(c, addr);
               } else {
-                onChange(c);
+                report(c);
+                reverseFallback(c);
               }
             });
           }, 300);
@@ -122,9 +140,10 @@ export function MapPicker({
               if (status === "OK" && results?.[0]) {
                 const addr = results[0].formatted_address;
                 setAddress(addr);
-                onChange(c, addr);
+                report(c, addr);
               } else {
-                onChange(c);
+                report(c);
+                reverseFallback(c);
               }
             });
           }, 500);
@@ -231,13 +250,14 @@ export function MapPicker({
           mapRef.current.panTo(c);
           mapRef.current.setZoom(16);
         }
-        onChange(c);
+        report(c);
+        reverseFallback(c);
         try {
           geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
             if (status === "OK" && results?.[0]) {
               const addr = results[0].formatted_address;
               setAddress(addr);
-              onChange(c, addr);
+              report(c, addr);
             }
           });
         } catch {
@@ -325,12 +345,15 @@ export function MapPicker({
       mapRef.current.panTo(place.coords);
       mapRef.current.setZoom(16);
     }
-    onChange(place.coords, addr);
+    report(place.coords, addr);
   }
 
   return (
     <>
-    <div className="relative rounded-3xl overflow-hidden border border-border shadow-sm" style={{ height }}>
+    <div
+      className={full ? "fixed inset-0 z-[60] overflow-hidden bg-background" : "relative rounded-3xl overflow-hidden border border-border shadow-sm"}
+      style={{ height: full ? "100dvh" : height }}
+    >
       <div ref={containerRef} className="absolute inset-0 z-0" style={{ background: "#e5edf5" }} />
 
       {!loading && !error && (
@@ -435,6 +458,29 @@ export function MapPicker({
         </div>
       )}
 
+      <button
+        type="button"
+        onClick={() => { setFull((f) => !f); setTimeout(() => window.dispatchEvent(new Event("resize")), 60); }}
+        className="absolute bottom-16 right-3 h-11 w-11 rounded-full bg-white shadow-lg grid place-items-center btn-press z-10"
+        aria-label={full ? "تصغير الخريطة" : "خريطة بشاشة كاملة"}
+      >
+        {full ? <Minimize2 className="h-5 w-5" style={{ color: accent }} /> : <Maximize2 className="h-5 w-5" style={{ color: accent }} />}
+      </button>
+
+      {full && onConfirm && (
+        <div className="absolute bottom-0 inset-x-0 p-4 z-30 bg-gradient-to-t from-background to-transparent">
+          <button
+            type="button"
+            disabled={!value && !picked}
+            onClick={() => { setFull(false); onConfirm(); setTimeout(() => window.dispatchEvent(new Event("resize")), 60); }}
+            className="w-full h-14 rounded-2xl font-black text-base text-primary-foreground shadow-xl btn-press disabled:opacity-50"
+            style={{ background: accent }}
+          >
+            {confirmLabel} ✓
+          </button>
+        </div>
+      )}
+
       {!loading && !error && (
         <button
           type="button"
@@ -451,6 +497,16 @@ export function MapPicker({
         </button>
       )}
     </div>
+    {onConfirm && (
+      <button
+        type="button"
+        disabled={!value && !picked}
+        onClick={onConfirm}
+        className="mt-3 w-full h-14 rounded-2xl font-black text-base shadow-lg flex items-center justify-center gap-2 btn-press disabled:opacity-50 bg-foreground text-background"
+      >
+        <CheckCircle2 className="h-5 w-5" /> {confirmLabel}
+      </button>
+    )}
     {showLocateButton && (
       <button
         type="button"
