@@ -9,6 +9,8 @@ import { Loader2, ArrowLeft, MapPin, CheckCircle2, User, Users } from "lucide-re
 import { MapPicker } from "@/components/map-picker";
 import { dispatchRequest } from "@/lib/dispatch.functions";
 import { useNearbyProviders } from "@/lib/use-nearby-providers";
+import { lookupMapPlace } from "@/lib/maps.functions";
+import { taxiFare, approxRoadKm, FARE_TABLE } from "@/lib/taxi-fares";
 
 const search = z.object({ type: z.enum(["taxi", "service"]).default("taxi") });
 
@@ -53,10 +55,10 @@ const SERVICE_VISUALS: Record<string, { emoji: string; gradient: string }> = {
 const DEFAULT_VISUAL = { emoji: "🛠️", gradient: "from-primary to-primary-glow" };
 
 type VehicleCategory = "economy" | "premium" | "luxury";
-const VEHICLE_CATS: { key: VehicleCategory; label: string; emoji: string; gradient: string; base: number; perKm: number; eta: string }[] = [
-  { key: "economy", label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500", base: 1500, perKm: 400, eta: "3-5 د" },
-  { key: "premium", label: "ممنون المتميز", emoji: "🚙", gradient: "from-sky-500 to-indigo-600",   base: 2500, perKm: 650, eta: "4-6 د" },
-  { key: "luxury",  label: "ممنون فاخر",   emoji: "🏎️", gradient: "from-amber-400 to-orange-500", base: 4500, perKm: 1100, eta: "5-8 د" },
+const VEHICLE_CATS: { key: VehicleCategory; label: string; emoji: string; gradient: string; eta: string }[] = [
+  { key: "economy", label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500", eta: "3-5 د" },
+  { key: "premium", label: "ممنون المتميز", emoji: "🚙", gradient: "from-sky-500 to-indigo-600", eta: "4-6 د" },
+  { key: "luxury",  label: "ممنون فاخر",   emoji: "🏎️", gradient: "from-amber-400 to-orange-500", eta: "5-8 د" },
 ];
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -91,6 +93,23 @@ function NewRequest() {
   const [mapStep, setMapStep] = useState<"pickup" | "dest">("pickup");
 
   const [notes, setNotes] = useState("");
+  const [pricingMode, setPricingMode] = useState<"fixed" | "hourly" | "negotiable">("fixed");
+  const [customerPrice, setCustomerPrice] = useState("");
+  const [workHours, setWorkHours] = useState("");
+  const [workDescription, setWorkDescription] = useState("");
+  const [routeKm, setRouteKm] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!pickupCoords || !destCoords) { setRouteKm(null); return; }
+    let stale = false;
+    setRouteKm(approxRoadKm(haversineKm(pickupCoords, destCoords)));
+    const t = setTimeout(() => {
+      lookupMapPlace({ data: { action: "route", from: pickupCoords, to: destCoords } })
+        .then((r: any) => { if (!stale && r?.distanceKm > 0) setRouteKm(r.distanceKm); })
+        .catch(() => {});
+    }, 400);
+    return () => { stale = true; clearTimeout(t); };
+  }, [pickupCoords?.lat, pickupCoords?.lng, destCoords?.lat, destCoords?.lng]);
   const [busy, setBusy] = useState(false);
 
   const nearby = useNearbyProviders({
@@ -127,10 +146,17 @@ function NewRequest() {
         : workersCount;
 
     let priceEstimate: number | null = null;
-    if (type === "taxi" && pickupCoords && destCoords) {
-      const cat = VEHICLE_CATS.find((c) => c.key === vehicleCategory)!;
-      const km = haversineKm(pickupCoords, destCoords);
-      priceEstimate = Math.round(cat.base + cat.perKm * km);
+    if (type === "taxi" && routeKm !== null) {
+      priceEstimate = taxiFare(vehicleCategory, routeKm);
+    }
+    const priceNum = parseInt(customerPrice.replace(/[^0-9]/g, ""), 10);
+    if (type === "service" && pricingMode !== "negotiable" && !(priceNum > 0)) {
+      toast.error("اكتب المبلغ اللي تريد تدفعه");
+      return;
+    }
+    if (type === "service" && pricingMode !== "negotiable" && priceNum % 250 !== 0) {
+      toast.error("المبلغ لازم يكون من مضاعفات 250 دينار");
+      return;
     }
 
     setBusy(true);
@@ -151,7 +177,14 @@ function NewRequest() {
         dest_lat: destCoords?.lat ?? null,
         dest_lng: destCoords?.lng ?? null,
         notes: notes || null,
-      }).select("id").single();
+        distance_km: type === "taxi" && routeKm !== null ? Number(routeKm.toFixed(2)) : null,
+        ...(type === "service" ? {
+          pricing_mode: pricingMode,
+          customer_price: pricingMode === "negotiable" ? null : priceNum,
+          work_hours: pricingMode === "hourly" && workHours ? Number(workHours) : null,
+          work_description: workDescription.trim() || null,
+        } : {}),
+      } as any).select("id").single();
       if (error) throw error;
       toast.success("تم إرسال الطلب");
       if (type === "taxi") {
@@ -315,6 +348,16 @@ function NewRequest() {
         autoLocateOnMount
         placeholder={mapStep === "pickup" ? "ابحث عن موقع الانطلاق..." : "ابحث عن الوجهة..."}
         showLocateButton={mapStep === "pickup"}
+        confirmLabel={mapStep === "pickup" ? (type === "taxi" ? "تأكيد الانطلاق والانتقال للوجهة" : "تأكيد موقع الخدمة") : "تأكيد الوجهة"}
+        onConfirm={() => {
+          if (mapStep === "pickup" && type === "taxi") {
+            setMapStep("dest");
+            toast.success("تم تأكيد الانطلاق، هسه حدد الوجهة");
+          } else {
+            toast.success(mapStep === "dest" ? "تم تأكيد الوجهة ✓" : "تم تأكيد الموقع ✓");
+            document.getElementById("after-map")?.scrollIntoView({ behavior: "smooth" });
+          }
+        }}
         onChange={(c, addr) => {
           if (mapStep === "pickup") {
             setPickupCoords(c);
@@ -325,7 +368,7 @@ function NewRequest() {
           }
         }}
       />
-      <div className="mt-2 space-y-2">
+      <div id="after-map" className="mt-2 space-y-2">
         {pickupLabel && (
           <button onClick={() => setMapStep("pickup")} className={`w-full glass rounded-2xl p-3 flex items-center gap-2 text-right transition ${mapStep === "pickup" ? "ring-2 ring-sky-500" : ""}`}>
             <MapPin className="h-4 w-4 text-sky-600 shrink-0" />
@@ -365,12 +408,13 @@ function NewRequest() {
             className="mt-2 w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-ring"
           />
 
-          <div className="mt-6 mb-2 text-sm font-bold text-muted-foreground">🚘 اختر فئة السيارة</div>
+          <div className="mt-6 mb-2 text-sm font-bold text-muted-foreground">
+            🚘 اختر فئة السيارة{routeKm !== null && <span className="font-medium"> · المسافة {routeKm.toFixed(1)} كم</span>}
+          </div>
           <div className="space-y-2">
             {VEHICLE_CATS.map((c) => {
               const active = vehicleCategory === c.key;
-              const km = pickupCoords && destCoords ? haversineKm(pickupCoords, destCoords) : null;
-              const est = km !== null ? Math.round(c.base + c.perKm * km) : null;
+              const est = routeKm !== null ? taxiFare(c.key, routeKm) : null;
               return (
                 <button
                   key={c.key}
@@ -393,7 +437,7 @@ function NewRequest() {
                         <div className="text-[10px] text-muted-foreground">د.ع تقريبي</div>
                       </>
                     ) : (
-                      <div className="text-[11px] text-muted-foreground">{c.base.toLocaleString()}+ د.ع</div>
+                      <div className="text-[11px] text-muted-foreground">من {FARE_TABLE[c.key].minimum.toLocaleString()} د.ع</div>
                     )}
                   </div>
                   {active && <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />}
@@ -404,6 +448,47 @@ function NewRequest() {
         </>
       )}
 
+
+      {type === "service" && (
+        <div className="mt-6 glass rounded-2xl p-4 space-y-3">
+          <div className="text-sm font-black">💰 السعر والشغل</div>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { k: "fixed", label: "إنجاز تام" },
+              { k: "hourly", label: "بالساعات" },
+              { k: "negotiable", label: "يحدده الفني" },
+            ] as const).map((o) => (
+              <button key={o.k} type="button" onClick={() => setPricingMode(o.k)}
+                className={`py-3 rounded-xl text-xs font-bold btn-press ${pricingMode === o.k ? "bg-primary text-primary-foreground shadow" : "bg-surface-2"}`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <textarea value={workDescription} onChange={(e) => setWorkDescription(e.target.value)} rows={2}
+            placeholder="شنو الشغل؟ مثلاً: بناء حايط 4 متر، أو تصليح سبلت"
+            className="w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-ring resize-none" />
+          {pricingMode === "hourly" && (
+            <input inputMode="numeric" value={workHours} onChange={(e) => setWorkHours(e.target.value.replace(/[^0-9.]/g, ""))}
+              placeholder="عدد الساعات"
+              className="w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-ring" />
+          )}
+          {pricingMode !== "negotiable" && (
+            <>
+              <input inputMode="numeric" value={customerPrice} onChange={(e) => setCustomerPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                placeholder={pricingMode === "hourly" ? "المبلغ الكلي (د.ع) مثلاً 25000" : "مبلغ الإنجاز التام (د.ع) مثلاً 50000"}
+                className="w-full bg-input border border-border rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:border-ring" />
+              <div className="flex flex-wrap gap-2">
+                {[10000, 25000, 50000, 100000].map((v) => (
+                  <button key={v} type="button" onClick={() => setCustomerPrice(String(v))} className="px-3 py-1.5 rounded-full bg-surface-2 text-xs font-bold btn-press">
+                    {v.toLocaleString()}
+                  </button>
+                ))}
+              </div>
+              <div className="text-[11px] text-muted-foreground">الفني يشوف المبلغ ويوافق عليه. المبلغ يكون من مضاعفات 250 دينار.</div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="mt-5">
         <div className="text-xs font-bold text-muted-foreground mb-2">📝 ملاحظات (اختياري)</div>
