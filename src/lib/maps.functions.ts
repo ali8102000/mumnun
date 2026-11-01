@@ -13,6 +13,7 @@ const input = z.discriminatedUnion("action", [
   z.object({ action: z.literal("autocomplete"), input: z.string().trim().min(2).max(200), sessionToken: z.string().uuid(), center: coords }),
   z.object({ action: z.literal("details"), placeId: z.string().regex(/^[A-Za-z0-9_-]+$/).max(300), sessionToken: z.string().uuid() }),
   z.object({ action: z.literal("reverse"), center: coords }),
+  z.object({ action: z.literal("route"), from: coords, to: coords }),
 ]);
 
 export const lookupMapPlace = createServerFn({ method: "POST" })
@@ -33,6 +34,14 @@ export const lookupMapPlace = createServerFn({ method: "POST" })
     } else if (data.action === "details") {
       path = `/places/v1/places/${encodeURIComponent(data.placeId)}?sessionToken=${data.sessionToken}&languageCode=ar`;
       headers["X-Goog-FieldMask"] = "location,formattedAddress,displayName";
+    } else if (data.action === "route") {
+      path = "/routes/directions/v2:computeRoutes";
+      headers["X-Goog-FieldMask"] = "routes.distanceMeters,routes.duration";
+      body = JSON.stringify({
+        origin: { location: { latLng: { latitude: data.from.lat, longitude: data.from.lng } } },
+        destination: { location: { latLng: { latitude: data.to.lat, longitude: data.to.lng } } },
+        travelMode: "DRIVE",
+      });
     } else {
       path = `/maps/api/geocode/json?latlng=${data.center.lat},${data.center.lng}&language=ar`;
     }
@@ -51,6 +60,11 @@ export const lookupMapPlace = createServerFn({ method: "POST" })
     if (data.action === "details") {
       if (!result.location) throw new Error("لا يتوفر موقع لهذا المكان");
       return { coords: { lat: result.location.latitude as number, lng: result.location.longitude as number }, address: (result.formattedAddress || result.displayName?.text || "") as string };
+    }
+    if (data.action === "route") {
+      const r = result.routes?.[0];
+      if (!r) throw new Error("ROUTE_NOT_FOUND");
+      return { distanceKm: (r.distanceMeters ?? 0) / 1000, durationMin: parseFloat(String(r.duration ?? "0s")) / 60 };
     }
     if (result.status !== "OK" && result.status !== "ZERO_RESULTS") throw new Error(`Google Maps: ${result.status}: ${result.error_message || ""}`);
     return { address: (result.results?.[0]?.formatted_address || "") as string };
