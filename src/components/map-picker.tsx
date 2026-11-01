@@ -461,7 +461,7 @@ export function MapPicker({
       <button
         type="button"
         onClick={() => { setFull((f) => !f); setTimeout(() => window.dispatchEvent(new Event("resize")), 60); }}
-        className={`absolute ${full ? "bottom-40" : "bottom-16"} right-3 h-11 w-11 rounded-full bg-white shadow-lg grid place-items-center btn-press z-10"
+        className={`absolute ${full ? "bottom-40" : "bottom-16"} right-3 h-11 w-11 rounded-full bg-white shadow-lg grid place-items-center btn-press z-10`}
         aria-label={full ? "تصغير الخريطة" : "خريطة بشاشة كاملة"}
       >
         {full ? <Minimize2 className="h-5 w-5" style={{ color: accent }} /> : <Maximize2 className="h-5 w-5" style={{ color: accent }} />}
