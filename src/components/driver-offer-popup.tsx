@@ -67,15 +67,15 @@ export function DriverOfferPopup() {
   useEffect(() => {
     if (!offer) return;
     const expiresAt = new Date(offer.expires_at).getTime();
-    const total = Math.max(1, Math.round((expiresAt - Date.now()) / 1000));
+    const shownUntil = Math.min(expiresAt, Date.now() + 45_000);
+    const total = Math.max(1, Math.round((shownUntil - Date.now()) / 1000));
     setTotalSeconds(total);
     const tick = () => {
-      const left = Math.max(0, Math.round((expiresAt - Date.now()) / 1000));
+      const left = Math.max(0, Math.round((shownUntil - Date.now()) / 1000));
       setSecondsLeft(left);
       if (left === 0) {
-        if (offerRef.current) {
-          respond({ data: { offerId: offerRef.current.id, action: "reject" } }).catch(() => {});
-        }
+        // Hide the popup but keep the offer open — the driver can still accept it later.
+        toast("الطلب بعده متاح بقائمة طلباتك");
         setOffer(null);
         setRequest(null);
       }

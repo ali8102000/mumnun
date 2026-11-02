@@ -391,6 +391,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           customer_id: string
+          customer_price: number | null
           dest_lat: number | null
           dest_lng: number | null
           dest_text: string | null
@@ -405,6 +406,7 @@ export type Database = {
           pickup_lng: number | null
           pickup_text: string
           price_estimate: number | null
+          pricing_mode: string | null
           provider_id: string | null
           searching_started_at: string | null
           service_id: string | null
@@ -414,6 +416,8 @@ export type Database = {
           vehicle_category:
             | Database["public"]["Enums"]["vehicle_category"]
             | null
+          work_description: string | null
+          work_hours: number | null
           workers_count: number
         }
         Insert: {
@@ -425,6 +429,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           customer_id: string
+          customer_price?: number | null
           dest_lat?: number | null
           dest_lng?: number | null
           dest_text?: string | null
@@ -439,6 +444,7 @@ export type Database = {
           pickup_lng?: number | null
           pickup_text?: string
           price_estimate?: number | null
+          pricing_mode?: string | null
           provider_id?: string | null
           searching_started_at?: string | null
           service_id?: string | null
@@ -448,6 +454,8 @@ export type Database = {
           vehicle_category?:
             | Database["public"]["Enums"]["vehicle_category"]
             | null
+          work_description?: string | null
+          work_hours?: number | null
           workers_count?: number
         }
         Update: {
@@ -459,6 +467,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           customer_id?: string
+          customer_price?: number | null
           dest_lat?: number | null
           dest_lng?: number | null
           dest_text?: string | null
@@ -473,6 +482,7 @@ export type Database = {
           pickup_lng?: number | null
           pickup_text?: string
           price_estimate?: number | null
+          pricing_mode?: string | null
           provider_id?: string | null
           searching_started_at?: string | null
           service_id?: string | null
@@ -482,6 +492,8 @@ export type Database = {
           vehicle_category?:
             | Database["public"]["Enums"]["vehicle_category"]
             | null
+          work_description?: string | null
+          work_hours?: number | null
           workers_count?: number
         }
         Relationships: [
@@ -736,6 +748,10 @@ export type Database = {
       accept_service_request: {
         Args: { _request_id: string }
         Returns: boolean
+      }
+      cancel_service_request: {
+        Args: { _reason: string; _request_id: string }
+        Returns: string
       }
       dispatch_request: { Args: { _request_id: string }; Returns: number }
       find_nearby_drivers: {

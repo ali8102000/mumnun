@@ -51,7 +51,7 @@ export const dispatchRequest = createServerFn({ method: "POST" })
       provider_id: d.user_id,
       distance_km: d.distance_km,
       status: "pending",
-      expires_at: new Date(Date.now() + 30_000).toISOString(),
+      expires_at: new Date(Date.now() + 7 * 24 * 3600_000).toISOString(),
     }));
 
     const { error: insertError } = await supabaseAdmin
@@ -69,34 +69,8 @@ export const acceptServiceRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: req, error } = await supabase
-      .from("service_requests")
-      .select("id, status, customer_id")
-      .eq("id", data.requestId)
-      .single();
-    if (error || !req) throw new Error("Request not found");
-    if (req.status !== "searching") throw new Error("Request is no longer available");
-
-    const { error: updateError } = await (supabaseAdmin as any)
-      .from("service_requests")
-      .update({
-        status: "accepted",
-        provider_id: userId,
-        accepted_at: new Date().toISOString(),
-      })
-      .eq("id", data.requestId)
-      .eq("status", "searching");
-    if (updateError) throw new Error("Failed to accept request");
-
-    await supabaseAdmin
-      .from("request_offers")
-      .delete()
-      .eq("request_id", data.requestId)
-      .neq("provider_id", userId);
-
+    const { error } = await (context.supabase as any).rpc("accept_service_request", { _request_id: data.requestId });
+    if (error) throw new Error(error.message.includes("request_unavailable") ? "العميل ألغى الطلب أو قبله فني ثاني" : error.message);
     return { ok: true };
   });
 
@@ -124,27 +98,12 @@ export const respondToOffer = createServerFn({ method: "POST" })
       .single();
     if (error || !offer) throw new Error("Offer not found");
     if (offer.provider_id !== userId) throw new Error("Forbidden");
-    if (offer.status !== "pending") throw new Error("Offer is no longer pending");
+    
 
     if (data.action === "accept") {
-      const { error: reqUpdateError } = await (supabaseAdmin as any)
-        .from("service_requests")
-        .update({
-          status: "accepted",
-          provider_id: userId,
-          accepted_at: new Date().toISOString(),
-        })
-        .eq("id", offer.request_id)
-        .eq("status", "searching");
-      if (reqUpdateError) throw new Error("Failed to accept request");
-
-      await supabaseAdmin
-        .from("request_offers")
-        .delete()
-        .eq("request_id", offer.request_id)
-        .neq("provider_id", userId);
-
-      return { ok: true, action: "accepted", requestId: offer.request_id };
+      const { error: accErr } = await (supabase as any).rpc("accept_service_request", { _request_id: offer.request_id });
+      if (accErr) throw new Error(accErr.message.includes("request_unavailable") ? "العميل ألغى الطلب أو قبله كابتن ثاني" : accErr.message);
+      return { ok: true, action: "accepted", accepted: true, requestId: offer.request_id };
     } else {
       await supabaseAdmin
         .from("request_offers")
@@ -166,34 +125,8 @@ export const cancelRequest = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: req, error } = await supabase
-      .from("service_requests")
-      .select("id, customer_id, status")
-      .eq("id", data.requestId)
-      .single();
-    if (error || !req) throw new Error("Request not found");
-    if (req.customer_id !== userId) throw new Error("Forbidden");
-    if (req.status === "completed" || req.status === "cancelled")
-      throw new Error("Request is already finished");
-
-    const { error: updateError } = await (supabaseAdmin as any)
-      .from("service_requests")
-      .update({
-        status: "cancelled",
-        cancelled_by: "customer",
-        cancellation_reason: data.reason ?? null,
-      })
-      .eq("id", data.requestId);
-    if (updateError) throw new Error("Failed to cancel request");
-
-    await supabaseAdmin
-      .from("request_offers")
-      .delete()
-      .eq("request_id", data.requestId);
-
+    const { error } = await (context.supabase as any).rpc("cancel_service_request", { _request_id: data.requestId, _reason: data.reason ?? null });
+    if (error) throw new Error(error.message.includes("request_finished") ? "الطلب منتهي أصلاً" : "تعذّر الإلغاء: " + error.message);
     return { ok: true };
   });
 
@@ -209,31 +142,8 @@ export const providerCancelRequest = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: req, error } = await supabase
-      .from("service_requests")
-      .select("searching_started_at, provider_id, status")
-      .eq("id", data.requestId)
-      .single();
-    if (error || !req) throw new Error("Request not found");
-    if (req.provider_id !== userId) throw new Error("Forbidden");
-    if (req.status !== "accepted")
-      throw new Error("Cannot cancel at this stage");
-
-    const { error: updateError } = await (supabaseAdmin as any)
-      .from("service_requests")
-      .update({
-        status: "searching",
-        provider_id: null,
-        accepted_at: null,
-        cancelled_by: "provider",
-        cancellation_reason: data.reason ?? null,
-      })
-      .eq("id", data.requestId);
-    if (updateError) throw new Error("Failed to cancel request");
-
+    const { error } = await (context.supabase as any).rpc("cancel_service_request", { _request_id: data.requestId, _reason: data.reason ?? null });
+    if (error) throw new Error(error.message.includes("request_finished") ? "الطلب منتهي أصلاً" : "تعذّر الإلغاء: " + error.message);
     return { ok: true };
   });
 
@@ -287,7 +197,7 @@ export const retryDispatch = createServerFn({ method: "POST" })
       provider_id: d.user_id,
       distance_km: d.distance_km,
       status: "pending",
-      expires_at: new Date(Date.now() + 30_000).toISOString(),
+      expires_at: new Date(Date.now() + 7 * 24 * 3600_000).toISOString(),
     }));
 
     const { error: insertError } = await supabaseAdmin

@@ -253,8 +253,8 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
 
     async function loadRequests() {
       const { data } = await supabase.from("service_requests")
-        .select("id, pickup_text, dest_text, notes, created_at, service_id, type")
-        .eq("status", "pending").eq("type", type)
+        .select("id, pickup_text, dest_text, notes, created_at, service_id, type, price_estimate, customer_price, pricing_mode, work_hours, work_description")
+        .in("status", ["pending", "searching"]).eq("type", type)
         .order("created_at", { ascending: false }).limit(20);
       setRequests(data ?? []);
     }
@@ -336,6 +336,14 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold truncate">📍 {r.pickup_text || "بدون عنوان"}</div>
                 {r.dest_text && <div className="text-xs text-muted-foreground mt-1 truncate">🎯 {r.dest_text}</div>}
+                {r.work_description && <div className="text-xs mt-1 line-clamp-2">🛠️ {r.work_description}</div>}
+                {(r.customer_price || r.price_estimate) && (
+                  <div className="text-sm font-black text-primary mt-1">
+                    💰 {(r.customer_price ?? r.price_estimate).toLocaleString()} د.ع
+                    {r.pricing_mode === "hourly" && r.work_hours ? ` · ${r.work_hours} ساعة` : r.pricing_mode === "fixed" ? " · إنجاز تام" : ""}
+                  </div>
+                )}
+                {r.pricing_mode === "negotiable" && <div className="text-xs font-bold text-primary mt-1">💰 السعر يتفق عليه وياك</div>}
                 {r.notes && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">📝 {r.notes}</div>}
               </div>
               <button
