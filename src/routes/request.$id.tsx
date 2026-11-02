@@ -199,6 +199,18 @@ function RequestDetail() {
           </div>
         )}
 
+        {req.type === "service" && ((req as any).pricing_mode || (req as any).work_description) && (
+          <div className="glass rounded-2xl p-3 space-y-1">
+            <div className="text-[11px] text-muted-foreground">السعر والشغل</div>
+            {(req as any).work_description && <div className="text-sm font-bold">🛠️ {(req as any).work_description}</div>}
+            <div className="font-black text-primary">
+              {(req as any).pricing_mode === "negotiable"
+                ? "💰 السعر يتفق عليه الطرفين"
+                : `💰 ${Number((req as any).customer_price ?? 0).toLocaleString()} د.ع${(req as any).pricing_mode === "hourly" && (req as any).work_hours ? ` · ${(req as any).work_hours} ساعة` : " · إنجاز تام"}`}
+            </div>
+          </div>
+        )}
+
         {trackingActive && (
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
