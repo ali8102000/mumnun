@@ -51,7 +51,7 @@ export const dispatchRequest = createServerFn({ method: "POST" })
       provider_id: d.user_id,
       distance_km: d.distance_km,
       status: "pending",
-      expires_at: new Date(Date.now() + 24 * 3600_000).toISOString(),
+      expires_at: new Date(Date.now() + 7 * 24 * 3600_000).toISOString(),
     }));
 
     const { error: insertError } = await supabaseAdmin
@@ -98,7 +98,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
       .single();
     if (error || !offer) throw new Error("Offer not found");
     if (offer.provider_id !== userId) throw new Error("Forbidden");
-    if (offer.status !== "pending") throw new Error("Offer is no longer pending");
+    
 
     if (data.action === "accept") {
       const { error: accErr } = await (supabase as any).rpc("accept_service_request", { _request_id: offer.request_id });
@@ -128,7 +128,6 @@ export const cancelRequest = createServerFn({ method: "POST" })
     const { error } = await (context.supabase as any).rpc("cancel_service_request", { _request_id: data.requestId, _reason: data.reason ?? null });
     if (error) throw new Error(error.message.includes("request_finished") ? "الطلب منتهي أصلاً" : "تعذّر الإلغاء: " + error.message);
     return { ok: true };
-  });
   });
 
 /**
@@ -198,7 +197,7 @@ export const retryDispatch = createServerFn({ method: "POST" })
       provider_id: d.user_id,
       distance_km: d.distance_km,
       status: "pending",
-      expires_at: new Date(Date.now() + 24 * 3600_000).toISOString(),
+      expires_at: new Date(Date.now() + 7 * 24 * 3600_000).toISOString(),
     }));
 
     const { error: insertError } = await supabaseAdmin
