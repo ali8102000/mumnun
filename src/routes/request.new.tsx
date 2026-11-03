@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/auth-context";
@@ -91,6 +91,9 @@ function NewRequest() {
   const [destLabel, setDestLabel] = useState("");
   const [destText, setDestText] = useState("");
   const [mapStep, setMapStep] = useState<"pickup" | "dest">("pickup");
+  const [review, setReview] = useState(false);
+  const pickupRef = useRef(pickupCoords);
+  pickupRef.current = pickupCoords;
 
   const [notes, setNotes] = useState("");
   const [pricingMode, setPricingMode] = useState<"fixed" | "hourly" | "negotiable">("fixed");
