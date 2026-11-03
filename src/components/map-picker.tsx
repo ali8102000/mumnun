@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
 import { getCurrentLocation, locationError } from "@/lib/location";
 import { lookupMapPlace } from "@/lib/maps.functions";
-import { Loader2, MapPin, Crosshair, Search, X, CheckCircle2, Maximize2, Minimize2 } from "lucide-react";
+import { Loader2, MapPin, Crosshair, Search, X, CheckCircle2, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import type { ProviderPin } from "@/lib/use-nearby-providers";
 
 type Coords = { lat: number; lng: number };
@@ -21,6 +21,11 @@ export function MapPicker({
   showLocateButton = true,
   onConfirm,
   confirmLabel = "تأكيد الموقع",
+  startFull = false,
+  stepTitle,
+  onBack,
+  fallbackCenter,
+  onAutoLocated,
 }: {
   value: Coords | null;
   onChange: (c: Coords, address?: string) => void;
@@ -33,19 +38,39 @@ export function MapPicker({
   showLocateButton?: boolean;
   onConfirm?: () => void;
   confirmLabel?: string;
+  /** Open the map covering the whole screen right away. */
+  startFull?: boolean;
+  /** Small badge shown above the map in full-screen mode. */
+  stepTitle?: string;
+  /** Back arrow shown in full-screen mode. */
+  onBack?: () => void;
+  /** Where the map opens when no location is picked yet. */
+  fallbackCenter?: Coords | null;
+  /** Fired once after "my location" succeeds and the address is read. */
+  onAutoLocated?: (c: Coords, address?: string) => void;
 }) {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
-  const [full, setFull] = useState(false);
+  const onAutoLocatedRef = useRef(onAutoLocated);
+  onAutoLocatedRef.current = onAutoLocated;
+  const [full, setFull] = useState(startFull);
   const [picked, setPicked] = useState(false);
   const report = (c: Coords, addr?: string) => {
     setPicked(true);
     onChangeRef.current(c, addr);
   };
-  const reverseFallback = (c: Coords) => {
+  const reverseFallback = (c: Coords, onDone?: (addr?: string) => void) => {
     lookupMapPlace({ data: { action: "reverse", center: c } })
-      .then((r: any) => { if (r?.address) { setAddress(r.address); onChangeRef.current(c, r.address); } })
-      .catch(() => {});
+      .then((r: any) => {
+        if (r?.address) {
+          setAddress(r.address);
+          report(c, r.address);
+          onDone?.(r.address);
+        } else {
+          onDone?.();
+        }
+      })
+      .catch(() => onDone?.());
   };
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -82,7 +107,7 @@ export function MapPicker({
       .then((g) => {
         clearTimeout(slow);
         if (cancelled || !containerRef.current) return;
-        const center = value ?? DEFAULT_CENTER;
+        const center = value ?? fallbackCenter ?? DEFAULT_CENTER;
         const map = new g.maps.Map(containerRef.current, {
           center,
           zoom: 14,
@@ -251,18 +276,26 @@ export function MapPicker({
           mapRef.current.setZoom(16);
         }
         report(c);
-        reverseFallback(c);
+        let notified = false;
+        const finish = (addr?: string) => {
+          if (notified) return;
+          notified = true;
+          onAutoLocatedRef.current?.(c, addr);
+        };
+        reverseFallback(c, finish);
         try {
           geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
             if (status === "OK" && results?.[0]) {
               const addr = results[0].formatted_address;
               setAddress(addr);
               report(c, addr);
+              finish(addr);
             }
           });
         } catch {
           /* address optional */
         }
+        setTimeout(() => finish(), 2500);
       })
       .catch((err) => {
         setLocating(false);
@@ -348,6 +381,8 @@ export function MapPicker({
     report(place.coords, addr);
   }
 
+  const locateLabel = locating ? "جاري تحديد موقعك..." : sharedOk ? "تم تحديد موقعك ✓ (اضغط للتحديث)" : "📍 حدد موقعي الحالي تلقائياً";
+
   return (
     <>
     <div
@@ -357,32 +392,69 @@ export function MapPicker({
       <div ref={containerRef} className="absolute inset-0 z-0" style={{ background: "#e5edf5" }} />
 
       {!loading && !error && (
-        <div className="absolute top-3 left-3 right-3 z-10">
-          <div className="flex items-center gap-2 bg-white rounded-2xl shadow-lg px-3 py-2">
-            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-            <input
-              ref={inputRef}
-              onFocus={() => setSearchOpen(true)}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={placeholder}
-              className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
-            />
-            {searchOpen && (
+        <div className="pointer-events-none absolute inset-0 grid place-items-center z-[5]">
+          <div className="flex flex-col items-center -translate-y-3">
+            <div
+              className="h-9 w-9 rounded-full grid place-items-center shadow-lg animate-in zoom-in-50 duration-200"
+              style={{ background: accent }}
+            >
+              <MapPin className="h-5 w-5 text-white" fill="white" />
+            </div>
+            <div className="h-2 w-2 rounded-full bg-black/40 -mt-0.5 shadow" />
+          </div>
+        </div>
+      )}
+
+      {/* Top chrome: search bar (plus back arrow + step badge in full-screen) */}
+      {!loading && !error && (
+        <div className={full ? "absolute top-0 inset-x-0 z-20 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]" : "absolute top-3 left-3 right-3 z-10"}>
+          <div className="flex items-center gap-2">
+            {full && onBack && (
               <button
                 type="button"
-                onClick={() => {
-                  setSearchOpen(false);
-                  setSuggestions([]);
-                  setSearchQuery("");
-                }}
-                className="text-muted-foreground"
-                aria-label="إغلاق"
+                onClick={onBack}
+                aria-label="رجوع"
+                className="h-11 w-11 shrink-0 rounded-2xl bg-white shadow-lg grid place-items-center btn-press"
               >
-                <X className="h-4 w-4" />
+                <ChevronRight className="h-5 w-5" style={{ color: accent }} />
               </button>
             )}
+            <div className="flex-1 min-w-0 flex items-center gap-2 bg-white rounded-2xl shadow-lg px-3 py-2">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <input
+                ref={inputRef}
+                onFocus={() => setSearchOpen(true)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={placeholder}
+                className="flex-1 bg-transparent outline-none text-sm font-medium min-w-0"
+              />
+              {searchOpen && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchOpen(false);
+                    setSuggestions([]);
+                    setSearchQuery("");
+                  }}
+                  className="text-muted-foreground"
+                  aria-label="إغلاق"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           </div>
+
+          {full && stepTitle && !searchOpen && (
+            <div
+              className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black text-white shadow-lg"
+              style={{ background: accent }}
+            >
+              <MapPin className="h-3.5 w-3.5" /> {stepTitle}
+            </div>
+          )}
+
           {searchOpen && suggestions.length > 0 && (
             <div className="mt-2 bg-white rounded-2xl shadow-lg overflow-hidden max-h-64 overflow-y-auto">
               {suggestions.map((s) => (
@@ -406,22 +478,9 @@ export function MapPicker({
         </div>
       )}
 
-      {!loading && !error && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center z-[5]">
-          <div className="flex flex-col items-center -translate-y-3">
-            <div
-              className="h-9 w-9 rounded-full grid place-items-center shadow-lg animate-in zoom-in-50 duration-200"
-              style={{ background: accent }}
-            >
-              <MapPin className="h-5 w-5 text-white" fill="white" />
-            </div>
-            <div className="h-2 w-2 rounded-full bg-black/40 -mt-0.5 shadow" />
-          </div>
-        </div>
-      )}
-
-      {!loading && !error && address && (
-        <div className={`absolute ${full ? "bottom-24" : "bottom-3"} left-3 right-16 bg-white/95 backdrop-blur rounded-2xl px-3 py-2 shadow-lg z-10`}>
+      {/* Address card (embedded mode only — full mode has its own bottom sheet) */}
+      {!full && !loading && !error && address && (
+        <div className="absolute bottom-3 left-3 right-16 bg-white/95 backdrop-blur rounded-2xl px-3 py-2 shadow-lg z-10">
           <div className="text-[10px] uppercase tracking-wide text-muted-foreground">الموقع المحدد</div>
           <div className="text-xs font-bold truncate">{address}</div>
         </div>
@@ -433,7 +492,7 @@ export function MapPicker({
         </div>
       )}
       {error && (
-        <div className="absolute inset-0 grid place-items-center text-center px-4 bg-white/80">
+        <div className="absolute inset-0 grid place-items-center text-center px-4 bg-white/80 z-20">
           <div className="text-sm text-muted-foreground flex flex-col items-center gap-2">
             <MapPin className="h-5 w-5" />
             {error}
@@ -452,41 +511,75 @@ export function MapPicker({
       )}
 
       {geoError && (
-        <div className="absolute bottom-16 left-3 right-3 z-30 bg-destructive text-destructive-foreground rounded-2xl px-3 py-2 text-xs font-bold shadow-lg flex items-start gap-2">
+        <div className={`absolute ${full ? "bottom-44" : "bottom-16"} left-3 right-3 z-30 bg-destructive text-destructive-foreground rounded-2xl px-3 py-2 text-xs font-bold shadow-lg flex items-start gap-2`}>
           <span className="flex-1">{geoError}</span>
           <button type="button" onClick={() => setGeoError(null)} aria-label="إغلاق"><X className="h-4 w-4" /></button>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => { setFull((f) => !f); setTimeout(() => window.dispatchEvent(new Event("resize")), 60); }}
-        className={`absolute ${full ? "bottom-40" : "bottom-16"} right-3 h-11 w-11 rounded-full bg-white shadow-lg grid place-items-center btn-press z-10`}
-        aria-label={full ? "تصغير الخريطة" : "خريطة بشاشة كاملة"}
-      >
-        {full ? <Minimize2 className="h-5 w-5" style={{ color: accent }} /> : <Maximize2 className="h-5 w-5" style={{ color: accent }} />}
-      </button>
-
-      {full && onConfirm && (
-        <div className="absolute bottom-0 inset-x-0 p-4 z-30 bg-gradient-to-t from-background to-transparent">
-          <button
-            type="button"
-            disabled={!value && !picked}
-            onClick={() => { setFull(false); onConfirm(); setTimeout(() => window.dispatchEvent(new Event("resize")), 60); }}
-            className="w-full h-14 rounded-2xl font-black text-base text-primary-foreground shadow-xl btn-press disabled:opacity-50"
-            style={{ background: accent }}
-          >
-            {confirmLabel} ✓
-          </button>
+      {/* Full-screen bottom sheet: address + locate + confirm */}
+      {full && !error && (
+        <div className="absolute bottom-0 inset-x-0 z-30 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-background via-background/95 to-transparent">
+          {address && (
+            <div className="bg-white rounded-2xl px-3 py-2.5 shadow-lg mb-2 flex items-center gap-2">
+              <MapPin className="h-4 w-4 shrink-0" style={{ color: accent }} />
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">الموقع المحدد</div>
+                <div className="text-xs font-bold truncate">{address}</div>
+              </div>
+            </div>
+          )}
+          {showLocateButton && (
+            <button
+              type="button"
+              onClick={() => autoLocate()}
+              disabled={locating}
+              className="w-full h-12 mb-2 rounded-2xl font-bold text-sm shadow-lg flex items-center justify-center gap-2 btn-press disabled:opacity-80 text-primary-foreground"
+              style={{ background: accent }}
+            >
+              {locating ? (
+                <><Loader2 className="h-5 w-5 animate-spin" /> {locateLabel}</>
+              ) : sharedOk ? (
+                <><CheckCircle2 className="h-5 w-5" /> {locateLabel}</>
+              ) : (
+                <><Crosshair className="h-5 w-5" /> {locateLabel}</>
+              )}
+            </button>
+          )}
+          {onConfirm && (
+            <button
+              type="button"
+              disabled={!value && !picked}
+              onClick={() => { setFull(false); onConfirm(); setTimeout(() => window.dispatchEvent(new Event("resize")), 60); }}
+              className={`w-full h-14 rounded-2xl font-black text-base shadow-xl btn-press disabled:opacity-50 flex items-center justify-center gap-2 ${
+                showLocateButton ? "bg-foreground text-background" : "text-primary-foreground"
+              }`}
+              style={showLocateButton ? undefined : { background: accent }}
+            >
+              <CheckCircle2 className="h-5 w-5" /> {confirmLabel}
+            </button>
+          )}
         </div>
       )}
 
-      {!loading && !error && (
+      {/* Embedded mode floating controls */}
+      {!full && !loading && !error && (
+        <button
+          type="button"
+          onClick={() => { setFull((f) => !f); setTimeout(() => window.dispatchEvent(new Event("resize")), 60); }}
+          className="absolute bottom-16 right-3 h-11 w-11 rounded-full bg-white shadow-lg grid place-items-center btn-press z-10"
+          aria-label="خريطة بشاشة كاملة"
+        >
+          <Maximize2 className="h-5 w-5" style={{ color: accent }} />
+        </button>
+      )}
+
+      {!full && !loading && !error && (
         <button
           type="button"
           onClick={() => autoLocate()}
           disabled={locating}
-          className={`absolute ${full ? "bottom-24" : "bottom-3"} right-3 h-11 w-11 rounded-full bg-white shadow-lg grid place-items-center btn-press disabled:opacity-70 z-10`}
+          className="absolute bottom-3 right-3 h-11 w-11 rounded-full bg-white shadow-lg grid place-items-center btn-press disabled:opacity-70 z-10"
           aria-label="موقعي"
         >
           {locating ? (
@@ -497,7 +590,12 @@ export function MapPicker({
         </button>
       )}
     </div>
-    {onConfirm && (
+
+    {full && onBack && (
+      <div className="fixed inset-x-0 bottom-0 z-[59] h-0" aria-hidden />
+    )}
+
+    {!full && onConfirm && (
       <button
         type="button"
         disabled={!value && !picked}
@@ -507,7 +605,7 @@ export function MapPicker({
         <CheckCircle2 className="h-5 w-5" /> {confirmLabel}
       </button>
     )}
-    {showLocateButton && (
+    {!full && showLocateButton && (
       <button
         type="button"
         onClick={() => autoLocate()}
@@ -516,11 +614,11 @@ export function MapPicker({
         style={{ background: accent }}
       >
         {locating ? (
-          <><Loader2 className="h-5 w-5 animate-spin" /> جاري تحديد موقعك...</>
+          <><Loader2 className="h-5 w-5 animate-spin" /> {locateLabel}</>
         ) : sharedOk ? (
-          <><CheckCircle2 className="h-5 w-5" /> تم تحديد موقعك ✓ (اضغط للتحديث)</>
+          <><CheckCircle2 className="h-5 w-5" /> {locateLabel}</>
         ) : (
-          <><Crosshair className="h-5 w-5" /> 📍 حدد موقعي الحالي تلقائياً</>
+          <><Crosshair className="h-5 w-5" /> {locateLabel}</>
         )}
       </button>
     )}
@@ -565,3 +663,5 @@ export function StaticMapPreview({
     />
   );
 }
+</content>
+</invoke>
