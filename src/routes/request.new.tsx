@@ -344,21 +344,45 @@ function NewRequest() {
         ابحث عن أي مكان من الشريط فوق الخريطة، أو حرّك الخريطة وخلي الدبوس على المكان بالضبط.
       </div>
       <MapPicker
+        key={`${mapStep}-${review ? "review" : "map"}`}
         value={mapStep === "pickup" ? pickupCoords : destCoords}
         accent={mapStep === "pickup" ? "#0284c7" : "#e11d48"}
         nearby={mapStep === "pickup" ? nearby : undefined}
         nearbyKind={type === "taxi" ? "car" : "worker"}
-        autoLocateOnMount
+        autoLocateOnMount={mapStep === "pickup"}
+        fallbackCenter={pickupCoords}
+        startFull={!review && type === "taxi"}
+        stepTitle={
+          mapStep === "pickup"
+            ? type === "taxi"
+              ? "خطوة ١: حدد موقعك الحالي"
+              : "موقع الخدمة"
+            : "خطوة ٢: وين رايح؟"
+        }
+        onBack={
+          mapStep === "dest"
+            ? () => {
+                setReview(false);
+                setMapStep("pickup");
+              }
+            : undefined
+        }
         placeholder={mapStep === "pickup" ? "ابحث عن موقع الانطلاق..." : "ابحث عن الوجهة..."}
         showLocateButton={mapStep === "pickup"}
         confirmLabel={mapStep === "pickup" ? (type === "taxi" ? "تأكيد الانطلاق والانتقال للوجهة" : "تأكيد موقع الخدمة") : "تأكيد الوجهة"}
+        onAutoLocated={(_c, addr) => {
+          if (type !== "taxi" || mapStep !== "pickup" || review) return;
+          setMapStep("dest");
+          toast.success(addr ? `تحديدت انطلاك من ${shortAddr(addr)} — هسه حدد وجهتك` : "تحديدت انطلاك — هسه حدد وجهتك");
+        }}
         onConfirm={() => {
           if (mapStep === "pickup" && type === "taxi") {
             setMapStep("dest");
             toast.success("تم تأكيد الانطلاق، هسه حدد الوجهة");
           } else {
+            setReview(true);
             toast.success(mapStep === "dest" ? "تم تأكيد الوجهة ✓" : "تم تأكيد الموقع ✓");
-            document.getElementById("after-map")?.scrollIntoView({ behavior: "smooth" });
+            setTimeout(() => document.getElementById("after-map")?.scrollIntoView({ behavior: "smooth" }), 120);
           }
         }}
         onChange={(c, addr) => {
@@ -366,6 +390,8 @@ function NewRequest() {
             setPickupCoords(c);
             setPickupLabel(addr ?? `موقعي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
           } else {
+            const p = pickupRef.current;
+            if (p && Math.abs(p.lat - c.lat) < 1e-6 && Math.abs(p.lng - c.lng) < 1e-6) return;
             setDestCoords(c);
             setDestLabel(addr ?? `وجهتي (${c.lat.toFixed(4)}, ${c.lng.toFixed(4)})`);
           }
