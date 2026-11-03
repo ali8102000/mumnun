@@ -331,17 +331,17 @@ function NewRequest() {
       )}
 
       <div className="mt-2 mb-2 flex items-center gap-2">
-        <button type="button" onClick={() => setMapStep("pickup")} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold transition-all btn-press ${mapStep === "pickup" ? "bg-sky-600 text-white shadow-lg" : "bg-white/70 text-muted-foreground"}`}>
+        <button type="button" onClick={() => { setReview(false); setMapStep("pickup"); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold transition-all btn-press ${mapStep === "pickup" ? "bg-sky-600 text-white shadow-lg" : "bg-white/70 text-muted-foreground"}`}>
           ١. {type === "taxi" ? "الانطلاق" : "موقع الخدمة"}
         </button>
         {type === "taxi" && (
-          <button type="button" onClick={() => setMapStep("dest")} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold transition-all btn-press ${mapStep === "dest" ? "bg-rose-600 text-white shadow-lg" : "bg-white/70 text-muted-foreground"}`}>
+          <button type="button" onClick={() => { setReview(false); setMapStep("dest"); }} className={`flex-1 py-2.5 rounded-2xl text-sm font-bold transition-all btn-press ${mapStep === "dest" ? "bg-rose-600 text-white shadow-lg" : "bg-white/70 text-muted-foreground"}`}>
             ٢. الوجهة
           </button>
         )}
       </div>
       <div className="mb-2 text-xs text-muted-foreground">
-        ابحث عن أي مكان من الشريط فوق الخريطة، أو حرّك الخريطة وخلي الدبوس على المكان بالضبط.
+        الخريطه تفتح بشاشه كامله. حدد موقعك تلقائيا او من البحث، وبعدها تنتقل تلقائيا لتحديد الوجهه.
       </div>
       <MapPicker
         key={`${mapStep}-${review ? "review" : "map"}`}
