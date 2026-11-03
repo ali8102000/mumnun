@@ -399,14 +399,14 @@ function NewRequest() {
       />
       <div id="after-map" className="mt-2 space-y-2">
         {pickupLabel && (
-          <button onClick={() => setMapStep("pickup")} className={`w-full glass rounded-2xl p-3 flex items-center gap-2 text-right transition ${mapStep === "pickup" ? "ring-2 ring-sky-500" : ""}`}>
+          <button onClick={() => { setReview(false); setMapStep("pickup"); }} className={`w-full glass rounded-2xl p-3 flex items-center gap-2 text-right transition ${mapStep === "pickup" ? "ring-2 ring-sky-500" : ""}`}>
             <MapPin className="h-4 w-4 text-sky-600 shrink-0" />
             <div className="text-xs font-bold truncate flex-1">{pickupLabel}</div>
             {mapStep === "pickup" && <CheckCircle2 className="h-4 w-4 text-sky-600 shrink-0" />}
           </button>
         )}
         {type === "taxi" && destLabel && (
-          <button onClick={() => setMapStep("dest")} className={`w-full glass rounded-2xl p-3 flex items-center gap-2 text-right transition ${mapStep === "dest" ? "ring-2 ring-rose-500" : ""}`}>
+          <button onClick={() => { setReview(false); setMapStep("dest"); }} className={`w-full glass rounded-2xl p-3 flex items-center gap-2 text-right transition ${mapStep === "dest" ? "ring-2 ring-rose-500" : ""}`}>
             <MapPin className="h-4 w-4 text-rose-600 shrink-0" />
             <div className="text-xs font-bold truncate flex-1">{destLabel}</div>
             {mapStep === "dest" && <CheckCircle2 className="h-4 w-4 text-rose-600 shrink-0" />}
@@ -416,12 +416,12 @@ function NewRequest() {
       {type === "taxi" && pickupCoords && (
         <div className="mt-3 flex gap-2">
           {mapStep === "pickup" && (
-            <button onClick={() => setMapStep("dest")} className="flex-1 py-3 rounded-2xl bg-sky-600 text-white font-bold text-sm btn-press flex items-center justify-center gap-2">
+            <button onClick={() => { setReview(false); setMapStep("dest"); }} className="flex-1 py-3 rounded-2xl bg-sky-600 text-white font-bold text-sm btn-press flex items-center justify-center gap-2">
               تحديد الوجهة <ArrowLeft className="h-4 w-4" />
             </button>
           )}
           {mapStep === "dest" && (
-            <button onClick={() => setMapStep("pickup")} className="flex-1 py-3 rounded-2xl bg-surface-2 font-bold text-sm btn-press">
+            <button onClick={() => { setReview(false); setMapStep("pickup"); }} className="flex-1 py-3 rounded-2xl bg-surface-2 font-bold text-sm btn-press">
               العودة لموقع الانطلاق
             </button>
           )}
