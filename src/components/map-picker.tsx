@@ -663,5 +663,3 @@ export function StaticMapPreview({
     />
   );
 }
-</content>
-</invoke>
