@@ -788,6 +788,10 @@ export type Database = {
       }
     }
     Functions: {
+      consume_taxi_request_slot: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       accept_service_request: {
         Args: { _request_id: string }
         Returns: boolean
