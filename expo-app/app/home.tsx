@@ -35,7 +35,7 @@ export default function HomeScreen() {
       return;
     }
     const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
-    supabase.from(table).select('available, is_verified, verification_status').eq('user_id', user.id).maybeSingle()
+    supabase.from(table).select('available, is_verified, verification_status').eq('user_id', userId).maybeSingle()
       .then(({ data, error }) => {
         if (error) {
           Alert.alert('تعذر تحميل الحالة', 'حاول تحديث الصفحة');
@@ -49,13 +49,14 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!user || !verified || !available || (activeRole !== 'driver' && activeRole !== 'worker')) return;
+    const userId = userId;
     let mounted = true;
     let subscription: Location.LocationSubscription | null = null;
 
     async function publishPresence(location: Location.LocationObject) {
       if (!mounted || !user) return;
       const { error } = await supabase.from('provider_locations').upsert({
-        user_id: user.id,
+        user_id: userId,
         role: activeRole,
         lat: location.coords.latitude,
         lng: location.coords.longitude,
@@ -65,7 +66,7 @@ export default function HomeScreen() {
       if (error && mounted) {
         Alert.alert('تعذر مشاركة الموقع', 'تم إيقاف التوفر حتى لا تستقبل طلبات دون موقع صحيح.');
         const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
-        await supabase.from(table).update({ available: false }).eq('user_id', user.id);
+        await supabase.from(table).update({ available: false }).eq('user_id', userId);
         setAvailable(false);
       }
     }
@@ -77,7 +78,7 @@ export default function HomeScreen() {
           Alert.alert('إذن الموقع مطلوب', 'فعّل الموقع حتى تظهر للسائقين والزبائن القريبين.');
           setAvailable(false);
           const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
-          await supabase.from(table).update({ available: false }).eq('user_id', user.id);
+          await supabase.from(table).update({ available: false }).eq('user_id', userId);
         }
         return;
       }
@@ -94,7 +95,7 @@ export default function HomeScreen() {
       if (!mounted || !user) return;
       Alert.alert('تعذر تحديد الموقع', 'تم إيقاف التوفر؛ تحقق من GPS وحاول مرة أخرى.');
       const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
-      await supabase.from(table).update({ available: false }).eq('user_id', user.id);
+      await supabase.from(table).update({ available: false }).eq('user_id', userId);
       setAvailable(false);
     });
 
