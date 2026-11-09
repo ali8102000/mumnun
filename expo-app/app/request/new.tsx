@@ -221,7 +221,6 @@ export default function NewRequest() {
         });
         if (dispatchError) throw dispatchError;
       } else {
-        const chosenService = SERVICES.find((item) => item.slug === selectedService);
         const { data: serviceRow, error: serviceError } = await supabase
           .from('services')
           .select('id')
