@@ -68,6 +68,47 @@ CREATE INDEX IF NOT EXISTS idx_provider_locations_updated_at
 CREATE INDEX IF NOT EXISTS idx_provider_locations_geo
   ON public.provider_locations(lat, lng);
 
+-- Ignore client-supplied timestamps and reject physically implausible jumps.
+CREATE OR REPLACE FUNCTION public.guard_provider_location_speed()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+DECLARE
+  previous_location record;
+  distance_km numeric;
+  elapsed_seconds numeric;
+  speed_kmh numeric;
+BEGIN
+  SELECT lat, lng, updated_at
+  INTO previous_location
+  FROM public.provider_locations
+  WHERE user_id = NEW.user_id;
+
+  IF FOUND THEN
+    elapsed_seconds := GREATEST(1, EXTRACT(EPOCH FROM (now() - previous_location.updated_at)));
+    distance_km := 6371 * acos(LEAST(1.0, GREATEST(-1.0,
+      cos(radians(previous_location.lat)) * cos(radians(NEW.lat)) *
+      cos(radians(NEW.lng) - radians(previous_location.lng)) +
+      sin(radians(previous_location.lat)) * sin(radians(NEW.lat))
+    )));
+    speed_kmh := (distance_km / elapsed_seconds) * 3600;
+    IF speed_kmh > 250 THEN
+      RAISE EXCEPTION 'implausible_provider_location_speed';
+    END IF;
+  END IF;
+
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS trg_guard_provider_location_speed ON public.provider_locations;
+CREATE TRIGGER trg_guard_provider_location_speed
+BEFORE INSERT OR UPDATE ON public.provider_locations
+FOR EACH ROW EXECUTE FUNCTION public.guard_provider_location_speed();
+
 -- Nearby taxi matching now reads provider presence, not a location row tied to an old request.
 CREATE OR REPLACE FUNCTION public.find_nearby_drivers(
   _lat numeric,
