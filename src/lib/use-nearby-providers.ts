@@ -59,11 +59,8 @@ export function useNearbyProviders(opts: {
 
     timerRef.current = setInterval(fetchPins, intervalMs);
 
-
-
     return () => {
       cancelled = true;
-      clearInterval(timerRef.current);
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [center?.lat, center?.lng, type, category, serviceId, radiusKm, enabled, intervalMs, findPinsFn]);
