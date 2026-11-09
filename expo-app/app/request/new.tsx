@@ -22,11 +22,22 @@ type VehicleCategory = 'economy' | 'premium' | 'luxury';
 
 const SERVICES = [
   { slug: 'taxi', label: 'سيارة', emoji: '🚕', color: '#2563eb' },
-  { slug: 'plumber', label: 'سباك', emoji: '🔧', color: '#0891b2' },
-  { slug: 'electrician', label: 'كهربائي', emoji: '💡', color: '#ca8a04' },
-  { slug: 'carpenter', label: 'نجار', emoji: '🪚', color: '#9333ea' },
-  { slug: 'cleaning', label: 'تنظيف', emoji: '🧹', color: '#16a34a' },
-  { slug: 'ac', label: 'مكيفات', emoji: '❄️', color: '#0284c7' },
+  { slug: 'build', label: 'بناء', emoji: '🧱', color: '#ea580c' },
+  { slug: 'plaster', label: 'لبخ', emoji: '🪣', color: '#d97706' },
+  { slug: 'carpentry_form', label: 'نجارة وقالب', emoji: '📐', color: '#a16207' },
+  { slug: 'flooring', label: 'أرضيات', emoji: '🟫', color: '#78716c' },
+  { slug: 'chef', label: 'طباخ', emoji: '👨‍🍳', color: '#e11d48' },
+  { slug: 'plumbing', label: 'تأسيس ماء', emoji: '🚰', color: '#0891b2' },
+  { slug: 'electric_setup', label: 'تأسيس كهرباء', emoji: '💡', color: '#ca8a04' },
+  { slug: 'electric_street', label: 'تصليح كهرباء', emoji: '⚡', color: '#d97706' },
+  { slug: 'washer_repair', label: 'تصليح غسالة', emoji: '🧺', color: '#0284c7' },
+  { slug: 'stove_repair', label: 'تصليح طباخ', emoji: '🔥', color: '#dc2626' },
+  { slug: 'fridge_repair', label: 'تصليح ثلاجة', emoji: '🧊', color: '#0ea5e9' },
+  { slug: 'ac_repair', label: 'مكيفات', emoji: '❄️', color: '#0284c7' },
+  { slug: 'cleaning', label: 'تنظيف بيوت', emoji: '🧹', color: '#16a34a' },
+  { slug: 'wood_carpentry', label: 'نجارة أخشاب', emoji: '🪵', color: '#a16207' },
+  { slug: 'blacksmith', label: 'حدادة', emoji: '⚒️', color: '#475569' },
+  { slug: 'general', label: 'خدمات عامة', emoji: '🏠', color: '#7c3aed' },
 ];
 
 const VEHICLE_CATS: { key: VehicleCategory; label: string; emoji: string }[] = [
