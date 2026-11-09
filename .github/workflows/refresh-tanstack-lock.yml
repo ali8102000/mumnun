@@ -27,8 +27,6 @@ jobs:
           bun run build
           bun run test:unit
           bun run lint
-          bunx expo config --type public
-          bunx expo export --platform android
       - name: Commit verified dependency update and remove one-time workflow
         run: |
           git config user.name "github-actions[bot]"
