@@ -170,9 +170,9 @@ AS $$
         cos(radians(pl.lng) - radians(_lng)) +
         sin(radians(_lat)) * sin(radians(pl.lat))
       )))
-    ) <= _radius_km
+    ) <= LEAST(GREATEST(COALESCE(_radius_km, 5), 0), 20)
   ORDER BY pl.updated_at DESC
-  LIMIT _limit;
+  LIMIT LEAST(GREATEST(COALESCE(_limit, 30), 1), 50);
 $$;
 
 REVOKE ALL ON FUNCTION public.find_nearby_provider_pins(numeric, numeric, text, text, uuid, numeric, integer)
