@@ -32,6 +32,7 @@
 - `20261109000104_secure_chat_and_ratings.sql`
 - `20261109000105_grant_provider_role_safely.sql`
 - `20261109000106_require_provider_verification.sql`
+- `20261109000107_provider_presence_for_dispatch.sql`
 
 راجعها أولاً على بيئة تطوير منفصلة، ثم اربط Supabase CLI بالمشروع الصحيح وتحقق أن Project Ref هو `zvfdymcalzqhvwnipuup` قبل تشغيل `supabase db push`.
 لا تطبقها على الإنتاج قبل اختبار تسجيل الدخول والأدوار والطلبات والمحافظات المالية على بيئة staging.
