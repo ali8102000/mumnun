@@ -12,6 +12,7 @@ export default function RequestDetail() {
   const { user } = useAuth();
   const [request, setRequest] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  const [chatId, setChatId] = useState<string | null>(null);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(0);
@@ -26,31 +27,139 @@ export default function RequestDetail() {
     setRequest(data); setLoading(false);
   }, [id]);
 
-  const loadMessages = useCallback(async () => {
-    const { data } = await supabase.from('messages').select('*, sender:profiles(full_name)').eq('request_id', id).order('created_at', { ascending: true });
-    setMessages(data || []);
+  const loadChat = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('chats')
+      .select('id')
+      .eq('request_id', id)
+      .maybeSingle();
+    if (error) {
+      setChatId(null);
+      return;
+    }
+    setChatId(data?.id ?? null);
   }, [id]);
 
+  const loadMessages = useCallback(async () => {
+    if (!chatId) {
+      setMessages([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('messages')
+      .select('id, chat_id, sender_id, content, created_at, sender:profiles(full_name)')
+      .eq('chat_id', chatId)
+      .order('created_at', { ascending: true });
+    if (!error) setMessages(data || []);
+  }, [chatId]);
+
   useEffect(() => {
-    loadRequest(); loadMessages();
-    const sub = supabase.channel(`request-${id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'service_requests', filter: `id=eq.${id}` }, (payload) => { setRequest((prev: any) => ({ ...prev, ...payload.new })); if (payload.new.status === 'completed') setShowRating(true); })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `request_id=eq.${id}` }, () => loadMessages())
+    loadRequest();
+    loadChat();
+    const sub = supabase
+      .channel(`request-${id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'service_requests', filter: `id=eq.${id}` }, (payload) => {
+        setRequest((prev: any) => ({ ...prev, ...payload.new }));
+        if (payload.new.status === 'completed') setShowRating(true);
+        if (payload.new.status === 'accepted') loadChat();
+      })
       .subscribe();
     return () => { supabase.removeChannel(sub); };
-  }, [id, loadRequest, loadMessages]);
+  }, [id, loadRequest, loadChat]);
+
+  useEffect(() => {
+    if (!chatId) return;
+    const sub = supabase
+      .channel(`chat-${chatId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` }, () => loadMessages())
+      .subscribe();
+    loadMessages();
+    return () => { supabase.removeChannel(sub); };
+  }, [chatId, loadMessages]);
 
   async function sendMessage(text?: string) {
-    const msg = (text || newMsg).trim(); if (!msg) return; setNewMsg('');
-    await supabase.from('messages').insert({ request_id: id, sender_id: user?.id, body: msg });
-    loadMessages();
+    const msg = (text || newMsg).trim();
+    if (!msg) return;
+    if (!chatId || !user) {
+      Alert.alert('المحادثة غير جاهزة', 'تبدأ المحادثة بعد قبول الطلب.');
+      return;
+    }
+    setNewMsg('');
+    const { error } = await supabase.from('messages').insert({
+      chat_id: chatId,
+      sender_id: user.id,
+      content: msg,
+    });
+    if (error) Alert.alert('تعذر إرسال الرسالة', error.message);
+    else loadMessages();
   }
 
-  async function acceptRequest() { const { error } = await supabase.rpc('accept_service_request', { _request_id: id }); if (error) Alert.alert('خطأ', error.message); else loadRequest(); }
-  async function startRide() { const { error } = await supabase.rpc('transition_service_request', { _request_id: id, _new_status: 'in_progress' }); if (error) Alert.alert('خطأ', error.message); else loadRequest(); }
-  async function completeRide() { const { error } = await supabase.rpc('transition_service_request', { _request_id: id, _new_status: 'completed' }); if (error) Alert.alert('خطأ', error.message); else { loadRequest(); setShowRating(true); } }
-  async function cancelRequest() { Alert.alert('إلغاء الطلب', 'هل أنت متأكد؟', [{ text: 'تراجع', style: 'cancel' }, { text: 'إلغاء الطلب', style: 'destructive', onPress: async () => { await supabase.from('service_requests').update({ status: 'cancelled' }).eq('id', id); router.back(); } }]); }
-  async function submitRating() { if (rating === 0) return; const otherId = isCustomer ? request?.provider_id : request?.customer_id; await supabase.from('ratings').insert({ request_id: id, rater_id: user?.id, ratee_id: otherId, stars: rating }); setShowRating(false); router.back(); }
+  async function acceptRequest() {
+    const { error } = await supabase.rpc('accept_service_request', { _request_id: id });
+    if (error) Alert.alert('خطأ', error.message);
+    else {
+      await Promise.all([loadRequest(), loadChat()]);
+    }
+  }
+
+  async function startRide() {
+    const { error } = await supabase.rpc('transition_service_request', {
+      _request_id: id,
+      _status: 'in_progress',
+      _reason: null,
+    });
+    if (error) Alert.alert('خطأ', error.message);
+    else loadRequest();
+  }
+
+  async function completeRide() {
+    const { error } = await supabase.rpc('transition_service_request', {
+      _request_id: id,
+      _status: 'completed',
+      _reason: null,
+    });
+    if (error) Alert.alert('خطأ', error.message);
+    else {
+      loadRequest();
+      setShowRating(true);
+    }
+  }
+
+  async function cancelRequest() {
+    Alert.alert('إلغاء الطلب', 'هل أنت متأكد؟', [
+      { text: 'تراجع', style: 'cancel' },
+      {
+        text: 'إلغاء الطلب',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await supabase.rpc('transition_service_request', {
+            _request_id: id,
+            _status: 'cancelled',
+            _reason: null,
+          });
+          if (error) Alert.alert('تعذر الإلغاء', error.message);
+          else router.back();
+        },
+      },
+    ]);
+  }
+
+  async function submitRating() {
+    if (rating === 0 || !user) return;
+    const otherId = isCustomer ? request?.provider_id : request?.customer_id;
+    if (!otherId) return;
+    const { error } = await supabase.from('ratings').insert({
+      request_id: id,
+      rater_id: user.id,
+      ratee_id: otherId,
+      stars: rating,
+    });
+    if (error) Alert.alert('تعذر إرسال التقييم', error.message);
+    else {
+      setShowRating(false);
+      router.back();
+    }
+  }
 
   if (loading) return <View style={styles.center}><Text style={{ color: '#64748b' }}>جاري التحميل...</Text></View>;
   if (!request) return <View style={styles.center}><Text style={{ color: '#64748b' }}>الطلب غير موجود</Text></View>;
@@ -64,13 +173,13 @@ export default function RequestDetail() {
         <View style={styles.header}><TouchableOpacity onPress={() => router.back()}><Text style={styles.backBtn}>→</Text></TouchableOpacity><Text style={styles.headerTitle}>{statusLabel[request.status] || request.status}</Text><View style={{ width: 30 }} /></View>
         <View style={styles.infoCard}><Text style={styles.infoType}>{request.type === 'taxi' ? '🚕 طلب سيارة' : '🔧 خدمة منزلية'}</Text>{request.pickup_text && <Text style={styles.infoRow}>من: {request.pickup_text}</Text>}{request.dest_text && <Text style={styles.infoRow}>إلى: {request.dest_text}</Text>}{request.price_estimate && <Text style={styles.infoPrice}>{request.price_estimate.toLocaleString('en')} د.ع</Text>}</View>
         <View style={styles.actionsRow}>
-          {request.status === 'searching' && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={acceptRequest}><Text style={styles.actionBtnText}>قبول الطلب</Text></TouchableOpacity>}
+          {['pending', 'searching'].includes(request.status) && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={acceptRequest}><Text style={styles.actionBtnText}>قبول الطلب</Text></TouchableOpacity>}
           {request.status === 'accepted' && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={startRide}><Text style={styles.actionBtnText}>بدء الرحلة</Text></TouchableOpacity>}
           {isActive && isProvider && <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]} onPress={completeRide}><Text style={styles.actionBtnText}>إنهاء</Text></TouchableOpacity>}
           {request.status !== 'cancelled' && request.status !== 'completed' && <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#dc2626' }]} onPress={cancelRequest}><Text style={styles.actionBtnText}>إلغاء</Text></TouchableOpacity>}
         </View>
         <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 8 }} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
-          {messages.map((msg) => (<View key={msg.id} style={[styles.msgBubble, msg.sender_id === user?.id ? styles.msgMine : styles.msgOther]}><Text style={styles.msgText}>{msg.body}</Text></View>))}
+          {messages.map((msg) => (<View key={msg.id} style={[styles.msgBubble, msg.sender_id === user?.id ? styles.msgMine : styles.msgOther]}><Text style={styles.msgText}>{msg.content}</Text></View>))}
         </ScrollView>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 8 }}>{quickReplies.map((qr) => (<TouchableOpacity key={qr} style={styles.quickReply} onPress={() => sendMessage(qr)}><Text style={styles.quickReplyText}>{qr}</Text></TouchableOpacity>))}</ScrollView>
         <View style={styles.inputRow}><TextInput style={styles.msgInput} value={newMsg} onChangeText={setNewMsg} placeholder="اكتب رسالة..." placeholderTextColor="#94a3b8" onSubmitEditing={() => sendMessage()} /><TouchableOpacity style={styles.sendBtn} onPress={() => sendMessage()}><Text style={styles.sendBtnText}>إرسال</Text></TouchableOpacity></View>
