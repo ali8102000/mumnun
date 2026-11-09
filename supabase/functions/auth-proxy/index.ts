@@ -58,15 +58,6 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const path = url.pathname.replace("/auth-proxy", "");
 
-    if (path === "/lookup-email" && req.method === "POST") {
-      const body = await req.json();
-      const phone = typeof body?.phone === "string" && body.phone.trim().length >= 3 && body.phone.trim().length <= 255 ? body.phone.trim() : null;
-      if (!phone) return json({ error: "Invalid phone" }, 400);
-      const { data, error } = await supabase.rpc("lookup_email_by_phone", { _phone: phone });
-      if (error) return json({ error: safeError(error.message) }, 400);
-      return json({ email: data });
-    }
-
     if (path === "/signup" && req.method === "POST") {
       const body = await req.json();
       const email = typeof body?.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email) ? body.email : null;
@@ -98,14 +89,27 @@ Deno.serve(async (req: Request) => {
 
     if (path === "/login" && req.method === "POST") {
       const body = await req.json();
-      const email = typeof body?.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email) ? body.email : null;
+      const suppliedEmail = typeof body?.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)
+        ? body.email.trim().toLowerCase()
+        : null;
+      const phone = typeof body?.phone === "string" && /^\+\d{8,15}$/.test(body.phone.trim())
+        ? body.phone.trim()
+        : null;
       const password = typeof body?.password === "string" && body.password.length >= 6 && body.password.length <= 128 ? body.password : null;
-      if (!email || !password) return json({ error: "Invalid input" }, 400);
+      if ((!suppliedEmail && !phone) || !password) return json({ error: "Invalid input" }, 400);
+
+      let email = suppliedEmail;
+      if (phone) {
+        const { data: foundEmail, error: lookupError } = await supabase.rpc("lookup_email_by_phone", { _phone: phone });
+        if (lookupError) return json({ error: safeError(lookupError.message) }, 400);
+        const digits = phone.replace(/[^\d]/g, "");
+        email = foundEmail ? String(foundEmail).toLowerCase() : `phone${digits}@mamnoon.app`;
+      }
 
       const client = createClient(supabaseUrl, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
-      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      const { data, error } = await client.auth.signInWithPassword({ email: email!, password });
       if (error) return json({ error: safeError(error.message) }, 400);
       return json({ session: data.session, user: data.user });
     }
