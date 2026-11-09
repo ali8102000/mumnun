@@ -1,14 +1,7 @@
-import Constants from "expo-constants";
-
-export const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  Constants.expoConfig?.extra?.supabaseUrl ||
-  "https://hvfiwjryffjwaynkpgar.supabase.co";
+export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 
 export const GOOGLE_MAPS_API_KEY =
-  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
-  (Constants.expoConfig?.extra?.googleMapsApiKey as string) ||
-  "";
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
 export const APP_NAME = "ممنون";
 export const APP_DESCRIPTION =
