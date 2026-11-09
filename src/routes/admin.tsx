@@ -35,14 +35,14 @@ type AdminBlock = { user_id?: string; reason: string | null; expires_at: string 
 type AdminUser = AdminProfile & { blocked?: AdminBlock | null };
 type AdminTransaction = { id: string; type: string; amount: number; created_at: string; note?: string | null; profiles?: AdminProfile | null };
 type AdminRequest = { id: string; type: string; status: string; created_at: string; price_estimate?: number | null; pickup_text?: string | null; dest_text?: string | null; customer_id?: string; provider_id?: string };
-type AdminProvider = { user_id: string; available?: boolean; is_verified?: boolean; verification_status?: string; vehicle_make?: string | null; vehicle_model?: string | null; vehicle_plate?: string | null; updated_at?: string; profiles?: AdminProfile | null };
-type AdminReport = { id: string; status: string; created_at: string; reason?: string | null; reporter?: AdminProfile | null; reported?: AdminProfile | null };
+type AdminProvider = { id?: string; user_id: string; available?: boolean; is_verified?: boolean; verification_status?: string; vehicle_make?: string | null; vehicle_model?: string | null; vehicle_plate?: string | null; updated_at?: string; profiles?: AdminProfile | null };
+type AdminReport = { id: string; status: string; created_at: string; reason?: string | null; details?: string | null; reporter?: AdminProfile | null; reported?: AdminProfile | null };
 type AdminCoupon = { id: string; code: string; type: "percentage" | "fixed"; value: number; used_count: number; max_uses: number; expires_at: string | null; active: boolean; min_amount: number };
 type CouponInput = { id?: string; code: string; type: "percentage" | "fixed"; value: number; max_uses: number; expires_at: string | null; active: boolean; min_amount: number };
 type AdminChat = { id: string; created_at: string; updated_at?: string; participant1?: AdminProfile | null; participant2?: AdminProfile | null };
-type AdminFriend = { id: string; created_at?: string; user?: AdminProfile | null; friend?: AdminProfile | null };
+type AdminFriend = { id: string; user_id: string; friend_id: string; created_at: string; user?: AdminProfile | null; friend?: AdminProfile | null };
 type AdminFriendRequest = { id: string; status: string; created_at?: string; sender?: AdminProfile | null; receiver?: AdminProfile | null };
-type AdminMessage = { id: string; content: string; created_at: string; sender?: AdminProfile | null; chat?: { id: string } | null };
+type AdminMessage = { id: string; content: string; body?: string | null; created_at: string; sender?: AdminProfile | null; chat?: { id: string } | null };
 type AdminAuditLog = { id: string; action: string; created_at: string; user_id: string; admin?: AdminProfile | null; metadata?: Record<string, unknown> | null };
 type AdminLocation = { user_id: string; latitude?: number | null; longitude?: number | null; lat?: number; lng?: number; profile?: AdminProfile | null };
 type AdminUserDetail = { profile: AdminProfile | null; roles: AdminRole[]; block: AdminBlock | null; driverProfile: AdminProvider | null; workerProfile: AdminProvider | null; transactions: AdminTransaction[]; requests: AdminRequest[] };
@@ -347,7 +347,7 @@ function ProvidersSection() {
       <div className="flex gap-1 mb-4 glass rounded-2xl p-1">{["driver", "worker"].map((t) => (<button key={t} onClick={() => setType(t)} className={`flex-1 py-2 rounded-xl text-xs font-bold ${type === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{t === "driver" ? "السائقون" : "الفنيون"}</button>))}</div>
       {loading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : providers.length === 0 ? <div className="glass rounded-2xl p-8 text-center text-sm text-muted-foreground">لا يوجد مزودون</div> : (
         <div className="space-y-2">{providers.map((p) => (
-          <div key={p.id} className="glass rounded-2xl p-3">
+          <div key={p.user_id} className="glass rounded-2xl p-3">
             <div className="flex items-center justify-between mb-2"><div><div className="font-bold text-sm">{p.profiles?.full_name ?? "—"}</div><div className="text-[10px] text-muted-foreground">{p.profiles?.phone ?? "—"}</div></div><div className="flex items-center gap-2"><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${p.is_verified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{p.verification_status === "approved" ? "موثق" : p.verification_status === "suspended" ? "معلّق" : p.verification_status === "rejected" ? "مرفوض" : "بانتظار التوثيق"}</span><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${p.available ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{p.available ? "متاح" : "غير متاح"}</span></div></div>
             {type === "driver" && p.vehicle_make && <div className="text-[10px] text-muted-foreground mb-2">{p.vehicle_make} {p.vehicle_model} · {p.vehicle_plate}</div>}
             <div className="flex gap-1.5"><button onClick={() => handleAction(p.user_id, "approved")} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-bold">تفعيل</button><button onClick={() => handleAction(p.user_id, "suspended")} className="text-xs px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 font-bold">تعليق</button><button onClick={() => handleAction(p.user_id, "rejected")} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-bold">رفض</button></div>
@@ -507,7 +507,7 @@ function CouponModal({ coupon, onSave, onClose }: { coupon: AdminCoupon | null; 
         <h3 className="font-black mb-4">{coupon ? "تعديل كوبون" : "إضافة كوبون"}</h3>
         <div className="space-y-3">
           <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الكود</div><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="w-full glass rounded-xl px-4 py-2.5 text-sm font-mono" /></div>
-          <div className="grid grid-cols-2 gap-3"><div><div className="text-[11px] font-bold text-muted-foreground mb-1">النوع</div><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full glass rounded-xl px-4 py-2.5 text-sm"><option value="percentage">نسبة مئوية</option><option value="fixed">مبلغ ثابت</option></select></div><div><div className="text-[11px] font-bold text-muted-foreground mb-1">القيمة</div><input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: Number(e.target.value) })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div></div>
+          <div className="grid grid-cols-2 gap-3"><div><div className="text-[11px] font-bold text-muted-foreground mb-1">النوع</div><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as "percentage" | "fixed" })} className="w-full glass rounded-xl px-4 py-2.5 text-sm"><option value="percentage">نسبة مئوية</option><option value="fixed">مبلغ ثابت</option></select></div><div><div className="text-[11px] font-bold text-muted-foreground mb-1">القيمة</div><input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: Number(e.target.value) })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div></div>
           <div className="grid grid-cols-2 gap-3"><div><div className="text-[11px] font-bold text-muted-foreground mb-1">الحد الأقصى للاستخدام</div><input type="number" value={form.max_uses} onChange={(e) => setForm({ ...form, max_uses: Number(e.target.value) })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div><div><div className="text-[11px] font-bold text-muted-foreground mb-1">الحد الأدنى للمبلغ</div><input type="number" value={form.min_amount} onChange={(e) => setForm({ ...form, min_amount: Number(e.target.value) })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div></div>
           <div><div className="text-[11px] font-bold text-muted-foreground mb-1">تاريخ الانتهاء (اختياري)</div><input type="datetime-local" onChange={(e) => setForm({ ...form, expires_at: e.target.value ? new Date(e.target.value).toISOString() : null })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> مفعّل</label>
@@ -544,7 +544,7 @@ function WalletSection() {
 function WalletAdjustModal({ onConfirm, onClose }: { onConfirm: (userId: string, amount: number, type: "credit" | "debit", note: string) => void; onClose: () => void }) {
   const [userId, setUserId] = useState("");
   const [amount, setAmount] = useState(0);
-  const [type, setType] = useState("credit");
+  const [type, setType] = useState<"credit" | "debit">("credit");
   const [note, setNote] = useState("");
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4">
