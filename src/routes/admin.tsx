@@ -1,11 +1,11 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, ShieldCheck, Users, Car, ListChecks, Wallet, Crown, Activity,
   LayoutDashboard, Tag, MessageSquare, UserCheck, Flag, Bell, ScrollText,
-  Map, ChevronLeft, Settings, AlertCircle,
+  Map, ChevronLeft, Settings, AlertCircle, type LucideIcon,
 } from "lucide-react";
 import {
   adminAdjustWallet, adminBlockUser, adminBroadcastNotification, adminCancelRequest,
@@ -28,9 +28,30 @@ export const Route = createFileRoute("/admin")({ ssr: false,
     { name: "twitter:card", content: "summary" },
   ] }), component: AdminPage });
 
+
+type AdminProfile = { id: string; full_name: string | null; phone: string; email?: string | null; avatar_url?: string | null; created_at?: string };
+type AdminRole = { role: string; created_at?: string };
+type AdminBlock = { user_id?: string; reason: string | null; expires_at: string | null; blocked_at?: string };
+type AdminUser = AdminProfile & { blocked?: AdminBlock | null };
+type AdminTransaction = { id: string; type: string; amount: number; created_at: string; note?: string | null; profiles?: AdminProfile | null };
+type AdminRequest = { id: string; type: string; status: string; created_at: string; price_estimate?: number | null; pickup_text?: string | null; dest_text?: string | null; customer_id?: string; provider_id?: string };
+type AdminProvider = { user_id: string; available?: boolean; is_verified?: boolean; verification_status?: string; vehicle_make?: string | null; vehicle_model?: string | null; vehicle_plate?: string | null; updated_at?: string; profiles?: AdminProfile | null };
+type AdminReport = { id: string; status: string; created_at: string; reason?: string | null; reporter?: AdminProfile | null; reported?: AdminProfile | null };
+type AdminCoupon = { id: string; code: string; type: "percentage" | "fixed"; value: number; used_count: number; max_uses: number; expires_at: string | null; active: boolean; min_amount: number };
+type CouponInput = { id?: string; code: string; type: "percentage" | "fixed"; value: number; max_uses: number; expires_at: string | null; active: boolean; min_amount: number };
+type AdminChat = { id: string; created_at: string; updated_at?: string; participant1?: AdminProfile | null; participant2?: AdminProfile | null };
+type AdminFriend = { id: string; created_at?: string; user?: AdminProfile | null; friend?: AdminProfile | null };
+type AdminFriendRequest = { id: string; status: string; created_at?: string; sender?: AdminProfile | null; receiver?: AdminProfile | null };
+type AdminMessage = { id: string; content: string; created_at: string; sender?: AdminProfile | null; chat?: { id: string } | null };
+type AdminAuditLog = { id: string; action: string; created_at: string; user_id: string; admin?: AdminProfile | null; metadata?: Record<string, unknown> | null };
+type AdminLocation = { user_id: string; latitude?: number | null; longitude?: number | null; lat?: number; lng?: number; profile?: AdminProfile | null };
+type AdminUserDetail = { profile: AdminProfile | null; roles: AdminRole[]; block: AdminBlock | null; driverProfile: AdminProvider | null; workerProfile: AdminProvider | null; transactions: AdminTransaction[]; requests: AdminRequest[] };
+type BlockTarget = { id: string; name: string | null };
+type DashboardStats = { totalUsers: number; totalDrivers: number; totalWorkers: number; totalRequests: number; activeRequests: number; completedRequests: number; cancelledRequests: number; activeDrivers: number; activeWorkers: number; dailyRevenue: number; monthlyRevenue: number; yearlyRevenue: number };
+
 type Section = "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles";
 
-const NAV_ITEMS: { key: Section; label: string; icon: any; roles: string[] }[] = [
+const NAV_ITEMS: { key: Section; label: string; icon: LucideIcon; roles: string[] }[] = [
   { key: "overview", label: "نظرة عامة", icon: LayoutDashboard, roles: ["super_admin", "admin", "support", "finance", "moderator"] },
   { key: "stats", label: "الإحصائيات", icon: Activity, roles: ["super_admin", "admin", "finance"] },
   { key: "users", label: "المستخدمون", icon: Users, roles: ["super_admin", "admin", "support", "moderator"] },
@@ -143,7 +164,7 @@ function AdminPage() {
 }
 
 function OverviewSection() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const getStats = useServerFn(adminGetDashboardStats);
   useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [getStats]);
@@ -166,7 +187,7 @@ function OverviewSection() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, accent }: any) {
+function StatCard({ icon: Icon, label, value, accent }: { icon: LucideIcon; label: string; value: ReactNode; accent?: string }) {
   return (
     <div className="glass rounded-2xl p-4">
       <Icon className={`h-5 w-5 mb-2 ${accent ?? "text-primary"}`} />
@@ -177,7 +198,7 @@ function StatCard({ icon: Icon, label, value, accent }: any) {
 }
 
 function StatsSection() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const getStats = useServerFn(adminGetDashboardStats);
   useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [getStats]);
@@ -207,13 +228,13 @@ function StatsSection() {
 }
 
 function UsersSection() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [blockModal, setBlockModal] = useState<any | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
+  const [blockModal, setBlockModal] = useState<BlockTarget | null>(null);
   const listUsers = useServerFn(adminListUsers);
   const searchUsers = useServerFn(adminSearchUsers);
   const blockUser = useServerFn(adminBlockUser);
@@ -266,7 +287,7 @@ function UsersSection() {
   );
 }
 
-function UserDetailModal({ user, onClose }: { user: any; onClose: () => void }) {
+function UserDetailModal({ user, onClose }: { user: AdminUserDetail; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4 overflow-y-auto">
       <div className="glass rounded-3xl p-5 w-full max-w-lg my-8 max-h-[90vh] overflow-y-auto">
@@ -276,19 +297,19 @@ function UserDetailModal({ user, onClose }: { user: any; onClose: () => void }) 
           <InfoRow label="الهاتف" value={user.profile?.phone} />
           <InfoRow label="البريد" value={user.profile?.email ?? "—"} />
           <InfoRow label="تاريخ التسجيل" value={user.profile?.created_at ? new Date(user.profile.created_at).toLocaleString("ar-IQ") : "—"} />
-          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الأدوار</div><div className="flex flex-wrap gap-1">{(user.roles ?? []).map((r: any) => (<span key={r.role} className="text-[10px] font-bold px-2 py-1 rounded-full bg-primary/15 text-primary">{r.role}</span>))}{user.roles?.length === 0 && <span className="text-xs text-muted-foreground">لا أدوار</span>}</div></div>
+          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الأدوار</div><div className="flex flex-wrap gap-1">{(user.roles ?? []).map((r: AdminRole) => (<span key={r.role} className="text-[10px] font-bold px-2 py-1 rounded-full bg-primary/15 text-primary">{r.role}</span>))}{user.roles?.length === 0 && <span className="text-xs text-muted-foreground">لا أدوار</span>}</div></div>
           {user.block && (<div className="glass rounded-xl p-3 border border-red-500/30"><div className="text-xs font-bold text-red-500">محظور</div><div className="text-[10px] text-muted-foreground">{user.block.reason ?? "بدون سبب"}</div>{user.block.expires_at && <div className="text-[10px] text-muted-foreground">حتى: {new Date(user.block.expires_at).toLocaleString("ar-IQ")}</div>}</div>)}
           {user.driverProfile && (<div className="glass rounded-xl p-3"><div className="text-xs font-bold mb-1">ملف السائق</div><InfoRow label="السيارة" value={`${user.driverProfile.vehicle_make ?? "—"} ${user.driverProfile.vehicle_model ?? ""}`} /><InfoRow label="متاح" value={user.driverProfile.available ? "نعم" : "لا"} /></div>)}
           {user.workerProfile && (<div className="glass rounded-xl p-3"><div className="text-xs font-bold mb-1">ملف الفني</div><InfoRow label="متاح" value={user.workerProfile.available ? "نعم" : "لا"} /></div>)}
-          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">المعاملات ({user.transactions?.length ?? 0})</div><div className="space-y-1 max-h-32 overflow-y-auto">{(user.transactions ?? []).map((tx: any) => (<div key={tx.id} className="text-[10px] flex justify-between glass rounded-lg px-2 py-1"><span>{tx.type === "credit" ? "+" : "-"}{Number(tx.amount).toLocaleString()} د.ع</span><span className="text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("ar-IQ")}</span></div>))}</div></div>
-          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الطلبات ({user.requests?.length ?? 0})</div><div className="space-y-1 max-h-32 overflow-y-auto">{(user.requests ?? []).map((r: any) => (<div key={r.id} className="text-[10px] flex justify-between glass rounded-lg px-2 py-1"><span>{r.type === "taxi" ? "🚕" : "🛠️"} {r.status}</span><span className="text-muted-foreground">{new Date(r.created_at).toLocaleDateString("ar-IQ")}</span></div>))}</div></div>
+          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">المعاملات ({user.transactions?.length ?? 0})</div><div className="space-y-1 max-h-32 overflow-y-auto">{(user.transactions ?? []).map((tx: AdminTransaction) => (<div key={tx.id} className="text-[10px] flex justify-between glass rounded-lg px-2 py-1"><span>{tx.type === "credit" ? "+" : "-"}{Number(tx.amount).toLocaleString()} د.ع</span><span className="text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("ar-IQ")}</span></div>))}</div></div>
+          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الطلبات ({user.requests?.length ?? 0})</div><div className="space-y-1 max-h-32 overflow-y-auto">{(user.requests ?? []).map((r: AdminRequest) => (<div key={r.id} className="text-[10px] flex justify-between glass rounded-lg px-2 py-1"><span>{r.type === "taxi" ? "🚕" : "🛠️"} {r.status}</span><span className="text-muted-foreground">{new Date(r.created_at).toLocaleDateString("ar-IQ")}</span></div>))}</div></div>
         </div>
       </div>
     </div>
   );
 }
 
-function BlockModal({ target, onConfirm, onClose }: any) {
+function BlockModal({ target, onConfirm, onClose }: { target: BlockTarget; onConfirm: (id: string, reason: string, expiresAt: string | null) => void; onClose: () => void }) {
   const [reason, setReason] = useState("");
   const [duration, setDuration] = useState("permanent");
   function getExpiry(): string | null { if (duration === "permanent") return null; const now = new Date(); switch (duration) { case "1h": now.setHours(now.getHours() + 1); break; case "24h": now.setDate(now.getDate() + 1); break; case "7d": now.setDate(now.getDate() + 7); break; case "30d": now.setDate(now.getDate() + 30); break; } return now.toISOString(); }
@@ -309,11 +330,11 @@ function BlockModal({ target, onConfirm, onClose }: any) {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: any }) { return (<div className="flex justify-between text-xs"><span className="text-muted-foreground">{label}</span><span className="font-bold">{value ?? "—"}</span></div>); }
+function InfoRow({ label, value }: { label: string; value: ReactNode }) { return (<div className="flex justify-between text-xs"><span className="text-muted-foreground">{label}</span><span className="font-bold">{value ?? "—"}</span></div>); }
 
 function ProvidersSection() {
   const [type, setType] = useState("driver");
-  const [providers, setProviders] = useState<any[]>([]);
+  const [providers, setProviders] = useState<AdminProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const listProviders = useServerFn(adminListProviders);
   const setStatus = useServerFn(adminSetProviderStatus);
@@ -339,7 +360,7 @@ function ProvidersSection() {
 
 function RequestsSection() {
   const [statusFilter, setStatusFilter] = useState("all");
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const listRequests = useServerFn(adminListRequests);
   const cancelRequest = useServerFn(adminCancelRequest);
@@ -371,8 +392,8 @@ function RequestsSection() {
 
 function ChatSection() {
   const [tab, setTab] = useState("chats");
-  const [chats, setChats] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [chats, setChats] = useState<AdminChat[]>([]);
+  const [messages, setMessages] = useState<AdminMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const listChats = useServerFn(adminListChats);
   const listMessages = useServerFn(adminListMessages);
@@ -391,8 +412,8 @@ function ChatSection() {
 
 function FriendsSection() {
   const [tab, setTab] = useState("friends");
-  const [friends, setFriends] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
+  const [friends, setFriends] = useState<AdminFriend[]>([]);
+  const [requests, setRequests] = useState<AdminFriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const listFriends = useServerFn(adminListFriends);
   const listFriendRequests = useServerFn(adminListFriendRequests);
@@ -410,14 +431,14 @@ function FriendsSection() {
 }
 
 function ReportsSection() {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<AdminReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const listReports = useServerFn(adminListReports);
   const resolveReport = useServerFn(adminResolveReport);
   const load = useCallback(async () => { setLoading(true); try { setReports(await listReports({ data: { status: statusFilter } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [statusFilter, listReports]);
   useEffect(() => { load(); }, [load]);
-  async function handleResolve(id: string, status: string, note?: string) { try { await resolveReport({ data: { report_id: id, status: status as any, note } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
+  async function handleResolve(id: string, status: string, note?: string) { try { await resolveReport({ data: { report_id: id, status: status as "resolved" | "closed" | "dismissed", note } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة البلاغات</h2>
@@ -449,16 +470,16 @@ function SubscriptionsSection() {
 }
 
 function CouponsSection() {
-  const [coupons, setCoupons] = useState<any[]>([]);
+  const [coupons, setCoupons] = useState<AdminCoupon[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<AdminCoupon | null>(null);
   const [showModal, setShowModal] = useState(false);
   const listCoupons = useServerFn(adminListCoupons);
   const saveCoupon = useServerFn(adminSaveCoupon);
   const deleteCoupon = useServerFn(adminDeleteCoupon);
   const load = useCallback(async () => { setLoading(true); try { setCoupons(await listCoupons()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [listCoupons]);
   useEffect(() => { load(); }, [load]);
-  async function handleSave(data: any) { try { await saveCoupon({ data }); setShowModal(false); load(); } catch (error) { console.error("[admin] action failed", error); } }
+  async function handleSave(data: CouponInput) { try { await saveCoupon({ data }); setShowModal(false); load(); } catch (error) { console.error("[admin] action failed", error); } }
   async function handleDelete(id: string) { try { await deleteCoupon({ data: { coupon_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
     <div>
@@ -478,7 +499,7 @@ function CouponsSection() {
   );
 }
 
-function CouponModal({ coupon, onSave, onClose }: any) {
+function CouponModal({ coupon, onSave, onClose }: { coupon: AdminCoupon | null; onSave: (data: CouponInput) => void; onClose: () => void }) {
   const [form, setForm] = useState({ id: coupon?.id, code: coupon?.code ?? "", type: coupon?.type ?? "percentage", value: coupon?.value ?? 10, max_uses: coupon?.max_uses ?? 1000, expires_at: coupon?.expires_at ?? null, active: coupon?.active ?? true, min_amount: coupon?.min_amount ?? 0 });
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4">
@@ -498,7 +519,7 @@ function CouponModal({ coupon, onSave, onClose }: any) {
 }
 
 function WalletSection() {
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [adjustModal, setAdjustModal] = useState(false);
   const listTx = useServerFn(adminListTransactions);
@@ -520,7 +541,7 @@ function WalletSection() {
   );
 }
 
-function WalletAdjustModal({ onConfirm, onClose }: any) {
+function WalletAdjustModal({ onConfirm, onClose }: { onConfirm: (userId: string, amount: number, type: "credit" | "debit", note: string) => void; onClose: () => void }) {
   const [userId, setUserId] = useState("");
   const [amount, setAmount] = useState(0);
   const [type, setType] = useState("credit");
@@ -541,8 +562,8 @@ function WalletAdjustModal({ onConfirm, onClose }: any) {
 }
 
 function MapSection() {
-  const [locations, setLocations] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
+  const [locations, setLocations] = useState<AdminLocation[]>([]);
+  const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const getLocations = useServerFn(adminGetLiveLocations);
   const getRequests = useServerFn(adminGetLiveRequests);
@@ -585,10 +606,10 @@ function NotificationsSection() {
 }
 
 function RolesSection() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleModal, setRoleModal] = useState<any | null>(null);
+  const [roleModal, setRoleModal] = useState<AdminUser | null>(null);
   const listUsers = useServerFn(adminListUsers);
   const searchUsers = useServerFn(adminSearchUsers);
   const grantRole = useServerFn(adminGrantRole);
@@ -607,7 +628,7 @@ function RolesSection() {
   );
 }
 
-function RoleModal({ user, onGrant, onRevoke, onClose }: any) {
+function RoleModal({ user, onGrant, onRevoke, onClose }: { user: AdminUser; onGrant: (userId: string, role: string) => void; onRevoke: (userId: string, role: string) => void; onClose: () => void }) {
   const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const getUserRoles = useServerFn(adminGetUserRoles);
@@ -626,7 +647,7 @@ function RoleModal({ user, onGrant, onRevoke, onClose }: any) {
 }
 
 function AuditSection() {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AdminAuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const listLogs = useServerFn(adminListAuditLogs);
   useEffect(() => { (async () => { try { setLogs(await listLogs({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [listLogs]);
