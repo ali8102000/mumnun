@@ -71,8 +71,9 @@ Deno.serve(async (req: Request) => {
 
         if (existing) continue;
 
-        const plan = sub.plan as { name_ar: string } | null;
-        const planName = plan?.name_ar ?? "اشتراكك";
+        const planRelation = sub.plan;
+        const plan = Array.isArray(planRelation) ? planRelation[0] : planRelation;
+        const planName = typeof plan?.name_ar === "string" ? plan.name_ar : "اشتراكك";
         const notifBody =
           days === 1
             ? `ينتهي ${planName} غداً. جدد الآن للاستمرار في استقبال الطلبات.`
@@ -108,8 +109,9 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
+    console.error("[subscription-cron]", err instanceof Error ? err.message : "unknown error");
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
