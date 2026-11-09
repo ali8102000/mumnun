@@ -22,18 +22,18 @@ BEGIN
     RAISE EXCEPTION 'user_required';
   END IF;
 
-  INSERT INTO public.taxi_request_rate_limits (user_id, window_started_at, request_count)
+  INSERT INTO public.taxi_request_rate_limits AS limits (user_id, window_started_at, request_count)
   VALUES (_user_id, now(), 1)
   ON CONFLICT (user_id) DO UPDATE
   SET window_started_at = CASE
-        WHEN public.taxi_request_rate_limits.window_started_at <= now() - interval '60 seconds'
+        WHEN limits.window_started_at <= now() - interval '60 seconds'
           THEN now()
         ELSE public.taxi_request_rate_limits.window_started_at
       END,
       request_count = CASE
         WHEN public.taxi_request_rate_limits.window_started_at <= now() - interval '60 seconds'
           THEN 1
-        ELSE public.taxi_request_rate_limits.request_count + 1
+        ELSE limits.request_count + 1
       END
   RETURNING request_count INTO v_count;
 
