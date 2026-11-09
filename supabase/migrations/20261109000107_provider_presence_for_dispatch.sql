@@ -181,10 +181,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT
-    md5(pl.user_id::text) AS pin_id,
-    pl.lat,
-    pl.lng,
-    pl.heading
+    gen_random_uuid()::text AS pin_id,
+    round(pl.lat, 2) AS lat,
+    round(pl.lng, 2) AS lng,
+    NULL::numeric AS heading
   FROM public.provider_locations pl
   WHERE pl.updated_at > now() - interval '90 seconds'
     AND (
