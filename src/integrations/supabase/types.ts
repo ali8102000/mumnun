@@ -46,9 +46,40 @@ export type Database = {
           },
         ]
       }
+      provider_locations: {
+        Row: {
+          user_id: string
+          role: string
+          lat: number
+          lng: number
+          heading: number | null
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          role: string
+          lat: number
+          lng: number
+          heading?: number | null
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          role?: string
+          lat?: number
+          lng?: number
+          heading?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       driver_profiles: {
         Row: {
           available: boolean
+          is_verified: boolean
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
           completed_rides: number
           rating_avg: number
           ratings_count: number
@@ -65,6 +96,10 @@ export type Database = {
         }
         Insert: {
           available?: boolean
+          is_verified?: boolean
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
           completed_rides?: number
           rating_avg?: number
           ratings_count?: number
@@ -634,6 +669,10 @@ export type Database = {
       worker_profiles: {
         Row: {
           available: boolean
+          is_verified: boolean
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
           bio: string | null
           completed_jobs: number
           level: Database["public"]["Enums"]["worker_level"]
@@ -644,6 +683,10 @@ export type Database = {
         }
         Insert: {
           available?: boolean
+          is_verified?: boolean
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
           bio?: string | null
           completed_jobs?: number
           level?: Database["public"]["Enums"]["worker_level"]
