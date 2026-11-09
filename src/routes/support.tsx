@@ -17,6 +17,7 @@ export const Route = createFileRoute("/support")({ ssr: false,
 
 type Ticket = {
   id: string;
+  user_id: string;
   subject: string;
   description: string;
   category: string;
@@ -26,6 +27,7 @@ type Ticket = {
 
 type TicketMessage = {
   id: string;
+  ticket_id: string;
   sender_id: string;
   message: string;
   is_staff: boolean;
