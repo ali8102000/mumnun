@@ -138,7 +138,7 @@ function CustomerHome() {
           delay={0.05}
         />
         <QuickTile
-          to="/request/new" type="service"
+          type="service"
           title="طلب فني" subtitle="١٦ خدمة"
           icon={<Wrench className="h-6 w-6" />}
           gradient="from-emerald-500 to-teal-400"
