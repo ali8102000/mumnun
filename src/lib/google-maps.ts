@@ -42,7 +42,8 @@ type AdapterMap = { _map: LeafletMap };
 type LatLngInput = google.maps.LatLng | google.maps.LatLngLiteral;
 
 function coordinates(position: LatLngInput): [number, number] {
-  if (position instanceof google.maps.LatLng) {
+  const LatLngConstructor = (window as BrowserWindow).google?.maps.LatLng;
+  if (LatLngConstructor && position instanceof LatLngConstructor) {
     return [position.lat(), position.lng()];
   }
   return [position.lat, position.lng];
