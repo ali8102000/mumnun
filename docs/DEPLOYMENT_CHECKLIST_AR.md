@@ -37,6 +37,7 @@
 - `20261109000107_provider_presence_for_dispatch.sql`
 - `20261109000108_nearby_service_dispatch_and_acceptance.sql`
 - `20261109000109_lock_down_request_mutations.sql`
+- `20261109000110_safe_taxi_dispatch_retries.sql`
 
 راجعها أولاً على بيئة تطوير منفصلة، ثم اربط Supabase CLI بالمشروع الصحيح وتحقق أن Project Ref هو `zvfdymcalzqhvwnipuup` قبل تشغيل `supabase db push`.
 لا تطبقها على الإنتاج قبل اختبار تسجيل الدخول والأدوار والطلبات والمحافظات المالية على بيئة staging.
