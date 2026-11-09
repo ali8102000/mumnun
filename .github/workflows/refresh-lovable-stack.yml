@@ -1,0 +1,38 @@
+name: Refresh Lovable TanStack toolchain (one-time)
+
+on:
+  push:
+    branches:
+      - mamnoon-production-hardening-2026-11-09
+    paths:
+      - .github/workflows/refresh-lovable-stack.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: mamnoon-production-hardening-2026-11-09
+      - uses: oven-sh/setup-bun@v2
+      - name: Update compatible Lovable and TanStack packages
+        run: |
+          bun add --dev @lovable.dev/vite-tanstack-config@2.27.0
+          bun add @tanstack/react-start@1.169.5 @tanstack/react-router@1.170.46 @tanstack/router-plugin@1.169.0
+      - name: Verify types, production build, tests, and lint
+        run: |
+          bunx tsc --noEmit
+          bun run build
+          bun run test:unit
+          bun run lint
+      - name: Commit verified dependency update and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json bun.lock
+          git rm .github/workflows/refresh-lovable-stack.yml
+          git commit -m "Update compatible Lovable TanStack toolchain"
+          git push origin mamnoon-production-hardening-2026-11-09
