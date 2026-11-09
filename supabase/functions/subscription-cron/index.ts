@@ -53,7 +53,8 @@ Deno.serve(async (req: Request) => {
 
         if (existing) continue;
 
-        const planName = (sub.plan as any)?.name_ar ?? "اشتراكك";
+        const plan = sub.plan as { name_ar: string } | null;
+        const planName = plan?.name_ar ?? "اشتراكك";
         const notifBody =
           days === 1
             ? `ينتهي ${planName} غداً. جدد الآن للاستمرار في استقبال الطلبات.`
