@@ -36,6 +36,7 @@ Base branch: main (unchanged)
 - Removed direct client update paths for service_requests and request_offers; customers can directly create only home-service requests, while taxi creation now runs server-side with trusted route-based fare calculation.
 - Hardened taxi dispatch retries: active 45-second offer batches are not resent, expired offers are retained as expired history, and eligible providers can be re-offered safely after expiry. Expo request details expose a retry action.
 - Protected driver/worker rating aggregates and completed-job counters from direct profile edits; verified vehicle identity and worker level cannot be changed by providers without administrative review.
+- Added an atomic per-customer rolling 60-second taxi request limiter (3 requests) used by both web and Expo server-side taxi creation paths.
 - Added `create-taxi-request` Edge Function for authenticated Expo taxi creation with server-computed route distance, duration and fare; the native client no longer supplies taxi fare/distance to the database.
 - Added a separate provider_locations presence table for discoverable online drivers/workers, with authenticated writes and self-row-only reads, 90-second freshness checks, anti-spoof speed checks, and nearby driver/pin RPCs reading only verified available provider presence. Nearby map pins are rounded to 2 decimal places, use per-query IDs, and are restricted to authenticated customers.
 - Restricted home-service request visibility and acceptance to verified, available workers with fresh provider presence within 10 km; the acceptance RPC rechecks eligibility atomically.
@@ -47,7 +48,7 @@ Base branch: main (unchanged)
 The Google Maps API key was previously committed in the repository. It has been removed from the edited source files, but it must be rotated/restricted in Google Cloud because removal from current source does not invalidate historical Git objects or prior builds. Restrict the replacement key by Android package name and signing SHA-1 and only the required Maps APIs. Set it as EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in the EAS environment.
 
 ### P1: Supabase migrations are not deployed
-The twelve new SQL migrations (00100 through 00111) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
+The fourteen new SQL migrations (00100 through 00113) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
 
 ### P1: Expo route pricing and map verification
 The Expo request screen now uses expo-location and react-native-maps to collect pickup and destination coordinates and passes them to service_requests, fixing the missing-pickup-coordinate dispatch blocker. The displayed fare is explicitly a rough straight-line-derived estimate only. No trusted road-route distance/duration calculation or server-authoritative final fare has been integrated into the native flow. Google Maps key rotation/configuration and real-device map validation remain required.
