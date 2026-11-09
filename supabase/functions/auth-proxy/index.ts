@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient, type Session, type User } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 const corsHeaders = {
@@ -69,50 +69,28 @@ Deno.serve(async (req: Request) => {
       const client = createClient(supabaseUrl, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
-      let user: User | null = null;
-      let session: Session | null = null;
-
+      // Do not use the admin API to auto-confirm synthetic phone emails:
+      // that would let anyone claim a phone number without proving ownership.
       if (email.endsWith("@mamnoon.app")) {
-        // Phone-only accounts use a non-deliverable internal email. Confirm it
-        // server-side so signup does not ask users to verify an inbox they do not own.
-        const { data: created, error: createError } = await supabase.auth.admin.createUser({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { full_name, phone },
-        });
-        if (createError) return json({ error: safeError(createError.message) }, 400);
-        user = created.user;
-
-        const { data: signedIn, error: signInError } = await client.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (signInError || !signedIn.session) {
-          return json({ error: "Account created but sign-in could not be completed" }, 500);
-        }
-        session = signedIn.session;
-      } else {
-        const { data, error } = await client.auth.signUp({
-          email,
-          password,
-          options: { data: { full_name, phone } },
-        });
-        if (error) return json({ error: safeError(error.message) }, 400);
-        user = data.user;
-        session = data.session;
+        return json({ error: "Phone verification is not configured. Register with a real email address until SMS verification is enabled." }, 503);
       }
 
-      if (user) {
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name, phone } },
+      });
+      if (error) return json({ error: safeError(error.message) }, 400);
+      if (data.user) {
         const { error: profileError } = await supabase.from("profiles").upsert({
-          id: user.id,
+          id: data.user.id,
           phone,
           full_name,
-          email: email.includes("@mamnoon.app") ? null : email,
+          email,
         });
         if (profileError) return json({ error: "Account created but profile setup failed" }, 500);
       }
-      return json({ user, session });
+      return json({ user: data.user, session: data.session });
     }
 
     if (path === "/login" && req.method === "POST") {
