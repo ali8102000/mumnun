@@ -77,3 +77,4 @@ jobs:
           deno-version: v2.x
       - run: deno check --node-modules-dir=auto supabase/functions/create-taxi-request/index.ts
       - run: deno check --node-modules-dir=auto supabase/functions/auth-proxy/index.ts
+      - run: deno check --node-modules-dir=auto supabase/functions/subscription-cron/index.ts
