@@ -5,13 +5,20 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import * as Location from 'expo-location';
 
+type IncomingRequest = {
+  id: string;
+  type: string;
+  price_estimate: number | null;
+  customer: { full_name: string | null; phone: string | null } | null;
+};
+
 export default function HomeScreen() {
   const { user, profile, roles } = useAuth();
   const [activeRole, setActiveRole] = useState<string>(roles[0] || 'customer');
   const [available, setAvailable] = useState(false);
   const [verified, setVerified] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState('pending');
-  const [incoming, setIncoming] = useState<any[]>([]);
+  const [incoming, setIncoming] = useState<IncomingRequest[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const isWorker = activeRole === 'worker' || activeRole === 'driver';
 
@@ -25,7 +32,7 @@ export default function HomeScreen() {
       .in('status', isDriver ? ['searching'] : ['pending', 'searching'])
       .order('created_at', { ascending: false })
       .limit(10);
-    setIncoming(data || []);
+    setIncoming((data ?? []) as IncomingRequest[]);
   }, [activeRole]);
 
   useEffect(() => {
@@ -206,7 +213,7 @@ function CustomerHome() {
   );
 }
 
-function ProviderHome({ available, verified, verificationStatus, toggleAvailable, incoming }: { available: boolean; verified: boolean; verificationStatus: string; toggleAvailable: () => void; incoming: any[] }) {
+function ProviderHome({ available, verified, verificationStatus, toggleAvailable, incoming }: { available: boolean; verified: boolean; verificationStatus: string; toggleAvailable: () => void; incoming: IncomingRequest[] }) {
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
       <TouchableOpacity style={[styles.availCard, available && styles.availCardActive, !verified && { opacity: 0.65 }]} onPress={toggleAvailable} activeOpacity={0.85} disabled={!verified}>
@@ -225,7 +232,7 @@ function ProviderHome({ available, verified, verificationStatus, toggleAvailable
             <View style={{ flex: 1 }}>
               <Text style={styles.requestCustomer}>{req.customer?.full_name || 'زبون'}</Text>
               <Text style={styles.requestType}>{req.type === 'taxi' ? '🚕 طلب سيارة' : `🔧 ${req.type}`}</Text>
-              <Text style={styles.requestPrice}>{req.estimated_price?.toLocaleString('en')} د.ع</Text>
+              <Text style={styles.requestPrice}>{req.price_estimate?.toLocaleString('en')} د.ع</Text>
             </View>
             <Text style={styles.requestArrow}>←</Text>
           </TouchableOpacity>
