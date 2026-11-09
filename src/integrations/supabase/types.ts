@@ -342,6 +342,9 @@ export type Database = {
           comment: string | null
           created_at: string
           id: string
+          professionalism: number | null
+          punctuality: number | null
+          quality: number | null
           ratee_id: string
           rater_id: string
           request_id: string
@@ -351,6 +354,9 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          professionalism?: number | null
+          punctuality?: number | null
+          quality?: number | null
           ratee_id: string
           rater_id: string
           request_id: string
@@ -360,6 +366,9 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          professionalism?: number | null
+          punctuality?: number | null
+          quality?: number | null
           ratee_id?: string
           rater_id?: string
           request_id?: string
