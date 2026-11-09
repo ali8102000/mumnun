@@ -325,13 +325,13 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
   }
 
   useEffect(() => {
-    if (!session || !available || !verified || !navigator.geolocation) return;
-    const userId = session.user.id;
+    const userId = session?.user.id;
+    if (!userId || !available || !verified || !navigator.geolocation) return;
     let warned = false;
     let loadedOnce = false;
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        void (supabase as any).from("provider_locations").upsert({
+        void supabase.from("provider_locations").upsert({
           user_id: userId,
           role: type === "taxi" ? "driver" : "worker",
           lat: position.coords.latitude,
