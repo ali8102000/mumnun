@@ -70,7 +70,7 @@ function OnboardingDriver() {
         vehicle_category: selected.category,
         vehicle_plate: plate.trim(),
         vehicle_color: color.trim() || null,
-        available: true,
+        available: false,
       });
       if (error) throw error;
       await grantProviderRole({ data: { role: "driver" } });
