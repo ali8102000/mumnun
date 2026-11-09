@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS public.provider_locations (
 
 ALTER TABLE public.provider_locations ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.provider_locations FROM PUBLIC, anon, authenticated;
-GRANT INSERT, UPDATE ON TABLE public.provider_locations TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.provider_locations TO authenticated;
+-- No SELECT policy is defined: direct reads still return no rows under RLS.
 GRANT ALL ON TABLE public.provider_locations TO service_role;
 
 CREATE POLICY "Verified available providers publish own presence"
