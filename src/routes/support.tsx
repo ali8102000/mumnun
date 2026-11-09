@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Headphones, Plus, MessageSquare, Send } from "lucide-react";
@@ -31,6 +31,25 @@ type TicketMessage = {
   is_staff: boolean;
   created_at: string;
 };
+type QueryResult<T> = { data: T | null; error: { message: string } | null };
+interface SupportQuery<T> extends PromiseLike<QueryResult<T>> {
+  select(columns?: string): SupportQuery<T>;
+  eq(column: string, value: string): SupportQuery<T>;
+  order(column: string, options?: { ascending?: boolean }): SupportQuery<T>;
+  insert(values: Partial<T> | Partial<T>[]): SupportQuery<T>;
+  maybeSingle(): Promise<QueryResult<T extends Array<infer Row> ? Row : T>>;
+}
+type SupportClient = {
+  from(table: "support_tickets"): SupportQuery<Ticket[]>;
+  from(table: "support_ticket_messages"): SupportQuery<TicketMessage[]>;
+  channel(name: string): {
+    on(event: "postgres_changes", filter: { event: "INSERT"; schema: "public"; table: "support_ticket_messages"; filter: string }, callback: (payload: { new: TicketMessage }) => void): {
+      subscribe(): unknown;
+    };
+  };
+  removeChannel(channel: unknown): Promise<unknown>;
+};
+
 
 function SupportCenter() {
   const { session, loading } = useAuth();
@@ -44,46 +63,50 @@ function SupportCenter() {
   const [reply, setReply] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadingTickets, setLoadingTickets] = useState(true);
+  const supportDb = supabase as unknown as SupportClient;
 
-  useEffect(() => {
+  const loadTickets = useCallback(async () => {
     if (!session) return;
-    loadTickets();
-  }, [session]);
-
-  async function loadTickets() {
     setLoadingTickets(true);
-    const { data } = await (supabase as any)
+    const { data, error } = await supportDb
       .from("support_tickets")
       .select("*")
-      .eq("user_id", session!.user.id)
+      .eq("user_id", session.user.id)
       .order("created_at", { ascending: false });
+    if (error) toast.error("تعذّر تحميل تذاكر الدعم");
     setTickets(data ?? []);
     setLoadingTickets(false);
-  }
+  }, [session, supportDb]);
 
-  async function loadMessages(ticketId: string) {
-    const { data } = await (supabase as any)
+  useEffect(() => {
+    void loadTickets();
+  }, [loadTickets]);
+
+  const loadMessages = useCallback(async (ticketId: string) => {
+    const { data, error } = await supportDb
       .from("support_ticket_messages")
       .select("*")
       .eq("ticket_id", ticketId)
       .order("created_at");
+    if (error) toast.error("تعذّر تحميل رسائل التذكرة");
     setMessages(data ?? []);
 
-    const ch = (supabase as any)
+    const channel = supportDb
       .channel(`support-${ticketId}-${Math.random().toString(36).slice(2, 8)}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_ticket_messages", filter: `ticket_id=eq.${ticketId}` }, (payload: any) => {
-        setMessages((prev) => [...prev, payload.new]);
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_ticket_messages", filter: `ticket_id=eq.${ticketId}` }, (payload) => {
+        setMessages((previous) => [...previous, payload.new]);
       })
       .subscribe();
 
-    return () => { (supabase as any).removeChannel(ch); };
-  }
+    return () => { void supportDb.removeChannel(channel); };
+  }, [supportDb]);
 
   useEffect(() => {
     if (!selected) return;
-    const cleanup = loadMessages(selected.id);
-    return () => { cleanup.then((fn) => fn?.()); };
-  }, [selected]);
+    let cleanup: (() => void) | undefined;
+    void loadMessages(selected.id).then((dispose) => { cleanup = dispose; });
+    return () => { cleanup?.(); };
+  }, [selected, loadMessages]);
 
   if (loading) return null;
   if (!session) return <Navigate to="/auth" />;
@@ -92,7 +115,7 @@ function SupportCenter() {
     if (!newSubject.trim() || !newDesc.trim()) return;
     setBusy(true);
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supportDb
         .from("support_tickets")
         .insert({
           user_id: session!.user.id,
@@ -107,10 +130,10 @@ function SupportCenter() {
       setShowNew(false);
       setNewSubject("");
       setNewDesc("");
-      loadTickets();
+      void loadTickets();
       if (data) setSelected(data);
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "حدث خطأ غير متوقع");
     } finally {
       setBusy(false);
     }
@@ -120,7 +143,7 @@ function SupportCenter() {
     if (!reply.trim() || !selected) return;
     setBusy(true);
     try {
-      const { error } = await (supabase as any)
+      const { error } = await supportDb
         .from("support_ticket_messages")
         .insert({
           ticket_id: selected.id,
