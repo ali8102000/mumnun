@@ -198,46 +198,62 @@ export default function NewRequest() {
         throw new Error('الخدمة المختارة غير متاحة حالياً.');
       }
 
-      const straightDistance = destinationCoords
-        ? haversineKm(
-            pickupCoords.latitude,
-            pickupCoords.longitude,
-            destinationCoords.latitude,
-            destinationCoords.longitude,
-          )
-        : null;
-
-      const { data, error } = await supabase
-        .from('service_requests')
-        .insert({
-          customer_id: user.id,
-          type: isTaxi ? 'taxi' : 'service',
-          status: isTaxi ? 'searching' : 'pending',
-          service_id: serviceRow?.id ?? null,
-          pickup_text: pickup,
-          pickup_lat: pickupCoords.latitude,
-          pickup_lng: pickupCoords.longitude,
-          dest_text: destination || null,
-          dest_lat: destinationCoords?.latitude ?? null,
-          dest_lng: destinationCoords?.longitude ?? null,
-          distance_km: straightDistance,
-          vehicle_category: isTaxi ? vehicleCat : null,
-          level_required: !isTaxi ? workerLevel : null,
-          workers_count: !isTaxi ? extraWorkers + 1 : 1,
-          notes: notes || null,
-          price_estimate: price,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-
+      let requestId: string;
       if (isTaxi) {
+        const { data: taxiRequest, error: taxiError } = await supabase.functions.invoke('create-taxi-request', {
+          body: {
+            pickupLat: pickupCoords.latitude,
+            pickupLng: pickupCoords.longitude,
+            pickupText: pickup,
+            destinationLat: destinationCoords!.latitude,
+            destinationLng: destinationCoords!.longitude,
+            destinationText: destination,
+            vehicleCategory: vehicleCat,
+            notes,
+          },
+        });
+        if (taxiError) throw taxiError;
+        if (!taxiRequest?.requestId) throw new Error('تعذّر إنشاء طلب التكسي.');
+        requestId = taxiRequest.requestId;
+
         const { error: dispatchError } = await supabase.rpc('dispatch_request', {
-          _request_id: data.id,
+          _request_id: requestId,
         });
         if (dispatchError) throw dispatchError;
+      } else {
+        const chosenService = SERVICES.find((item) => item.slug === selectedService);
+        const { data: serviceRow, error: serviceError } = await supabase
+          .from('services')
+          .select('id')
+          .eq('slug', selectedService)
+          .maybeSingle();
+        if (serviceError) throw serviceError;
+        if (!serviceRow?.id) throw new Error('الخدمة المختارة غير متاحة حالياً.');
+
+        const { data: request, error } = await supabase
+          .from('service_requests')
+          .insert({
+            customer_id: user.id,
+            type: 'service',
+            status: 'pending',
+            service_id: serviceRow.id,
+            pickup_text: pickup,
+            pickup_lat: pickupCoords.latitude,
+            pickup_lng: pickupCoords.longitude,
+            dest_text: destination || null,
+            dest_lat: destinationCoords?.latitude ?? null,
+            dest_lng: destinationCoords?.longitude ?? null,
+            level_required: workerLevel,
+            workers_count: extraWorkers + 1,
+            notes: notes || null,
+          })
+          .select('id')
+          .single();
+        if (error || !request) throw error ?? new Error('تعذّر إنشاء طلب الخدمة.');
+        requestId = request.id;
       }
-      router.replace({ pathname: '/request/[id]', params: { id: data.id } });
+
+      router.replace({ pathname: '/request/[id]', params: { id: requestId } });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع';
       Alert.alert('تعذر إرسال الطلب', message);
