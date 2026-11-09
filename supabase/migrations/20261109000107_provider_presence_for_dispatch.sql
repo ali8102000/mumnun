@@ -15,6 +15,10 @@ GRANT SELECT, INSERT, UPDATE ON TABLE public.provider_locations TO authenticated
 -- No SELECT policy is defined: direct reads still return no rows under RLS.
 GRANT ALL ON TABLE public.provider_locations TO service_role;
 
+CREATE POLICY "Providers read only own presence"
+ON public.provider_locations FOR SELECT TO authenticated
+USING (user_id = auth.uid());
+
 CREATE POLICY "Verified available providers publish own presence"
 ON public.provider_locations FOR INSERT TO authenticated
 WITH CHECK (
