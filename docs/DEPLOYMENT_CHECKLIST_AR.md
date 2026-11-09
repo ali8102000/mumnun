@@ -1,0 +1,49 @@
+# خطوات تهيئة ممنون قبل بناء Android
+
+هذه الخطوات تخص تطبيق Expo الموجود داخل `expo-app/`، وليس المجلد الجزئي `mobile/`.
+
+## 1) تدوير مفتاح خرائط Google المكشوف سابقاً
+1. افتح Google Cloud Console.
+2. افتح APIs & Services ثم Credentials.
+3. احذف/عطّل المفتاح القديم الذي سبق نشره داخل المستودع.
+4. أنشئ مفتاحاً جديداً.
+5. قيّده باسم حزمة Android: `com.mamnoon.app` وبصمة SHA-1 لشهادة توقيع EAS.
+6. فعّل فقط واجهات الخرائط المطلوبة فعلياً.
+7. لا تحفظ المفتاح في ملفات Git.
+
+## 2) متغيرات Expo/EAS
+أضف المتغيرات التالية في EAS Environment الخاص بالتطبيق:
+- `EXPO_PUBLIC_SUPABASE_URL`: عنوان مشروع Supabase المعتمد.
+- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: مفتاح Supabase publishable/anon الخاص بالعميل فقط.
+- `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`: مفتاح Google Maps الجديد والمقيّد.
+- `EAS_PROJECT_ID`: معرّف مشروع Expo/EAS الذي تنشئه أو تربطه بحسابك.
+
+لا تضف `SUPABASE_SERVICE_ROLE_KEY` إلى أي متغير يبدأ بـ `EXPO_PUBLIC_` ولا إلى تطبيق الهاتف.
+
+## 3) تطبيق migrations
+المجلد `supabase/migrations/` يحتوي migrations الجديدة:
+- `20261109000100_lock_down_system_write_policies.sql`
+- `20261109000101_restrict_self_service_role_changes.sql`
+- `20261109000102_progressive_taxi_dispatch.sql`
+
+راجعها أولاً على بيئة تطوير منفصلة، ثم اربط Supabase CLI بالمشروع الصحيح وتحقق أن Project Ref هو `zvfdymcalzqhvwnipuup` قبل تشغيل `supabase db push`.
+لا تطبقها على الإنتاج قبل اختبار تسجيل الدخول والأدوار والطلبات والمحافظات المالية على بيئة staging.
+
+## 4) البناء
+من مجلد `expo-app/`:
+```bash
+bun install --frozen-lockfile
+bunx expo config --type public
+bunx tsc --noEmit
+eas build --platform android --profile production
+```
+
+لا تعتبر نجاح بناء AAB دليلاً على نجاح GPS أو الخرائط أو الإشعارات أو دورة الرحلة. اختبر ذلك على أجهزة Android فعلية وحسابات راكب وسائق وفني منفصلة.
+
+## 5) ما يزال مطلوباً قبل الإطلاق
+- إكمال اختيار نقطة الانطلاق والوجهة على خريطة فعلية وحفظ الإحداثيات.
+- حساب المسافة ووقت الطريق والأجرة من مصدر موثوق وعلى الخادم.
+- تنفيذ تتبع مباشر موثوق وإشعارات Push حقيقية.
+- إكمال التحقق الإداري من هوية السائق والفني قبل السماح باستقبال الطلبات.
+- اختبار RLS ودورة الطلب المتزامنة والماليات والاسترداد.
+- نجاح CI وEAS build واختبارات الأجهزة الحقيقية.
