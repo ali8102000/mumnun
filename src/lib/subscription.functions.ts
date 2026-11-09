@@ -8,9 +8,9 @@ type SubscriptionQuery<T> = PromiseLike<DbResponse<T>> & {
   select(columns?: string): SubscriptionQuery<T>;
   order(column: string, options?: { ascending?: boolean }): SubscriptionQuery<T>;
   eq(column: string, value: string | number | boolean): SubscriptionQuery<T>;
-  update(values: Record<string, unknown>): SubscriptionQuery<T>;
-  insert(values: Record<string, unknown>): SubscriptionQuery<T>;
-  upsert(values: Record<string, unknown>, options?: { onConflict?: string }): SubscriptionQuery<T>;
+  update(values: object): SubscriptionQuery<T>;
+  insert(values: object): SubscriptionQuery<T>;
+  upsert(values: object, options?: { onConflict?: string }): SubscriptionQuery<T>;
   maybeSingle(): Promise<DbResponse<T>>;
   limit(count: number): Promise<DbResponse<T>>;
 };
@@ -122,7 +122,7 @@ export const adminGetPlans = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { data, error } = await adminDb
-      .from("subscription_plans")
+      .from<PlanRow[]>("subscription_plans")
       .select("*")
       .order("sort_order");
     if (error) throw new Error("Failed to load plans");
@@ -165,7 +165,7 @@ export const adminSavePlan = createServerFn({ method: "POST" })
 
     if (id) {
       const { data: updated, error } = await adminDb
-        .from("subscription_plans")
+        .from<PlanRow>("subscription_plans")
         .update(plan)
         .eq("id", id)
         .select()
@@ -174,7 +174,7 @@ export const adminSavePlan = createServerFn({ method: "POST" })
       return updated;
     } else {
       const { data: created, error } = await adminDb
-        .from("subscription_plans")
+        .from<PlanRow>("subscription_plans")
         .insert(plan)
         .select()
         .maybeSingle();
@@ -207,7 +207,7 @@ export const adminGetSettings = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { data, error } = await adminDb
-      .from("subscription_settings")
+      .from<{ subscription_enabled: boolean; minimum_downloads_before_activation: number }>("subscription_settings")
       .select("*")
       .eq("id", 1)
       .maybeSingle();
@@ -268,7 +268,7 @@ export const adminGetSubscriptions = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { data, error } = await adminDb
-      .from("user_subscriptions")
+      .from<SubscriptionListRow[]>("user_subscriptions")
       .select(`
         id, user_id, status, billing_cycle, current_period_start, current_period_end,
         request_count, auto_renew, created_at,
@@ -315,7 +315,7 @@ export const adminAssignSubscription = createServerFn({ method: "POST" })
     if (upErr) throw new Error("Failed to assign subscription: " + upErr.message);
 
     const { data: plan } = await adminDb
-      .from("subscription_plans")
+      .from<Pick<PlanRow, "monthly_price" | "yearly_price">>("subscription_plans")
       .select("monthly_price, yearly_price")
       .eq("id", data.plan_id)
       .maybeSingle();
