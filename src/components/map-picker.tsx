@@ -65,11 +65,12 @@ export function MapPicker({
   }, []);
   const reverseFallback = useCallback((c: Coords, onDone?: (addr?: string) => void) => {
     lookupMapPlace({ data: { action: "reverse", center: c } })
-      .then((r: any) => {
-        if (r?.address) {
-          setAddress(r.address);
-          report(c, r.address);
-          onDone?.(r.address);
+      .then((result) => {
+        const response = result as { address?: string };
+        if (response.address) {
+          setAddress(response.address);
+          report(c, response.address);
+          onDone?.(response.address);
         } else {
           onDone?.();
         }
@@ -78,9 +79,9 @@ export function MapPicker({
   }, [report]);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const mapRef = useRef<any>(null);
-  const geocoderRef = useRef<any>(null);
-  const idleTimerRef = useRef<any>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressIdleRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,11 +92,11 @@ export function MapPicker({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Array<{ id: string; text: string; secondary: string }>>([]);
-  const sessionTokenRef = useRef<any>(null);
-  const acServiceRef = useRef<any>(null);
-  const placesSvcRef = useRef<any>(null);
+  const sessionTokenRef = useRef<string | null>(null);
+  const acServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesSvcRef = useRef<google.maps.places.PlacesService | null>(null);
   const nearbyMarkersRef = useRef<
-    Map<string, { marker: any; anim: { from: Coords; to: Coords; startedAt: number; raf: number | null; heading: number } | null }>
+    Map<string, { marker: google.maps.Marker; anim: { from: Coords; to: Coords; startedAt: number; raf: number | null; heading: number } | null }>
   >(new Map());
   const readyRef = useRef(false);
 
@@ -141,7 +142,7 @@ export function MapPicker({
               suppressIdleRef.current = false;
               return;
             }
-            geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+            geocoderRef.current?.geocode({ location: c }, (results, status) => {
               if (status === "OK" && results?.[0]) {
                 const addr = results[0].formatted_address;
                 setAddress(addr);
@@ -236,7 +237,7 @@ export function MapPicker({
         };
         existing.anim.raf = requestAnimationFrame(animate);
       } else {
-        const icon: any = {
+        const icon: google.maps.Symbol = {
           path: g.maps.SymbolPath.CIRCLE,
           scale: 8,
           fillColor: nearbyKind === "worker" ? "#10b981" : "#3b82f6",
@@ -328,7 +329,7 @@ export function MapPicker({
         ? { lat: typeof center.lat === "function" ? center.lat() : center.lat, lng: typeof center.lng === "function" ? center.lng() : center.lng }
         : value ?? DEFAULT_CENTER;
       try {
-        const res: any = await lookupMapPlace({ data: { action: "autocomplete", input: q, sessionToken: sessionTokenRef.current, center: c } });
+        const result = await lookupMapPlace({ data: { action: "autocomplete", input: q, sessionToken: sessionTokenRef.current, center: c } });\n        const response = result as { suggestions?: Array<{ id: string; text: string }> };
         if (stale) return;
         if (res.suggestions?.length) {
           setSuggestions(res.suggestions.map((s: any) => ({ id: "g:" + s.id, text: s.text, secondary: "" })));
