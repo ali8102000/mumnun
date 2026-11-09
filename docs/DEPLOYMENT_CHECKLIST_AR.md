@@ -50,6 +50,11 @@ supabase functions deploy create-taxi-request
 - `20261109000111_protect_provider_profile_integrity.sql`
 - `20261109000112_index_customer_request_history.sql`
 - `20261109000113_atomic_taxi_request_rate_limit.sql`
+- `20261109000114_rating_subscores.sql`
+- `20261109000115_restrict_phone_email_lookup.sql`
+- `20261109000116_limit_live_location_reads_to_active_requests.sql`
+- `20261109000117_prevent_reassigning_claimed_requests.sql`
+- `20261109000118_fix_request_cancellation_authorization.sql`
 
 راجعها أولاً على بيئة تطوير منفصلة، ثم اربط Supabase CLI بالمشروع الصحيح وتحقق أن Project Ref هو `zvfdymcalzqhvwnipuup` قبل تشغيل `supabase db push`.
 لا تطبقها على الإنتاج قبل اختبار تسجيل الدخول والأدوار والطلبات والمحافظات المالية على بيئة staging.
@@ -78,3 +83,11 @@ eas build --platform android --profile production
 - اختبار RLS ودورة الطلب المتزامنة والماليات والاسترداد.
 - إصلاح جميع أخطاء ESLint الحالية (آخر فحص سجّل 395 خطأ و40 تحذيراً)، ثم نجاح CI بالكامل.
 - إنتاج AAB موقّع عبر EAS واختباره على أجهزة فعلية قبل النشر.
+
+
+## تحديث التحقق الأخير — 2026-11-09
+
+- فحص GitHub Actions رقم `42594833705` نجح بالكامل: فحوصات الويب والبناء والاختبارات وESLint الكامل، وفحوصات Expo وتصدير Android، وفحص وظائف Supabase الثلاث.
+- هذا النجاح لا يثبت تطبيق migrations على قاعدة Supabase الحية، ولا يغني عن اختبار PostgreSQL/RLS.
+- لا يزال ملف AAB الموقّع واختبار الأجهزة الفعلية وإعداد الأسرار الإنتاجية مطلوبة قبل النشر.
+- OTP مؤجل حالياً حسب قرار صاحب المشروع.
