@@ -9,7 +9,6 @@ type IncomingRequest = {
   id: string;
   type: string;
   price_estimate: number | null;
-  customer: { full_name: string | null; phone: string | null } | null;
 };
 
 export default function HomeScreen() {
@@ -27,7 +26,7 @@ export default function HomeScreen() {
     const isDriver = activeRole === 'driver';
     const { data } = await supabase
       .from('service_requests')
-      .select('*, customer:profiles!service_requests_customer_id_fkey(full_name, phone)')
+      .select('id, type, price_estimate, status, created_at')
       .eq('type', isDriver ? 'taxi' : 'service')
       .in('status', isDriver ? ['searching'] : ['pending', 'searching'])
       .order('created_at', { ascending: false })
@@ -230,7 +229,7 @@ function ProviderHome({ available, verified, verificationStatus, toggleAvailable
         incoming.map((req) => (
           <TouchableOpacity key={req.id} style={styles.requestCard} onPress={() => router.push({ pathname: '/request/[id]', params: { id: req.id } })} activeOpacity={0.85}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.requestCustomer}>{req.customer?.full_name || 'زبون'}</Text>
+              <Text style={styles.requestCustomer}>طلب جديد</Text>
               <Text style={styles.requestType}>{req.type === 'taxi' ? '🚕 طلب سيارة' : `🔧 ${req.type}`}</Text>
               <Text style={styles.requestPrice}>{req.price_estimate?.toLocaleString('en')} د.ع</Text>
             </View>
