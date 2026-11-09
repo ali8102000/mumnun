@@ -147,9 +147,26 @@ export const adminListProviders = createServerFn({ method: "GET" })
     await requireStaff(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const table = data.type === "driver" ? "driver_profiles" : "worker_profiles";
-    const { data: providers, error } = await (supabaseAdmin as any).from(table).select("*, profiles!inner(full_name, phone, email)").order("created_at", { ascending: false }).limit(100);
+    const { data: providers, error } = await (supabaseAdmin as any)
+      .from(table)
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(100);
     if (error) throw new Error("فشل تحميل المزودين");
-    return providers ?? [];
+
+    const providerIds = (providers ?? []).map((provider: any) => provider.user_id);
+    if (providerIds.length === 0) return [];
+    const { data: profiles, error: profilesError } = await (supabaseAdmin as any)
+      .from("profiles")
+      .select("id, full_name, phone, email")
+      .in("id", providerIds);
+    if (profilesError) throw new Error("فشل تحميل بيانات المزودين");
+
+    const profilesById = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]));
+    return (providers ?? []).map((provider: any) => ({
+      ...provider,
+      profiles: profilesById.get(provider.user_id) ?? null,
+    }));
   });
 
 export const adminSetProviderStatus = createServerFn({ method: "POST" })
