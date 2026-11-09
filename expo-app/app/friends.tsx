@@ -18,7 +18,7 @@ export default function FriendsScreen() {
 
   const loadFriends = useCallback(async () => {
     const { data } = await supabase.from('friends').select('friend:profiles!friends_friend_id_fkey(id, full_name, phone)').eq('user_id', user?.id);
-    setFriends((data ?? []).flatMap((row) => row.friend ? [row.friend] : []));
+    setFriends((data ?? []).flatMap((row) => row.friend ?? []));
   }, [user?.id]);
 
   const loadPending = useCallback(async () => {
