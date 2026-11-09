@@ -5,11 +5,11 @@ let enabled = true;
 function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (!ctx) {
-    const AC = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined;
+    const AC = window.AudioContext ?? (Reflect.get(window, "webkitAudioContext") as typeof AudioContext | undefined);
     if (!AC) return null;
     ctx = new AC();
   }
-  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+  if (ctx.state === "suspended") {\n    void ctx.resume().catch((error: unknown) => {\n      console.warn("[click-sound] audio resume failed", error);\n    });\n  }
   return ctx;
 }
 
