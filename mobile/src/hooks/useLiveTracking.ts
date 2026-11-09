@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 import { supabase } from "@/lib/supabase";
@@ -58,7 +58,7 @@ export function useLiveTracking(opts: {
   const lastPushRef = useRef<Coords | null>(null);
   const lastPushTimeRef = useRef<number>(0);
 
-  const push = async (lat: number, lng: number, heading: number | null) => {
+  const push = useCallback(async (lat: number, lng: number, heading: number | null) => {
     if (!requestId || !myUserId) return;
     const now = Date.now();
     const coords: Coords = { lat, lng, heading };
@@ -121,7 +121,7 @@ export function useLiveTracking(opts: {
     })();
 
     return () => {};
-  }, [active, requestId, myUserId, myRole]);
+  }, [active, requestId, myUserId, myRole, push]);
 
   useEffect(() => {
     if (!active || !requestId || !otherUserId) return;
