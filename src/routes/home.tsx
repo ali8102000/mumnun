@@ -338,10 +338,13 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
           lng: position.coords.longitude,
           heading: position.coords.heading,
           updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id" }).then(({ error }: { error: { message: string } | null }) => {
+        }, { onConflict: "user_id" }).then(async ({ error }: { error: { message: string } | null }) => {
           if (error && !warned) {
             warned = true;
-            toast.error("توقف تحديث موقعك؛ تحقق من اتصال الإنترنت والموقع");
+            await supabase.from(type === "taxi" ? "driver_profiles" : "worker_profiles")
+              .update({ available: false }).eq("user_id", userId);
+            setAvailable(false);
+            toast.error("توقف تحديث موقعك؛ أوقفنا استقبال الطلبات لحمايتك");
           } else if (!error && !loadedOnce) {
             loadedOnce = true;
             void loadRequests();
@@ -351,7 +354,10 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       () => {
         if (!warned) {
           warned = true;
-          toast.error("تعذّر تحديث موقعك؛ قد لا تصلك الطلبات القريبة");
+          void supabase.from(type === "taxi" ? "driver_profiles" : "worker_profiles")
+            .update({ available: false }).eq("user_id", userId);
+          setAvailable(false);
+          toast.error("فُقد اتصال الموقع؛ أوقفنا استقبال الطلبات مؤقتاً");
         }
       },
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
