@@ -325,8 +325,12 @@ export function MapPicker({
     const timer = setTimeout(async () => {
       if (!sessionTokenRef.current) sessionTokenRef.current = crypto.randomUUID();
       const center = mapRef.current?.getCenter?.();
-      const c = center
-        ? { lat: typeof center.lat === "function" ? center.lat() : center.lat, lng: typeof center.lng === "function" ? center.lng() : center.lng }
+      const centerValue = center as unknown as { lat: number | (() => number); lng: number | (() => number) } | null;
+      const c: Coords = centerValue
+        ? {
+            lat: typeof centerValue.lat === "function" ? centerValue.lat() : centerValue.lat,
+            lng: typeof centerValue.lng === "function" ? centerValue.lng() : centerValue.lng,
+          }
         : value ?? DEFAULT_CENTER;
       try {
         const result = await lookupMapPlace({ data: { action: "autocomplete", input: q, sessionToken: sessionTokenRef.current, center: c } });
