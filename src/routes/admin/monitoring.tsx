@@ -1,21 +1,26 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ShieldCheck, Activity, Users, Car, AlertTriangle, TrendingUp, ChevronLeft, Eye, Ban, Flag, Headphones, Database } from "lucide-react";
+import { Loader2, ShieldCheck, Activity, Users, Car, TrendingUp, ChevronLeft, Ban, Flag, Headphones, Database } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { adminGetDashboardStats, adminListReports, adminResolveReport, adminBlockUser, adminUnblockUser, adminListMonitoringBlocks, adminListMonitoringTickets } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin/monitoring")({ ssr: false, component: LiveMonitoring });
 
+type MonitoringStats = { totalUsers: number; activeDrivers: number; activeWorkers: number; activeRequests: number };
+type MonitoringReport = { id: string; reason: string; created_at: string; details: string | null; reported_id: string | null };
+type MonitoringBlock = { id: string; user_id: string; reason: string | null; profiles?: { full_name: string | null } | null };
+type MonitoringTicket = { id: string; subject: string; category: string; description: string };
+
 function LiveMonitoring() {
   const { session, loading } = useAuth();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
-  const [stats, setStats] = useState<any>({});
-  const [reports, setReports] = useState<any[]>([]);
-  const [blocks, setBlocks] = useState<any[]>([]);
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [stats, setStats] = useState<MonitoringStats>({ totalUsers: 0, activeDrivers: 0, activeWorkers: 0, activeRequests: 0 });
+  const [reports, setReports] = useState<MonitoringReport[]>([]);
+  const [blocks, setBlocks] = useState<MonitoringBlock[]>([]);
+  const [tickets, setTickets] = useState<MonitoringTicket[]>([]);
   const [tab, setTab] = useState("live");
   const getDashboardStats = useServerFn(adminGetDashboardStats);
   const getReports = useServerFn(adminListReports);
@@ -27,9 +32,13 @@ function LiveMonitoring() {
 
   const checkAuth = useCallback(async () => {
     if (!session) return;
-    const { data } = await (supabase as any).rpc("has_staff_role", { p_user_id: session.user.id });
-    setAuthorized(!!data);
-  }, [session]);
+    try {
+      await getDashboardStats();
+      setAuthorized(true);
+    } catch {
+      setAuthorized(false);
+    }
+  }, [session, getDashboardStats]);
 
   useEffect(() => { if (!session) return; checkAuth(); }, [session, checkAuth]);
 
@@ -75,4 +84,4 @@ function LiveMonitoring() {
   );
 }
 
-function LiveStat({ icon: Icon, label, value, accent }: any) { return (<div className="glass rounded-2xl p-4"><Icon className={`h-5 w-5 mb-2 ${accent ?? "text-primary"}`} /><div className="text-xl font-black">{value ?? "—"}</div><div className="text-[10px] text-muted-foreground font-bold mt-0.5">{label}</div></div>); }
+function LiveStat({ icon: Icon, label, value, accent }: { icon: LucideIcon; label: string; value: number | string | null | undefined; accent?: string }) { return (<div className="glass rounded-2xl p-4"><Icon className={`h-5 w-5 mb-2 ${accent ?? "text-primary"}`} /><div className="text-xl font-black">{value ?? "—"}</div><div className="text-[10px] text-muted-foreground font-bold mt-0.5">{label}</div></div>); }
