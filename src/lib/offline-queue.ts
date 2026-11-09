@@ -71,7 +71,7 @@ export function getRetryDelay(retries: number): number {
 }
 
 let processing = false;
-let processors: ((action: QueuedAction) => Promise<boolean>)[] = [];
+const processors: ((action: QueuedAction) => Promise<boolean>)[] = [];
 
 export function registerProcessor(fn: (action: QueuedAction) => Promise<boolean>) {
   processors.push(fn);
