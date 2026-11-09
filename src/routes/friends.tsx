@@ -93,8 +93,8 @@ function Friends() {
       setSearch("");
       setResults([]);
       loadFriends();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to add friend");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to add friend");
     } finally {
       setAdding(null);
     }
