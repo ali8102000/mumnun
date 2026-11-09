@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type Session, type User } from "https://esm.sh/@supabase/supabase-js@2";
 
 const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 const corsHeaders = {
@@ -69,8 +69,8 @@ Deno.serve(async (req: Request) => {
       const client = createClient(supabaseUrl, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
-      let user;
-      let session;
+      let user: User | null = null;
+      let session: Session | null = null;
 
       if (email.endsWith("@mamnoon.app")) {
         // Phone-only accounts use a non-deliverable internal email. Confirm it
