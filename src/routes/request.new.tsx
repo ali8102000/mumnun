@@ -165,6 +165,10 @@ function NewRequest() {
       toast.error("المبلغ لازم يكون من مضاعفات 250 دينار");
       return;
     }
+    if (type === "service" && pricingMode === "hourly" && !(Number(workHours) > 0)) {
+      toast.error("حدد عدد ساعات العمل");
+      return;
+    }
 
     setBusy(true);
     try {
