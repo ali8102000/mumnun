@@ -10,7 +10,7 @@ import {
 import {
   adminAdjustWallet, adminBlockUser, adminBroadcastNotification, adminCancelRequest,
   adminDeleteCoupon, adminDeleteFriendRequest, adminDeleteFriendship, adminDeleteMessage,
-  adminGetDashboardStats, adminGetLiveLocations, adminGetLiveRequests, adminGetUserDetail,
+  adminGetDashboardStats, adminGetLiveLocations, adminGetLiveRequests, adminGetUserDetail, adminGetUserRoles,
   adminGrantRole, adminListAuditLogs, adminListChats, adminListCoupons, adminListFriendRequests,
   adminListFriends, adminListMessages, adminListProviders, adminListReports, adminListRequests,
   adminListTransactions, adminListUsers, adminReopenRequest, adminResolveReport, adminRevokeRole,
@@ -611,7 +611,8 @@ function RolesSection() {
 function RoleModal({ user, onGrant, onRevoke, onClose }: any) {
   const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { (async () => { try { const { supabase } = await import("@/integrations/supabase/client"); const { data } = await (supabase as any).from("user_roles").select("role").eq("user_id", user.id); setRoles((data ?? []).map((r: any) => r.role)); } catch (e) {} finally { setLoading(false); } })(); }, [user.id]);
+  const getUserRoles = useServerFn(adminGetUserRoles);
+  useEffect(() => { (async () => { try { setRoles(await getUserRoles({ data: { user_id: user.id } })); } catch (e) {} finally { setLoading(false); } })(); }, [user.id, getUserRoles]);
   const staffRoles = ["admin", "support", "finance", "moderator"];
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4">
