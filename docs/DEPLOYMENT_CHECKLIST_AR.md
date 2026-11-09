@@ -20,6 +20,8 @@
 
 لا تضف `SUPABASE_SERVICE_ROLE_KEY` إلى أي متغير يبدأ بـ `EXPO_PUBLIC_` ولا إلى تطبيق الهاتف.
 
+أضف `GOOGLE_MAPS_API_KEY` كـ Secret داخل Supabase Edge Functions حتى تتمكن `create-taxi-request` من حساب المسافة والأجرة على الخادم. قيّد المفتاح بخدمة Routes API فقط، ولا تضعه في تطبيق Expo أو ملفات Git.
+
 ## 3) إعداد CORS لخدمة المصادقة
 في إعدادات Edge Function المسماة auth-proxy، عيّن المتغير ALLOWED_ORIGIN إلى أصل الويب الرسمي الكامل فقط، مثل https://your-domain.example بعد استبداله بالنطاق الحقيقي. لم يعد الكود يسمح بـ CORS wildcard افتراضياً. إذا بقي المتغير فارغاً، فلن تتمكن متصفحات الويب من قراءة ردود الخدمة؛ تطبيقات الهاتف الأصلية لا تعتمد على CORS.
 
