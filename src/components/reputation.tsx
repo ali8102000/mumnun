@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";\nimport type { ReputationData } from "@/lib/reputation.functions";
+import type { ReactNode } from "react";
+import type { ReputationData } from "@/lib/reputation.functions";
 import { Star, Shield, Zap, Trophy, Award } from "lucide-react";
 
 export interface BadgeData {
