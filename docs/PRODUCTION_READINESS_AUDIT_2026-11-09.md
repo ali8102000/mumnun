@@ -33,7 +33,7 @@ Base branch: main (unchanged)
 - Corrected Expo request-detail chat reads/writes to use chats.id and messages.chat_id/content, and switched start/complete/cancel to the guarded transition RPC.
 - Added a safe provider-role grant RPC that requires the caller's driver/worker profile.
 - Added admin-controlled provider verification states (pending/approved/suspended/rejected), blocks unverified providers from setting available=true, and connected the existing admin provider console to show verification state.
-- Added a separate provider_locations presence table for discoverable online drivers/workers, with authenticated write-only RLS, 90-second freshness checks, anti-spoof speed checks, and nearby driver/pin RPCs reading only verified available provider presence.
+- Added a separate provider_locations presence table for discoverable online drivers/workers, with authenticated writes and self-row-only reads, 90-second freshness checks, anti-spoof speed checks, and nearby driver/pin RPCs reading only verified available provider presence. Nearby map pins are rounded to 2 decimal places, use per-query IDs, and are restricted to authenticated customers.
 - Restricted home-service request visibility and acceptance to verified, available workers with fresh provider presence within 10 km; the acceptance RPC rechecks eligibility atomically.
 - Added foreground GPS presence publishing while a verified provider is online in both Expo and web home screens.
 
@@ -61,7 +61,7 @@ The wildcard CORS default was removed from supabase/functions/auth-proxy/index.t
 Supabase anon/publishable keys are client-visible by design, but every exposed table/RPC must be protected by correct RLS and grants. Do not place SUPABASE_SERVICE_ROLE_KEY in Expo, web client bundles, or any EXPO_PUBLIC variable.
 
 ### P1: live location reliability
-The Expo home screen now publishes foreground provider presence while a verified driver/worker is available, and the request-detail screen publishes request-scoped foreground locations and displays the other participant. The web provider home screen also publishes foreground provider presence. Background tracking is not implemented in the main Expo app. Real-device foreground/background tracking, permission denial, GPS loss, stale data, network interruption, and battery use remain untested. The new provider-presence and request-location RLS migrations must be deployed before these sharing flows can work.
+The Expo home screen now publishes foreground provider presence while a verified driver/worker is available, and the request-detail screen publishes request-scoped foreground locations and displays the other participant. The web provider home screen also publishes foreground provider presence. Background tracking is not implemented in the main Expo app. Real-device foreground/background tracking, permission denial, GPS loss, stale data, network interruption, and battery use remain untested. The new provider-presence and request-location RLS migrations must be deployed before these sharing flows can work. The web nearby-pin server function now uses the authenticated Supabase session instead of the service-role client.
 
 ### P2: pricing and finance
 The native fare display is only a rough estimate derived from straight-line distance; the web fare helper also uses an approximate road-distance multiplier. Production pricing must be server-authoritative and based on a trusted route result. Wallet/commission/refund ledger integrity needs integration tests after the new RLS restrictions.
@@ -70,7 +70,7 @@ The native fare display is only a rough estimate derived from straight-line dist
 No successful EAS Android AAB build was run during this work. EAS project association, EAS environment variables, signing credentials, push credentials, privacy policy, terms, store listing, and release testing remain to be completed.
 
 ## CI
-A GitHub Actions workflow was added. An Expo config, TypeScript, and Android JavaScript bundle export job completed successfully on an earlier commit. Root web TypeScript, production build, and the 3 taxi fare unit tests have also passed. Root lint reported 425 errors (mostly explicit any) and 37 warnings; these remain unresolved. The latest Expo GPS/tracking changes are being rechecked. E2E was not run.
+A GitHub Actions workflow was added. An Expo config, TypeScript, and Android JavaScript bundle export job completed successfully on an earlier commit. Root web TypeScript, production build, and the 3 taxi fare unit tests passed in CI. Expo config, TypeScript, and Android JavaScript export also passed in the latest completed run (commit 0e1af536). Root lint still fails: the last completed run reported 426 errors and 41 warnings, mostly existing explicit-any violations; these remain unresolved. Newer commits are triggering another CI run. E2E was not run.
 
 ## Not verified
 - Full RLS coverage and grants across all tables and views.
