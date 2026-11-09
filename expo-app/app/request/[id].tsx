@@ -41,8 +41,10 @@ export default function RequestDetail() {
   const isCustomer = request?.customer_id === user?.id;
   const canAccept = Boolean(
     request && !request.provider_id && (
-      (request.type === 'taxi' && roles.includes('driver')) ||
-      (request.type === 'service' && roles.includes('worker'))
+      request.customer_id !== user?.id && (
+        (request.type === 'taxi' && roles.includes('driver')) ||
+        (request.type === 'service' && roles.includes('worker'))
+      )
     )
   );
   const isActive = request?.status === 'in_progress' || request?.status === 'accepted';
@@ -52,7 +54,7 @@ export default function RequestDetail() {
   const currentCustomerId = request?.customer_id;
 
   const loadRequest = useCallback(async () => {
-    const { data } = await supabase.from('service_requests').select('*, customer:profiles!service_requests_customer_id_fkey(full_name, phone), provider:profiles!service_requests_provider_id_fkey(full_name, phone)').eq('id', id).maybeSingle();
+    const { data } = await supabase.from('service_requests').select('*').eq('id', id).maybeSingle();
     setRequest(data as RequestRecord | null); setLoading(false);
   }, [id]);
 
@@ -336,7 +338,7 @@ export default function RequestDetail() {
           {['pending', 'searching'].includes(request.status) && canAccept && <TouchableOpacity style={styles.actionBtn} onPress={acceptRequest}><Text style={styles.actionBtnText}>قبول الطلب</Text></TouchableOpacity>}
           {request.status === 'accepted' && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={startRide}><Text style={styles.actionBtnText}>بدء الرحلة</Text></TouchableOpacity>}
           {isActive && isProvider && <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]} onPress={completeRide}><Text style={styles.actionBtnText}>إنهاء</Text></TouchableOpacity>}
-          {request.status !== 'cancelled' && request.status !== 'completed' && <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#dc2626' }]} onPress={cancelRequest}><Text style={styles.actionBtnText}>إلغاء</Text></TouchableOpacity>}
+          {(isCustomer || isProvider) && request.status !== 'cancelled' && request.status !== 'completed' && <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#dc2626' }]} onPress={cancelRequest}><Text style={styles.actionBtnText}>إلغاء</Text></TouchableOpacity>}
         </View>
         <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 8 }} onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
           {messages.map((msg) => (<View key={msg.id} style={[styles.msgBubble, msg.sender_id === user?.id ? styles.msgMine : styles.msgOther]}><Text style={styles.msgText}>{msg.content}</Text></View>))}
