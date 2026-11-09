@@ -68,6 +68,9 @@ BEGIN
     RAISE EXCEPTION 'unauthorized';
   END IF;
 
+  -- Serialize acceptances per provider so two concurrent requests cannot both be claimed.
+  PERFORM pg_advisory_xact_lock(hashtextextended(auth.uid()::text || ':provider-active-request', 0));
+
   IF NOT (public.has_role(auth.uid(), 'driver'::public.app_role)
        OR public.has_role(auth.uid(), 'worker'::public.app_role)) THEN
     RAISE EXCEPTION 'provider_role_required';
