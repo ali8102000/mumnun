@@ -113,8 +113,8 @@ function AuthPage() {
         toast.success(t("أهلاً بعودتك", "Welcome back"));
         navigate({ to: "/" });
       }
-    } catch (err: any) {
-      const msg = err?.message || t("حدث خطأ", "Something went wrong");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("حدث خطأ", "Something went wrong");
       if (/Failed to fetch|NetworkError|fetch.*failed/i.test(msg)) {
         toast.error(t("تعذّر الاتصال بالخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.", "Unable to connect. Check your internet and try again."));
       } else if (/already registered|User already/i.test(msg)) {
