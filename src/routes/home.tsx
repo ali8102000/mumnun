@@ -322,7 +322,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
 
   useEffect(() => {
     if (!session || !available || !verified || !navigator.geolocation) return;
-    const userId = userId;
+    const userId = session.user.id;
     let warned = false;
     let loadedOnce = false;
     const watchId = navigator.geolocation.watchPosition(
