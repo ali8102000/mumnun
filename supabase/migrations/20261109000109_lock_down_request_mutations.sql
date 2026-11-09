@@ -23,7 +23,15 @@ WITH CHECK (
   AND pickup_lat BETWEEN -90 AND 90
   AND pickup_lng BETWEEN -180 AND 180
   AND workers_count BETWEEN 1 AND 20
-  AND (customer_price IS NULL OR customer_price >= 0)
+  AND (
+    (pricing_mode = 'negotiable' AND customer_price IS NULL)
+    OR (
+      pricing_mode IN ('fixed', 'hourly')
+      AND customer_price > 0
+      AND mod(customer_price, 250) = 0
+      AND (pricing_mode <> 'hourly' OR work_hours > 0)
+    )
+  )
 );
 
 -- Request transitions are performed by transition_service_request().
