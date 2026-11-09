@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
 const QUICK_REPLIES_CUSTOMER = ['وصلت!', 'كم دقيقة؟', 'أين أنت؟', 'شكراً جزيلاً', 'هل أنت قريب؟'];
 const QUICK_REPLIES_PROVIDER = ['قادم إليك', 'وصلت للموقع', 'بانتظارك', 'تم الإنجاز', 'دقيقة واحدة'];
+type Coordinates = { latitude: number; longitude: number };
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -13,6 +16,8 @@ export default function RequestDetail() {
   const [request, setRequest] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
+  const [myLocation, setMyLocation] = useState<Coordinates | null>(null);
+  const [otherLocation, setOtherLocation] = useState<Coordinates | null>(null);
   const [newMsg, setNewMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(0);
@@ -76,6 +81,90 @@ export default function RequestDetail() {
     loadMessages();
     return () => { supabase.removeChannel(sub); };
   }, [chatId, loadMessages]);
+
+  useEffect(() => {
+    if (!isActive || !user || !request || request.type !== 'taxi') return;
+    let mounted = true;
+    let subscription: Location.LocationSubscription | null = null;
+    const role = isCustomer ? 'customer' : 'provider';
+
+    async function publishLocation(location: Location.LocationObject) {
+      if (!mounted || !user) return;
+      const coords = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      setMyLocation(coords);
+      const { error } = await supabase.from('live_locations').upsert({
+        request_id: id,
+        user_id: user.id,
+        role,
+        lat: coords.latitude,
+        lng: coords.longitude,
+        heading: location.coords.heading,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'request_id,user_id' });
+      if (error) console.warn('[Mamnoon] location update failed:', error.message);
+    }
+
+    async function startTracking() {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        if (mounted) Alert.alert('إذن الموقع مطلوب', 'اسمح بمشاركة موقعك أثناء الرحلة حتى يظهر للطرف الآخر.');
+        return;
+      }
+      const first = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      await publishLocation(first);
+      if (!mounted) return;
+      subscription = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 },
+        (location) => { void publishLocation(location); },
+      );
+    }
+
+    void startTracking().catch(() => {
+      if (mounted) Alert.alert('تعذر تشغيل التتبع', 'تحقق من GPS وحاول مرة أخرى.');
+    });
+
+    return () => {
+      mounted = false;
+      subscription?.remove();
+    };
+  }, [id, isActive, isCustomer, request?.type, user?.id]);
+
+  useEffect(() => {
+    if (!isActive || !user || !request || request.type !== 'taxi') {
+      setOtherLocation(null);
+      return;
+    }
+    const otherId = isCustomer ? request.provider_id : request.customer_id;
+    if (!otherId) return;
+
+    supabase.from('live_locations')
+      .select('user_id, lat, lng, updated_at')
+      .eq('request_id', id)
+      .eq('user_id', otherId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setOtherLocation({ latitude: data.lat, longitude: data.lng });
+      });
+
+    const channel = supabase.channel(`locations-${id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'live_locations',
+        filter: `request_id=eq.${id}`,
+      }, (payload) => {
+        const row = payload.new as { user_id?: string; lat?: number; lng?: number };
+        if (row.user_id === otherId && typeof row.lat === 'number' && typeof row.lng === 'number') {
+          setOtherLocation({ latitude: row.lat, longitude: row.lng });
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [id, isActive, isCustomer, request?.type, request?.provider_id, request?.customer_id, user?.id]);
 
   async function sendMessage(text?: string) {
     const msg = (text || newMsg).trim();
@@ -172,6 +261,39 @@ export default function RequestDetail() {
       <View style={styles.container}>
         <View style={styles.header}><TouchableOpacity onPress={() => router.back()}><Text style={styles.backBtn}>→</Text></TouchableOpacity><Text style={styles.headerTitle}>{statusLabel[request.status] || request.status}</Text><View style={{ width: 30 }} /></View>
         <View style={styles.infoCard}><Text style={styles.infoType}>{request.type === 'taxi' ? '🚕 طلب سيارة' : '🔧 خدمة منزلية'}</Text>{request.pickup_text && <Text style={styles.infoRow}>من: {request.pickup_text}</Text>}{request.dest_text && <Text style={styles.infoRow}>إلى: {request.dest_text}</Text>}{request.price_estimate && <Text style={styles.infoPrice}>{request.price_estimate.toLocaleString('en')} د.ع</Text>}</View>
+        {request.type === 'taxi' && isActive && request.pickup_lat != null && request.pickup_lng != null && (
+          <View style={styles.trackingCard}>
+            <Text style={styles.trackingTitle}>موقع الرحلة المباشر</Text>
+            <MapView
+              style={styles.trackingMap}
+              initialRegion={{
+                latitude: request.pickup_lat,
+                longitude: request.pickup_lng,
+                latitudeDelta: 0.025,
+                longitudeDelta: 0.025,
+              }}
+              showsUserLocation
+            >
+              <Marker
+                coordinate={{ latitude: request.pickup_lat, longitude: request.pickup_lng }}
+                title="نقطة الانطلاق"
+                pinColor="#2563eb"
+              />
+              {request.dest_lat != null && request.dest_lng != null && (
+                <Marker
+                  coordinate={{ latitude: request.dest_lat, longitude: request.dest_lng }}
+                  title="الوجهة"
+                  pinColor="#16a34a"
+                />
+              )}
+              {myLocation && <Marker coordinate={myLocation} title="موقعي" pinColor="#7c3aed" />}
+              {otherLocation && <Marker coordinate={otherLocation} title="الطرف الآخر" pinColor="#f97316" />}
+            </MapView>
+            <Text style={styles.trackingHint}>
+              {otherLocation ? 'يتم استقبال موقع الطرف الآخر' : 'بانتظار مشاركة موقع الطرف الآخر'}
+            </Text>
+          </View>
+        )}
         <View style={styles.actionsRow}>
           {['pending', 'searching'].includes(request.status) && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={acceptRequest}><Text style={styles.actionBtnText}>قبول الطلب</Text></TouchableOpacity>}
           {request.status === 'accepted' && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={startRide}><Text style={styles.actionBtnText}>بدء الرحلة</Text></TouchableOpacity>}
@@ -193,7 +315,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' }, center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 50, paddingBottom: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: 'rgba(30,41,59,0.06)' },
   backBtn: { fontSize: 24, color: '#2563eb', fontWeight: '700' }, headerTitle: { fontSize: 18, fontWeight: '800', color: '#1e293b' },
-  infoCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, margin: 16 }, infoType: { fontSize: 18, fontWeight: '800', color: '#1e293b', marginBottom: 8 }, infoRow: { fontSize: 14, color: '#64748b', marginTop: 4 }, infoPrice: { fontSize: 18, fontWeight: '800', color: '#2563eb', marginTop: 8 },
+  infoCard: { backgroundColor: '#fff', borderRadius: 16, padding: 16, margin: 16 },
+  trackingCard: { backgroundColor: '#fff', borderRadius: 16, padding: 12, marginHorizontal: 16, marginBottom: 12 },
+  trackingTitle: { fontSize: 15, fontWeight: '800', color: '#1e293b', marginBottom: 10 },
+  trackingMap: { height: 220, borderRadius: 12 },
+  trackingHint: { fontSize: 12, color: '#64748b', textAlign: 'center', marginTop: 8 }, infoType: { fontSize: 18, fontWeight: '800', color: '#1e293b', marginBottom: 8 }, infoRow: { fontSize: 14, color: '#64748b', marginTop: 4 }, infoPrice: { fontSize: 18, fontWeight: '800', color: '#2563eb', marginTop: 8 },
   actionsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 8 }, actionBtn: { flex: 1, backgroundColor: '#2563eb', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }, actionBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   msgBubble: { maxWidth: '75%', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 8 }, msgMine: { backgroundColor: '#2563eb', alignSelf: 'flex-end' }, msgOther: { backgroundColor: '#fff', alignSelf: 'flex-start' }, msgText: { fontSize: 15, color: '#1e293b' },
   quickReply: { backgroundColor: '#2563eb10', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 }, quickReplyText: { fontSize: 13, color: '#2563eb', fontWeight: '600' },
