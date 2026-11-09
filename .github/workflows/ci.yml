@@ -47,3 +47,13 @@ jobs:
         run: node -e "const c=JSON.parse(require('fs').readFileSync('eas.json','utf8')); if(c.build?.preview?.android?.buildType!=='apk'||c.build?.production?.android?.buildType!=='app-bundle') throw new Error('Invalid EAS Android profiles')"
       - run: bunx tsc --noEmit
       - run: bunx expo export --platform android
+
+  supabase-functions:
+    name: Supabase Edge Function typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/create-taxi-request/index.ts
