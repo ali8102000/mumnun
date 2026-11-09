@@ -73,7 +73,7 @@ export async function logAnalyticsEvent(eventName: string, params?: Record<strin
     const { getAnalytics, logEvent } = await import("firebase/analytics");
     const analytics = getAnalytics(firebaseApp);
     logEvent(analytics, eventName, params);
-  } catch {}
+  } catch (error) {\n    console.warn("[firebase] analytics event failed", error);\n  }
 }
 
 export async function startPerformanceTrace(traceName: string): Promise<{ stop: () => void } | null> {
