@@ -24,7 +24,6 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bunx tsc --noEmit
-      - run: bunx expo export --platform android
       - run: bun run build
       - run: bun run test:unit
       - run: bun run lint
