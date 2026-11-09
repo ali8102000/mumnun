@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 export const lookupAuthEmail = createServerFn({ method: "POST" })
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         identifier: z.string().trim().min(3).max(255),
@@ -28,7 +28,7 @@ export const lookupAuthEmail = createServerFn({ method: "POST" })
   });
 
 export const sendPasswordReset = createServerFn({ method: "POST" })
-  .inputValidator((d) =>
+  .validator((d) =>
     z
       .object({
         identifier: z.string().trim().min(3).max(255),
