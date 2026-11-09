@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -41,7 +42,8 @@ function OnboardingWorker() {
   function toggle(id: string) {
     setSelected((s) => {
       const n = new Set(s);
-      n.has(id) ? n.delete(id) : n.add(id);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
       return n;
     });
   }
@@ -67,8 +69,8 @@ function OnboardingWorker() {
       if (sErr) throw sErr;
       toast.success("تم تفعيل ملفك");
       navigate({ to: "/home" });
-    } catch (e: any) {
-      toast.error(e.message || "حدث خطأ");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
       setBusy(false);
     }
@@ -133,7 +135,7 @@ function OnboardingWorker() {
   );
 }
 
-function LevelCard({ active, onClick, icon, title, desc }: any) {
+function LevelCard({ active, onClick, icon, title, desc }: { active: boolean; onClick: () => void; icon: ReactNode; title: string; desc: string }) {
   return (
     <button
       onClick={onClick}
