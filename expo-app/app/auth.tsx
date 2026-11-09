@@ -61,17 +61,10 @@ export default function AuthScreen() {
           setBusy(false);
           return;
         }
-        let authEmail = finalId;
-        if (!isEmail) {
-          const lookup = await authProxy<{ email: string | null }>('/lookup-email', { phone: finalId });
-          if (lookup.email) {
-            authEmail = lookup.email.toLowerCase();
-          } else {
-            const digits = finalId.replace(/[^\d]/g, '');
-            authEmail = `phone${digits}@mamnoon.app`;
-          }
-        }
-        const result = await authProxy<{ session: AuthSessionTokens | null }>('/login', { email: authEmail, password });
+        const loginPayload = isEmail
+          ? { email: finalId, password }
+          : { phone: finalId, password };
+        const result = await authProxy<{ session: AuthSessionTokens | null }>('/login', loginPayload);
         if (!result.session) throw new Error('تعذر إنشاء جلسة تسجيل الدخول');
         const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
