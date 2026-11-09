@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { findNearbyProviderPins, type ProviderPin as ServerPin } from "@/lib/dispatch.functions";
+import { findNearbyProviderPins } from "@/lib/dispatch.functions";
 
 export type ProviderPin = {
   pin_id: string;
@@ -19,13 +19,15 @@ export function useNearbyProviders(opts: {
   intervalMs?: number;
 }) {
   const { center, type, category, serviceId, radiusKm = 5, enabled = true, intervalMs = 30000 } = opts;
+  const centerLat = center?.lat;
+  const centerLng = center?.lng;
   const [pins, setPins] = useState<ProviderPin[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inflightRef = useRef(false);
   const findPinsFn = useServerFn(findNearbyProviderPins);
 
   useEffect(() => {
-    if (!enabled || !center) {
+    if (!enabled || centerLat == null || centerLng == null) {
       setPins([]);
       return;
     }
@@ -37,11 +39,11 @@ export function useNearbyProviders(opts: {
       inflightRef.current = true;
       try {
         const rows = await findPinsFn({ data: {
-          lat: center.lat, lng: center.lng, type, category, serviceId, radiusKm, limit: 30,
+          lat: centerLat, lng: centerLng, type, category, serviceId, radiusKm, limit: 30,
         } });
         if (cancelled) return;
         setPins(
-          (rows as ServerPin[]).map((r) => ({
+          rows.map((r) => ({
             pin_id: String(r.pin_id),
             lat: Number(r.lat),
             lng: Number(r.lng),
@@ -64,7 +66,7 @@ export function useNearbyProviders(opts: {
       const intervalId = timerRef.current;
       if (intervalId) clearInterval(intervalId);
     };
-  }, [center?.lat, center?.lng, type, category, serviceId, radiusKm, enabled, intervalMs, findPinsFn]);
+  }, [centerLat, centerLng, type, category, serviceId, radiusKm, enabled, intervalMs, findPinsFn]);
 
   return pins;
 }
