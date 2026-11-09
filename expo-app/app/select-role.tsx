@@ -38,8 +38,8 @@ export default function SelectRole() {
       if (error) throw error;
       await refresh();
       router.replace('/home');
-    } catch (err: any) {
-      Alert.alert('خطأ', err?.message || 'حدث خطأ');
+    } catch (err: unknown) {
+      Alert.alert('خطأ', err instanceof Error ? err.message : 'حدث خطأ');
     } finally {
       setBusy(false);
     }
