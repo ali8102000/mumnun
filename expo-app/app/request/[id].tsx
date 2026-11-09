@@ -54,7 +54,16 @@ export default function RequestDetail() {
   const currentCustomerId = request?.customer_id;
 
   const loadRequest = useCallback(async () => {
-    const { data } = await supabase.from('service_requests').select('*').eq('id', id).maybeSingle();
+    const { data, error } = await supabase
+      .from('service_requests')
+      .select('provider_id, customer_id, status, type, pickup_text, dest_text, price_estimate, pickup_lat, pickup_lng, dest_lat, dest_lng')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) {
+      setRequest(null);
+      setLoading(false);
+      return;
+    }
     setRequest(data as RequestRecord | null); setLoading(false);
   }, [id]);
 
@@ -90,9 +99,10 @@ export default function RequestDetail() {
     const sub = supabase
       .channel(`request-${id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'service_requests', filter: `id=eq.${id}` }, (payload) => {
-        setRequest((prev) => prev ? { ...prev, ...payload.new } : prev);
-        if (payload.new.status === 'completed') setShowRating(true);
-        if (payload.new.status === 'accepted') loadChat();
+        const nextStatus = (payload.new as { status?: string }).status;
+        void loadRequest();
+        if (nextStatus === 'completed') setShowRating(true);
+        if (nextStatus === 'accepted') loadChat();
       })
       .subscribe();
     return () => { supabase.removeChannel(sub); };
