@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.provider_locations (
 ALTER TABLE public.provider_locations ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.provider_locations FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.provider_locations TO authenticated;
--- No SELECT policy is defined: direct reads still return no rows under RLS.
+-- Providers can read only their own presence row; other users cannot query raw GPS.
 GRANT ALL ON TABLE public.provider_locations TO service_role;
 
 CREATE POLICY "Providers read only own presence"
@@ -41,12 +41,12 @@ ON public.provider_locations FOR UPDATE TO authenticated
 USING (
   user_id = auth.uid()
   AND (
-    (role = 'driver' AND EXISTS (
+    (role = 'driver' AND public.has_role(auth.uid(), 'driver'::public.app_role) AND EXISTS (
       SELECT 1 FROM public.driver_profiles dp
       WHERE dp.user_id = auth.uid() AND dp.available = true AND dp.is_verified = true
     ))
     OR
-    (role = 'worker' AND EXISTS (
+    (role = 'worker' AND public.has_role(auth.uid(), 'worker'::public.app_role) AND EXISTS (
       SELECT 1 FROM public.worker_profiles wp
       WHERE wp.user_id = auth.uid() AND wp.available = true AND wp.is_verified = true
     ))
