@@ -130,7 +130,7 @@ function CustomerHome() {
 
       <div className="grid grid-cols-3 gap-3">
         <QuickTile
-          to="/request/new" type="taxi"
+          type="taxi"
           title="طلب سيارة" subtitle="خلال دقائق"
           icon={<Car className="h-7 w-7" />}
           gradient="from-amber-500 to-orange-500"
@@ -176,9 +176,9 @@ function CustomerHome() {
 }
 
 function QuickTile({
-  to, type, title, subtitle, icon, gradient, span = 1, delay = 0,
+  type, title, subtitle, icon, gradient, span = 1, delay = 0,
 }: {
-  to: string; type: "taxi" | "service"; title: string; subtitle: string;
+  type: "taxi" | "service"; title: string; subtitle: string;
   icon: React.ReactNode; gradient: string; span?: 1 | 2; delay?: number;
 }) {
   return (
