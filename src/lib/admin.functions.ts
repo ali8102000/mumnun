@@ -1,10 +1,68 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
-async function requireStaff(context: any) {
+type AdminContext = { supabase: SupabaseClient<Database>; userId: string };
+type AdminRow = {
+  id: string;
+  user_id: string;
+  friend_id: string;
+  role: string;
+  type: string;
+  status: string;
+  amount: number;
+  created_at: string;
+  updated_at: string;
+  [key: string]: unknown;
+};
+type AdminQueryResult<T> = { data: T | null; error: { message: string } | null; count: number | null };
+type AdminSingle<T> = T extends Array<infer Row> ? Row | null : T | null;
+interface AdminQuery<T> extends PromiseLike<AdminQueryResult<T>> {
+  select(columns?: string, options?: { count?: "exact"; head?: boolean }): AdminQuery<T>;
+  eq(column: string, value: unknown): AdminQuery<T>;
+  or(filters: string): AdminQuery<T>;
+  order(column: string, options?: { ascending?: boolean }): AdminQuery<T>;
+  limit(count: number): AdminQuery<T>;
+  range(from: number, to: number): AdminQuery<T>;
+  in(column: string, values: readonly unknown[]): AdminQuery<T>;
+  gte(column: string, value: string): AdminQuery<T>;
+  maybeSingle(): Promise<AdminQueryResult<AdminSingle<T>>>;
+}
+type AdminQueryClient = { from(table: string): AdminQuery<AdminRow[]> };
+type AdminRpcArgs = {
+  has_staff_role: { p_user_id: string };
+  has_admin_access: { p_user_id: string };
+  is_super_admin: { p_user_id: string };
+  bootstrap_first_super_admin: { p_user_id: string };
+  admin_grant_role: { p_target_user: string; p_role: string };
+  admin_revoke_role: { p_target_user: string; p_role: string };
+  get_staff_roles: { p_user_id: string };
+  admin_block_user: { p_user_id: string; p_reason: string | null; p_expires_at: string | null };
+  admin_unblock_user: { p_user_id: string };
+  admin_set_provider_status: { p_user_id: string; p_type: string; p_status: string };
+  admin_cancel_request: { p_request_id: string; p_reason: string | null };
+  admin_reopen_request: { p_request_id: string };
+  admin_adjust_wallet: { p_user_id: string; p_amount: number; p_note: string | null; p_type: string };
+  admin_save_coupon: { p_id: string | null; p_code: string; p_type: string; p_value: number; p_max_uses: number; p_expires_at: string | null; p_active: boolean; p_min_amount: number };
+  admin_delete_coupon: { p_coupon_id: string };
+  admin_resolve_report: { p_report_id: string; p_status: string; p_note: string | null };
+  admin_delete_friendship: { p_user1_id: string; p_user2_id: string };
+  admin_delete_friend_request: { p_request_id: string };
+  admin_delete_message: { p_message_id: string };
+  admin_broadcast_notification: { p_target: string; p_title: string; p_body: string; p_single_user_id: string | null };
+};
+type AdminRpcName = keyof AdminRpcArgs;
+type AdminRpcClient = {
+  rpc<Name extends AdminRpcName>(name: Name, args: AdminRpcArgs[Name]): Promise<{ data: unknown; error: { message: string } | null }>;
+};
+const adminQueries = (client: unknown): AdminQueryClient => client as AdminQueryClient;
+const adminRpc = (client: unknown): AdminRpcClient => client as AdminRpcClient;
+
+async function requireStaff(context: AdminContext) {
   const { supabase, userId } = context;
-  const { data } = await (supabase as any).rpc("has_staff_role", { p_user_id: userId });
+  const { data } = await adminRpc(supabase).rpc("has_staff_role", { p_user_id: userId });
   if (!data) throw new Error("غير مصرّح: للمشرفين فقط");
 }
 
@@ -24,7 +82,7 @@ export const checkSuperAdminExists = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { count } = await (supabaseAdmin as any).from("user_roles").select("*", { count: "exact", head: true }).eq("role", "super_admin");
+    const { count } = await adminQueries(supabaseAdmin).from("user_roles").select("*", { count: "exact", head: true }).eq("role", "super_admin");
     return { exists: (count ?? 0) > 0 };
   });
 
@@ -69,7 +127,7 @@ export const getStaffRoles = createServerFn({ method: "GET" })
     const targetId = data?.user_id ?? context.userId;
     const { data: roles, error } = await (supabase as any).rpc("get_staff_roles", { p_user_id: targetId });
     if (error) throw new Error(error.message);
-    return roles ?? [];
+    return Array.isArray(roles) ? roles.filter((role): role is string => typeof role === "string") : [];
   });
 
 export const adminSearchUsers = createServerFn({ method: "POST" })
@@ -95,9 +153,9 @@ export const adminListUsers = createServerFn({ method: "GET" })
       (supabaseAdmin as any).from("user_blocks").select("user_id, reason, expires_at, blocked_at"),
     ]);
     if (usersRes.error) throw new Error("فشل تحميل المستخدمين");
-    const blockedMap = new Map<string, any>();
+    const blockedMap = new Map<string, AdminRow>();
     for (const b of blocksRes.data ?? []) blockedMap.set(b.user_id, b);
-    return { users: (usersRes.data ?? []).map((u: any) => ({ ...u, blocked: blockedMap.get(u.id) ?? null })), total: usersRes.count ?? 0 };
+    return { users: (usersRes.data ?? []).map((u: AdminRow) => ({ ...u, blocked: blockedMap.get(u.id) ?? null })), total: usersRes.count ?? 0 };
   });
 
 export const adminBlockUser = createServerFn({ method: "POST" })
@@ -147,14 +205,14 @@ export const adminListProviders = createServerFn({ method: "GET" })
     await requireStaff(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const table = data.type === "driver" ? "driver_profiles" : "worker_profiles";
-    const { data: providers, error } = await (supabaseAdmin as any)
+    const { data: providers, error } = await adminQueries(supabaseAdmin)
       .from(table)
       .select("*")
       .order("updated_at", { ascending: false })
       .limit(100);
     if (error) throw new Error("فشل تحميل المزودين");
 
-    const providerIds = (providers ?? []).map((provider: any) => provider.user_id);
+    const providerIds = (providers ?? []).map((provider: AdminRow) => provider.user_id);
     if (providerIds.length === 0) return [];
     const { data: profiles, error: profilesError } = await (supabaseAdmin as any)
       .from("profiles")
@@ -162,7 +220,7 @@ export const adminListProviders = createServerFn({ method: "GET" })
       .in("id", providerIds);
     if (profilesError) throw new Error("فشل تحميل بيانات المزودين");
 
-    const profilesById = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]));
+    const profilesById = new Map((profiles ?? []).map((profile: AdminRow) => [profile.id, profile]));
     return (providers ?? []).map((provider: any) => ({
       ...provider,
       profiles: profilesById.get(provider.user_id) ?? null,
@@ -380,7 +438,7 @@ export const adminBroadcastNotification = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { data: count, error } = await (supabase as any).rpc("admin_broadcast_notification", { p_target: data.target, p_title: data.title, p_body: data.body, p_single_user_id: data.user_id ?? null });
     if (error) throw new Error(error.message);
-    return { sent: count ?? 0 };
+    return { sent: typeof count === "number" ? count : Number(count ?? 0) };
   });
 
 export const adminListAuditLogs = createServerFn({ method: "GET" })
@@ -413,7 +471,7 @@ export const adminGetDashboardStats = createServerFn({ method: "GET" })
       (supabaseAdmin as any).from("transactions").select("amount, type").gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
       (supabaseAdmin as any).from("transactions").select("amount, type").gte("created_at", new Date(new Date().getFullYear(), 0, 1).toISOString()),
     ]);
-    function sumCredit(rows: any[]) { return (rows ?? []).filter((r) => r.type === "credit").reduce((s, r) => s + Number(r.amount), 0); }
+    function sumCredit(rows: AdminRow[]) { return (rows ?? []).filter((r) => r.type === "credit").reduce((s, r) => s + Number(r.amount), 0); }
     return { totalUsers: usersRes.count ?? 0, totalDrivers: driversRes.count ?? 0, totalWorkers: workersRes.count ?? 0, activeDrivers: activeDriversRes.count ?? 0, activeWorkers: activeWorkersRes.count ?? 0, totalRequests: reqAllRes.count ?? 0, activeRequests: reqActiveRes.count ?? 0, completedRequests: reqDoneRes.count ?? 0, cancelledRequests: reqCancelledRes.count ?? 0, dailyRevenue: sumCredit(todayTxRes.data), monthlyRevenue: sumCredit(monthTxRes.data), yearlyRevenue: sumCredit(yearTxRes.data) };
   });
 
