@@ -421,7 +421,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
                 {r.work_description && <div className="text-xs mt-1 line-clamp-2">🛠️ {r.work_description}</div>}
                 {(r.customer_price || r.price_estimate) && (
                   <div className="text-sm font-black text-primary mt-1">
-                    💰 {(r.customer_price ?? r.price_estimate).toLocaleString()} د.ع
+                    💰 {(r.customer_price ?? r.price_estimate ?? 0).toLocaleString()} د.ع
                     {r.pricing_mode === "hourly" && r.work_hours ? ` · ${r.work_hours} ساعة` : r.pricing_mode === "fixed" ? " · إنجاز تام" : ""}
                   </div>
                 )}
