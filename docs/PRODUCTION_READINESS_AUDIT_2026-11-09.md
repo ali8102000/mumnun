@@ -31,6 +31,8 @@ Base branch: main (unchanged)
 - Added foreground live-location publishing and a participant-only live map to active Expo taxi requests.
 - Corrected Expo service slugs to match the actual Supabase services catalog and exposed all seeded service categories on the native home screen.
 - Corrected Expo request-detail chat reads/writes to use chats.id and messages.chat_id/content, and switched start/complete/cancel to the guarded transition RPC.
+- Added a safe provider-role grant RPC that requires the caller's driver/worker profile.
+- Added admin-controlled provider verification states (pending/approved/suspended/rejected), blocks unverified providers from setting available=true, and connected the existing admin provider console to show verification state.
 
 ## Critical remaining blockers
 
@@ -38,7 +40,7 @@ Base branch: main (unchanged)
 The Google Maps API key was previously committed in the repository. It has been removed from the edited source files, but it must be rotated/restricted in Google Cloud because removal from current source does not invalidate historical Git objects or prior builds. Restrict the replacement key by Android package name and signing SHA-1 and only the required Maps APIs. Set it as EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in the EAS environment.
 
 ### P1: Supabase migrations are not deployed
-The five new SQL migrations (00100 through 00104) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
+The seven new SQL migrations (00100 through 00106) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
 
 ### P1: Expo route pricing and map verification
 The Expo request screen now uses expo-location and react-native-maps to collect pickup and destination coordinates and passes them to service_requests, fixing the missing-pickup-coordinate dispatch blocker. The displayed fare is explicitly a rough straight-line-derived estimate only. No trusted road-route distance/duration calculation or server-authoritative final fare has been integrated into the native flow. Google Maps key rotation/configuration and real-device map validation remain required.
@@ -47,7 +49,7 @@ The Expo request screen now uses expo-location and react-native-maps to collect 
 The database dispatch RPC now has progressive radius logic in a new migration, but it is not deployed or integration-tested. There is no verified scheduler/worker in this audit that retries after offer expiry, sends push notifications, or guarantees provider location freshness. The current offer creation alone does not prove a complete dispatch loop.
 
 ### P1: role approval and provider verification
-Provider roles are now gated through the provider-profile RPC, but the current schema/flow still needs a formal admin verification/approval state before untrusted drivers or workers can receive live jobs. Vehicle/identity document review and audit workflow are not verified.
+Provider roles are gated through the provider-profile RPC and the database now requires an admin-approved verification state before a driver/worker can become available. The existing admin provider console exposes approve/suspend/reject actions. However, actual identity-document capture/storage, manual review evidence, audit trail validation, and production testing of this workflow are not complete. These changes depend on migrations 00105/00106 being deployed.
 
 ### P1: auth-proxy CORS and abuse protection
 The wildcard CORS default was removed from supabase/functions/auth-proxy/index.ts. Production must set the exact ALLOWED_ORIGIN value for the real web origin; without it, browsers will block cross-origin access. Per-phone/IP rate limits, anti-enumeration controls, and monitoring still need implementation.
