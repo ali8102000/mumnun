@@ -183,8 +183,8 @@ function QuickTile({
 }) {
   return (
     <Link
-      to={to as any}
-      search={{ type } as any}
+      to="/request/new"
+      search={{ type }}
       onClick={() => playClick("pop")}
       className={`glass rounded-3xl p-4 btn-press shadow-card tap-highlight-none animate-pop-in relative overflow-hidden group ${
         span === 2 ? "col-span-2 min-h-[132px]" : "min-h-[132px]"
