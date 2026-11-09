@@ -1,7 +1,6 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, ShieldCheck, Users, Car, ListChecks, Wallet, Crown, Activity,
   LayoutDashboard, Tag, MessageSquare, UserCheck, Flag, Bell, ScrollText,
