@@ -62,15 +62,11 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const cutoff = new Date(Date.now() - 60_000).toISOString();
-    const { count, error: rateLimitError } = await admin
-      .from("service_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("customer_id", authData.user.id)
-      .eq("type", "taxi")
-      .gte("created_at", cutoff);
+    const { data: allowed, error: rateLimitError } = await admin.rpc("consume_taxi_request_slot", {
+      _user_id: authData.user.id,
+    });
     if (rateLimitError) return json({ error: "تعذر التحقق من عدد الطلبات؛ حاول مرة أخرى." }, 500);
-    if ((count ?? 0) >= 3) return json({ error: "وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً." }, 429);
+    if (!allowed) return json({ error: "وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً." }, 429);
 
     const body = await req.json();
     const pickupLat = body?.pickupLat;
