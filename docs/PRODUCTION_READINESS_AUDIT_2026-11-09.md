@@ -33,6 +33,8 @@ Base branch: main (unchanged)
 - Corrected Expo request-detail chat reads/writes to use chats.id and messages.chat_id/content, and switched start/complete/cancel to the guarded transition RPC.
 - Added a safe provider-role grant RPC that requires the caller's driver/worker profile.
 - Added admin-controlled provider verification states (pending/approved/suspended/rejected), blocks unverified providers from setting available=true, and connected the existing admin provider console to show verification state.
+- Added a separate provider_locations presence table for discoverable online drivers/workers, with authenticated write-only RLS, 90-second freshness checks, and nearby driver/pin RPCs reading only verified available provider presence.
+- Added foreground GPS presence publishing while a verified provider is online in both Expo and web home screens.
 
 ## Critical remaining blockers
 
@@ -40,7 +42,7 @@ Base branch: main (unchanged)
 The Google Maps API key was previously committed in the repository. It has been removed from the edited source files, but it must be rotated/restricted in Google Cloud because removal from current source does not invalidate historical Git objects or prior builds. Restrict the replacement key by Android package name and signing SHA-1 and only the required Maps APIs. Set it as EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in the EAS environment.
 
 ### P1: Supabase migrations are not deployed
-The seven new SQL migrations (00100 through 00106) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
+The eight new SQL migrations (00100 through 00107) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
 
 ### P1: Expo route pricing and map verification
 The Expo request screen now uses expo-location and react-native-maps to collect pickup and destination coordinates and passes them to service_requests, fixing the missing-pickup-coordinate dispatch blocker. The displayed fare is explicitly a rough straight-line-derived estimate only. No trusted road-route distance/duration calculation or server-authoritative final fare has been integrated into the native flow. Google Maps key rotation/configuration and real-device map validation remain required.
@@ -58,7 +60,7 @@ The wildcard CORS default was removed from supabase/functions/auth-proxy/index.t
 Supabase anon/publishable keys are client-visible by design, but every exposed table/RPC must be protected by correct RLS and grants. Do not place SUPABASE_SERVICE_ROLE_KEY in Expo, web client bundles, or any EXPO_PUBLIC variable.
 
 ### P1: live location reliability
-The Expo request-detail screen now publishes foreground location updates and displays the other participant on the request map. Background tracking is not implemented in the main Expo app. Real-device foreground/background tracking, permission denial, GPS loss, stale data, network interruption, and battery use remain untested. The new live-location RLS migration must be deployed before this sharing flow can work.
+The Expo home screen now publishes foreground provider presence while a verified driver/worker is available, and the request-detail screen publishes request-scoped foreground locations and displays the other participant. The web provider home screen also publishes foreground provider presence. Background tracking is not implemented in the main Expo app. Real-device foreground/background tracking, permission denial, GPS loss, stale data, network interruption, and battery use remain untested. The new provider-presence and request-location RLS migrations must be deployed before these sharing flows can work.
 
 ### P2: pricing and finance
 The native fare display is only a rough estimate derived from straight-line distance; the web fare helper also uses an approximate road-distance multiplier. Production pricing must be server-authoritative and based on a trusted route result. Wallet/commission/refund ledger integrity needs integration tests after the new RLS restrictions.
