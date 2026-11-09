@@ -97,7 +97,7 @@ export const cancelRequest = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason ?? null });
+    const { error } = await context.supabase.rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason });
     if (error) throw new Error(error.message.includes("request_finished") ? "الطلب منتهي أصلاً" : "تعذّر الإلغاء: " + error.message);
     return { ok: true };
   });
@@ -161,7 +161,6 @@ export const startRide = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("transition_service_request", {
       _request_id: data.requestId,
       _status: "in_progress",
-      _reason: null,
     });
     if (error) throw new Error(error.message.includes("invalid_status_transition")
       ? "لا يمكن بدء الرحلة بهذه الحالة"
@@ -179,7 +178,6 @@ export const completeRide = createServerFn({ method: "POST" })
     const { error } = await context.supabase.rpc("transition_service_request", {
       _request_id: data.requestId,
       _status: "completed",
-      _reason: null,
     });
     if (error) throw new Error(error.message.includes("invalid_status_transition")
       ? "لا يمكن إنهاء الرحلة بهذه الحالة"
