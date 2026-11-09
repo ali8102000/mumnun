@@ -75,6 +75,8 @@ export default function HomeScreen() {
         const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
         await supabase.from(table).update({ available: false }).eq('user_id', userId);
         setAvailable(false);
+      } else if (mounted) {
+        void loadIncoming();
       }
     }
 
