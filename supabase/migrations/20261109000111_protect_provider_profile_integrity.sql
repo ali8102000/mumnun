@@ -6,7 +6,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $driver_profile_guard$
 BEGIN
-  IF auth.uid() IS NOT NULL AND NOT public.has_admin_access(auth.uid()) THEN
+  IF auth.uid() IS NOT NULL AND pg_trigger_depth() = 1 AND NOT public.has_admin_access(auth.uid()) THEN
     IF NEW.rating_avg IS DISTINCT FROM OLD.rating_avg
       OR NEW.ratings_count IS DISTINCT FROM OLD.ratings_count
       OR NEW.completed_rides IS DISTINCT FROM OLD.completed_rides THEN
@@ -35,7 +35,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $worker_profile_guard$
 BEGIN
-  IF auth.uid() IS NOT NULL AND NOT public.has_admin_access(auth.uid()) THEN
+  IF auth.uid() IS NOT NULL AND pg_trigger_depth() = 1 AND NOT public.has_admin_access(auth.uid()) THEN
     IF NEW.rating_avg IS DISTINCT FROM OLD.rating_avg
       OR NEW.ratings_count IS DISTINCT FROM OLD.ratings_count
       OR NEW.completed_jobs IS DISTINCT FROM OLD.completed_jobs THEN
