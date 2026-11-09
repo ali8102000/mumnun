@@ -259,10 +259,10 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     if (!session) return;
     supabase.from(table).select("*").eq("user_id", session.user.id).maybeSingle().then(({ data }) => {
       if (data) {
-        setAvailable(data.available);
-        setVerified(Boolean(data.is_verified));
-        setVerificationStatus(data.verification_status ?? "pending");
         const d: any = data;
+        setAvailable(Boolean(d.available));
+        setVerified(Boolean(d.is_verified));
+        setVerificationStatus(d.verification_status ?? "pending");
         setStats({ jobs: d.completed_jobs ?? d.completed_rides ?? 0 });
       }
     });
