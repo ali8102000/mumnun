@@ -1,3 +1,5 @@
+ALTER TABLE public.live_locations ENABLE ROW LEVEL SECURITY;
+
 -- Restrict live location writes and reads to the two participants of an active request.
 DROP POLICY IF EXISTS "Users insert own location" ON public.live_locations;
 DROP POLICY IF EXISTS "Users update own location" ON public.live_locations;
