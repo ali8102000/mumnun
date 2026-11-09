@@ -114,7 +114,7 @@ export const providerCancelRequest = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason ?? null });
+    const { error } = await context.supabase.rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason });
     if (error) throw new Error(error.message.includes("request_finished") ? "الطلب منتهي أصلاً" : "تعذّر الإلغاء: " + error.message);
     return { ok: true };
   });
