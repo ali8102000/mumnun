@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getTrustedDrivingRoute } from "@/lib/maps.server";
 
 // Only the referrer-restricted rendering key is intentionally public.
 export const getMapConfig = createServerFn({ method: "GET" }).handler(async () => ({
@@ -20,6 +21,7 @@ export const lookupMapPlace = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: z.infer<typeof input>) => input.parse(data))
   .handler(async ({ data }) => {
+    if (data.action === "route") return getTrustedDrivingRoute(data.from, data.to);
     const apiKey = process.env['GOOGLE_MAPS_API_KEY'];
     const lovableKey = process.env['LOVABLE_API_KEY'];
     if (!apiKey || !lovableKey) throw new Error("إعدادات البحث عن الأماكن غير متاحة؛ يمكنك مشاركة موقعك مباشرة.");
@@ -34,14 +36,6 @@ export const lookupMapPlace = createServerFn({ method: "POST" })
     } else if (data.action === "details") {
       path = `/places/v1/places/${encodeURIComponent(data.placeId)}?sessionToken=${data.sessionToken}&languageCode=ar`;
       headers["X-Goog-FieldMask"] = "location,formattedAddress,displayName";
-    } else if (data.action === "route") {
-      path = "/routes/directions/v2:computeRoutes";
-      headers["X-Goog-FieldMask"] = "routes.distanceMeters,routes.duration";
-      body = JSON.stringify({
-        origin: { location: { latLng: { latitude: data.from.lat, longitude: data.from.lng } } },
-        destination: { location: { latLng: { latitude: data.to.lat, longitude: data.to.lng } } },
-        travelMode: "DRIVE",
-      });
     } else {
       path = `/maps/api/geocode/json?latlng=${data.center.lat},${data.center.lng}&language=ar`;
     }
@@ -60,11 +54,6 @@ export const lookupMapPlace = createServerFn({ method: "POST" })
     if (data.action === "details") {
       if (!result.location) throw new Error("لا يتوفر موقع لهذا المكان");
       return { coords: { lat: result.location.latitude as number, lng: result.location.longitude as number }, address: (result.formattedAddress || result.displayName?.text || "") as string };
-    }
-    if (data.action === "route") {
-      const r = result.routes?.[0];
-      if (!r) throw new Error("ROUTE_NOT_FOUND");
-      return { distanceKm: (r.distanceMeters ?? 0) / 1000, durationMin: parseFloat(String(r.duration ?? "0s")) / 60 };
     }
     if (result.status !== "OK" && result.status !== "ZERO_RESULTS") throw new Error(`Google Maps: ${result.status}: ${result.error_message || ""}`);
     return { address: (result.results?.[0]?.formatted_address || "") as string };
