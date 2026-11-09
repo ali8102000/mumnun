@@ -104,7 +104,35 @@ function RequestDetail() {
     if (!chat) return;
     const ch = supabase.channel(`messages-${chat.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `chat_id=eq.${chat.id}` },
-        (payload) => setMessages((m) => [...m, payload.new]))
+        (payload) => {
+          const incoming = payload.new;
+          if (
+            typeof incoming.id !== "string" ||
+            typeof incoming.chat_id !== "string" ||
+            typeof incoming.sender_id !== "string" ||
+            typeof incoming.content !== "string" ||
+            typeof incoming.created_at !== "string" ||
+            (incoming.read_at !== null && typeof incoming.read_at !== "string")
+          ) {
+            console.error("[request] Ignored malformed realtime message payload");
+            return;
+          }
+
+          const message: Tables<"messages"> = {
+            id: incoming.id,
+            chat_id: incoming.chat_id,
+            sender_id: incoming.sender_id,
+            content: incoming.content,
+            created_at: incoming.created_at,
+            read_at: incoming.read_at,
+          };
+
+          setMessages((current) =>
+            current.some((item) => item.id === message.id)
+              ? current
+              : [...current, message],
+          );
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [chat]);
