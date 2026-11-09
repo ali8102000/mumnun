@@ -17,7 +17,14 @@ export default function HomeScreen() {
 
   const loadIncoming = useCallback(async () => {
     if (activeRole === 'customer') return;
-    const { data } = await supabase.from('service_requests').select('*, customer:profiles!service_requests_customer_id_fkey(full_name, phone)').eq('status', 'searching').order('created_at', { ascending: false }).limit(10);
+    const isDriver = activeRole === 'driver';
+    const { data } = await supabase
+      .from('service_requests')
+      .select('*, customer:profiles!service_requests_customer_id_fkey(full_name, phone)')
+      .eq('type', isDriver ? 'taxi' : 'service')
+      .in('status', isDriver ? ['searching'] : ['pending', 'searching'])
+      .order('created_at', { ascending: false })
+      .limit(10);
     setIncoming(data || []);
   }, [activeRole]);
 
