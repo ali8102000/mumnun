@@ -2,12 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth-context";\nimport type { Tables } from "@/integrations/supabase/types";
+import { useAuth } from "@/lib/auth-context";
+import type { Tables } from "@/integrations/supabase/types";
 import { respondToOffer } from "@/lib/dispatch.functions";
 import { MapPin, Check, X, Loader2, Navigation } from "lucide-react";
 import { toast } from "sonner";
 
-type Offer = Pick<Tables<"request_offers">, "id" | "request_id" | "distance_km" | "expires_at" | "status">;\ntype RideRequest = Pick<Tables<"service_requests">, "pickup_text" | "dest_text" | "price_estimate">;\n\ntype LegacyOffer = {
+type Offer = Pick<Tables<"request_offers">, "id" | "request_id" | "distance_km" | "expires_at" | "status">;
+type RideRequest = Pick<Tables<"service_requests">, "pickup_text" | "dest_text" | "price_estimate">;
+
+type LegacyOffer = {
   id: string;
   request_id: string;
   distance_km: number | null;
