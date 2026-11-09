@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,37 +16,43 @@ export const Route = createFileRoute("/messages")({ ssr: false,
     { name: "twitter:card", content: "summary" },
   ] }), component: MessagesPage });
 
+type ChatListItem = Pick<Tables<"chats">, "id" | "request_id" | "customer_id" | "provider_id" | "created_at"> & {
+  other: Pick<Tables<"profiles">, "id" | "full_name" | "phone"> | undefined;
+};
+
 function MessagesPage() {
   const { session, loading } = useAuth();
-  type ChatListItem = Pick<Tables<"chats">, "id" | "request_id" | "customer_id" | "provider_id" | "created_at"> & { other: Pick<Tables<"profiles">, "id" | "full_name" | "phone"> | undefined };
   const [chats, setChats] = useState<ChatListItem[]>([]);
+
+  const loadChats = useCallback(async () => {
+    if (!session) return;
+    const { data } = await supabase.from("chats")
+      .select("id, request_id, customer_id, provider_id, created_at")
+      .or(`customer_id.eq.${session.user.id},provider_id.eq.${session.user.id}`)
+      .order("created_at", { ascending: false });
+    if (!data) return;
+    const otherIds = data.map((chat) => chat.customer_id === session.user.id ? chat.provider_id : chat.customer_id);
+    const { data: profiles } = otherIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name, phone").in("id", otherIds)
+      : { data: [] };
+    const profilesById = new Map(profiles?.map((profile) => [profile.id, profile]) ?? []);
+    setChats(data.map((chat) => ({
+      ...chat,
+      other: profilesById.get(chat.customer_id === session.user.id ? chat.provider_id : chat.customer_id),
+    })));
+  }, [session]);
 
   useEffect(() => {
     if (!session) return;
-    loadChats();
-
-    const ch = supabase
+    void loadChats();
+    const channel = supabase
       .channel(`chats-${session.user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chats" },
-        () => loadChats()
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chats" }, () => {
+        void loadChats();
+      })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [session]);
-
-  async function loadChats() {
-    const { data } = await supabase.from("chats")
-      .select("id, request_id, customer_id, provider_id, created_at")
-      .or(`customer_id.eq.${session!.user.id},provider_id.eq.${session!.user.id}`)
-      .order("created_at", { ascending: false });
-    if (!data) return;
-    const otherIds = data.map((c) => c.customer_id === session!.user.id ? c.provider_id : c.customer_id).filter((id): id is string => !!id);
-    const { data: profs } = otherIds.length > 0 ? await supabase.from("profiles").select("id, full_name, phone").in("id", otherIds) : { data: [] };
-    const map = new Map(profs?.map((p) => [p.id, p]) ?? []);
-    setChats(data.map((c) => ({ ...c, other: map.get(c.customer_id === session!.user.id ? c.provider_id : c.customer_id) })));
-  }
+    return () => { void supabase.removeChannel(channel); };
+  }, [session, loadChats]);
 
   if (loading) return null;
   if (!session) return <Navigate to="/auth" />;
@@ -62,14 +68,14 @@ function MessagesPage() {
           </div>
         )}
         <div className="space-y-2">
-          {chats.map((c) => (
-            <Link key={c.id} to="/request/$id" params={{ id: c.request_id }} className="glass rounded-2xl p-4 flex items-center gap-3 btn-press">
+          {chats.map((chat) => (
+            <Link key={chat.id} to="/request/$id" params={{ id: chat.request_id }} className="glass rounded-2xl p-4 flex items-center gap-3 btn-press">
               <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-primary-glow grid place-items-center text-primary-foreground font-black">
-                {(c.other?.full_name || "?").charAt(0)}
+                {(chat.other?.full_name || "?").charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold text-sm truncate">{c.other?.full_name || "مستخدم"}</div>
-                <div className="text-[11px] text-muted-foreground" dir="ltr">{c.other?.phone}</div>
+                <div className="font-bold text-sm truncate">{chat.other?.full_name || "مستخدم"}</div>
+                <div className="text-[11px] text-muted-foreground" dir="ltr">{chat.other?.phone}</div>
               </div>
             </Link>
           ))}
