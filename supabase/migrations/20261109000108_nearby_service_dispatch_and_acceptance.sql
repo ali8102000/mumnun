@@ -26,6 +26,11 @@ AS $$
           sin(radians(sr.pickup_lat)) * sin(radians(pl.lat))
         )))
       ) <= 10
+      AND NOT EXISTS (
+        SELECT 1 FROM public.service_requests active_request
+        WHERE active_request.provider_id = auth.uid()
+          AND active_request.status IN ('accepted'::public.request_status, 'in_progress'::public.request_status)
+      )
       AND (
         sr.service_id IS NULL
         OR EXISTS (
