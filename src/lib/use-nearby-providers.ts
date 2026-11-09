@@ -61,7 +61,8 @@ export function useNearbyProviders(opts: {
 
     return () => {
       cancelled = true;
-      if (timerRef.current) clearInterval(timerRef.current);
+      const intervalId = timerRef.current;
+      if (intervalId) clearInterval(intervalId);
     };
   }, [center?.lat, center?.lng, type, category, serviceId, radiusKm, enabled, intervalMs, findPinsFn]);
 
