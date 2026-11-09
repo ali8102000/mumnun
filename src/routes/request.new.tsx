@@ -61,6 +61,11 @@ const VEHICLE_CATS: { key: VehicleCategory; label: string; emoji: string; gradie
   { key: "luxury",  label: "ممنون فاخر",   emoji: "🏎️", gradient: "from-amber-400 to-orange-500", eta: "5-8 د" },
 ];
 
+function shortAddr(addr: string) {
+  const first = addr.split("،")[0]?.split(",")[0]?.trim() ?? addr;
+  return first.length > 40 ? `${first.slice(0, 40)}…` : first;
+}
+
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
