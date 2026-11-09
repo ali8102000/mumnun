@@ -73,6 +73,9 @@ BEGIN
     RAISE EXCEPTION 'provider_role_required';
   END IF;
 
+  -- Serialize accepts per provider so concurrent requests cannot assign two active jobs.
+  PERFORM pg_advisory_xact_lock(hashtextextended(auth.uid()::text, 0));
+
   UPDATE public.service_requests sr
   SET provider_id = auth.uid(), status = 'accepted', accepted_at = now()
   WHERE sr.id = _request_id
