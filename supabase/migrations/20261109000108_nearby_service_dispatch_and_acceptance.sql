@@ -93,6 +93,11 @@ BEGIN
             AND pl.role = 'driver'
             AND pl.updated_at > now() - interval '90 seconds'
         )
+        AND NOT EXISTS (
+          SELECT 1 FROM public.service_requests active_request
+          WHERE active_request.provider_id = auth.uid()
+            AND active_request.status IN ('accepted'::public.request_status, 'in_progress'::public.request_status)
+        )
         AND EXISTS (
           SELECT 1 FROM public.request_offers o
           WHERE o.request_id = _request_id
