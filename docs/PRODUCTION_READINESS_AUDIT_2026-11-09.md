@@ -40,8 +40,8 @@ The Google Maps API key was previously committed in the repository. It has been 
 ### P1: Supabase migrations are not deployed
 The five new SQL migrations (00100 through 00104) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
 
-### P1: Expo taxi request lacks coordinates and map workflow
-expo-app/app/request/new.tsx currently collects pickup/destination as text. It does not populate pickup_lat/pickup_lng or destination coordinates. The dispatch database function rejects a taxi request without pickup coordinates. The form also imports fare helpers but does not calculate/set the displayed price. The Expo project does include react-native-maps, but the inspected native request screen does not use a map picker or populate pickup_lat/pickup_lng and destination coordinates. The database dispatch RPC rejects a taxi request without pickup coordinates. The fare helper is imported but the fare state is never set. Therefore the native GPS/map selection, route distance/ETA, and fare confirmation flow are not production-ready.
+### P1: Expo route pricing and map verification
+The Expo request screen now uses expo-location and react-native-maps to collect pickup and destination coordinates and passes them to service_requests, fixing the missing-pickup-coordinate dispatch blocker. The displayed fare is explicitly a rough straight-line-derived estimate only. No trusted road-route distance/duration calculation or server-authoritative final fare has been integrated into the native flow. Google Maps key rotation/configuration and real-device map validation remain required.
 
 ### P1: incomplete dispatch lifecycle
 The database dispatch RPC now has progressive radius logic in a new migration, but it is not deployed or integration-tested. There is no verified scheduler/worker in this audit that retries after offer expiry, sends push notifications, or guarantees provider location freshness. The current offer creation alone does not prove a complete dispatch loop.
@@ -59,7 +59,7 @@ Supabase anon/publishable keys are client-visible by design, but every exposed t
 The Expo request-detail screen now publishes foreground location updates and displays the other participant on the request map. Background tracking is not implemented in the main Expo app. Real-device foreground/background tracking, permission denial, GPS loss, stale data, network interruption, and battery use remain untested. The new live-location RLS migration must be deployed before this sharing flow can work.
 
 ### P2: pricing and finance
-The native fare display is not currently calculated. The web fare helper uses approximate straight-line-to-road distance assumptions; production pricing must be server-authoritative and based on a trusted route result. Wallet/commission/refund ledger integrity needs integration tests after the new RLS restrictions.
+The native fare display is only a rough estimate derived from straight-line distance; the web fare helper also uses an approximate road-distance multiplier. Production pricing must be server-authoritative and based on a trusted route result. Wallet/commission/refund ledger integrity needs integration tests after the new RLS restrictions.
 
 ### P2: Android build and store readiness
 No successful EAS Android AAB build was run during this work. EAS project association, EAS environment variables, signing credentials, push credentials, privacy policy, terms, store listing, and release testing remain to be completed.
