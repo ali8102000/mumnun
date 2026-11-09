@@ -59,6 +59,19 @@ Deno.serve(async (req: Request) => {
     });
     if (roleError || !isCustomer) return json({ error: "هذا الحساب غير مهيأ لطلب الرحلات." }, 403);
 
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const cutoff = new Date(Date.now() - 60_000).toISOString();
+    const { count, error: rateLimitError } = await admin
+      .from("service_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("customer_id", authData.user.id)
+      .eq("type", "taxi")
+      .gte("created_at", cutoff);
+    if (rateLimitError) return json({ error: "تعذر التحقق من عدد الطلبات؛ حاول مرة أخرى." }, 500);
+    if ((count ?? 0) >= 3) return json({ error: "وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً." }, 429);
+
     const body = await req.json();
     const pickupLat = body?.pickupLat;
     const pickupLng = body?.pickupLng;
@@ -105,9 +118,6 @@ Deno.serve(async (req: Request) => {
     }
 
     const fare = fareFor(category, distanceKm);
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
     const { data: request, error: insertError } = await admin
       .from("service_requests")
       .insert({
