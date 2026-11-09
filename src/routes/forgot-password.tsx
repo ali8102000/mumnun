@@ -55,7 +55,7 @@ function ForgotPasswordPage() {
       } else {
         toast.success("تم إرسال رابط الاستعادة إلى بريدك");
       }
-    } catch (err: any) {
+    } catch {
       setSent(true);
     } finally {
       setBusy(false);
