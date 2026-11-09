@@ -174,5 +174,7 @@ AS $$
   LIMIT _limit;
 $$;
 
+REVOKE ALL ON FUNCTION public.find_nearby_provider_pins(numeric, numeric, text, text, uuid, numeric, integer)
+  FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.find_nearby_provider_pins(numeric, numeric, text, text, uuid, numeric, integer)
-  TO authenticated, anon;
+  TO authenticated;
