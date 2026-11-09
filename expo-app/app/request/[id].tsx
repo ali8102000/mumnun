@@ -26,7 +26,7 @@ type ChatMessage = { id: string; chat_id: string; sender_id: string; content: st
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
   const [request, setRequest] = useState<RequestRecord | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -39,6 +39,12 @@ export default function RequestDetail() {
   const scrollRef = useRef<ScrollView>(null);
   const isProvider = request?.provider_id === user?.id;
   const isCustomer = request?.customer_id === user?.id;
+  const canAccept = Boolean(
+    request && !request.provider_id && (
+      (request.type === 'taxi' && roles.includes('driver')) ||
+      (request.type === 'service' && roles.includes('worker'))
+    )
+  );
   const isActive = request?.status === 'in_progress' || request?.status === 'accepted';
   const currentUserId = user?.id;
   const currentRequestType = request?.type;
@@ -327,7 +333,7 @@ export default function RequestDetail() {
         )}
         <View style={styles.actionsRow}>
           {request.type === 'taxi' && isCustomer && ['pending', 'searching'].includes(request.status) && <TouchableOpacity style={styles.actionBtn} onPress={retryDispatch}><Text style={styles.actionBtnText}>إعادة البحث عن سائقين</Text></TouchableOpacity>}
-          {['pending', 'searching'].includes(request.status) && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={acceptRequest}><Text style={styles.actionBtnText}>قبول الطلب</Text></TouchableOpacity>}
+          {['pending', 'searching'].includes(request.status) && canAccept && <TouchableOpacity style={styles.actionBtn} onPress={acceptRequest}><Text style={styles.actionBtnText}>قبول الطلب</Text></TouchableOpacity>}
           {request.status === 'accepted' && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={startRide}><Text style={styles.actionBtnText}>بدء الرحلة</Text></TouchableOpacity>}
           {isActive && isProvider && <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]} onPress={completeRide}><Text style={styles.actionBtnText}>إنهاء</Text></TouchableOpacity>}
           {request.status !== 'cancelled' && request.status !== 'completed' && <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#dc2626' }]} onPress={cancelRequest}><Text style={styles.actionBtnText}>إلغاء</Text></TouchableOpacity>}
