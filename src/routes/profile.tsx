@@ -1,8 +1,9 @@
 import { createFileRoute, Navigate, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import type { Tables } from "@/integrations/supabase/types";
 import { useAuth } from "@/lib/auth-context";
 import { MobileShell } from "@/components/mobile-shell";
-import { LogOut, Star, Settings, Wallet, TrendingUp, ShieldCheck, ChevronLeft } from "lucide-react";
+import { LogOut, Settings, Wallet, TrendingUp, ShieldCheck, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { useServerFn } from "@tanstack/react-start";
@@ -22,11 +23,11 @@ export const Route = createFileRoute("/profile")({ ssr: false,
 function ProfilePage() {
   const { session, profile, roles, loading, signOut } = useAuth();
   const navigate = useNavigate();
-  const [wallet, setWallet] = useState<any>(null);
-  const [txs, setTxs] = useState<any[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [wallet, setWallet] = useState<Tables<"driver_wallets"> | null>(null);
+  const [txs, setTxs] = useState<Tables<"transactions">[]>([]);
+  const [isAdmin] = useState(roles.includes("admin"));
   const [reputation, setReputation] = useState<ReputationData | null>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<Awaited<ReturnType<typeof getProviderReviews>>>([]);
   const [showReviews, setShowReviews] = useState(false);
   const uid = session?.user.id;
   const isDriver = roles.includes("driver");
@@ -39,14 +40,25 @@ function ProfilePage() {
   useEffect(() => {
     if (!uid) return;
     if (isDriver) {
-      (supabase as any).from("driver_wallets").select("*").eq("user_id", uid).maybeSingle().then(({ data }: any) => setWallet(data));
-      (supabase as any).from("transactions").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(10).then(({ data }: any) => setTxs(data ?? []));
+      supabase.from("driver_wallets").select("*").eq("user_id", uid).maybeSingle().then(({ data }) => setWallet(data));
+      supabase.from("transactions").select("*").eq("user_id", uid).order("created_at", { ascending: false }).limit(10).then(({ data }) => setTxs(data ?? []));
     }
-    (supabase as any).rpc("has_admin_access", { p_user_id: uid }).then(({ data }: any) => setIsAdmin(!!data));
-    if (isProvider && uid) { getRepFn({ data: { userId: uid } }).then((rep) => setReputation(rep)).catch(() => {}); }
-  }, [uid, isDriver, isProvider]);
+    if (isProvider && uid) {
+      getRepFn({ data: { userId: uid } })
+        .then((rep) => setReputation(rep))
+        .catch((error: unknown) => console.error("Failed to load provider reputation", error));
+    }
+  }, [uid, isDriver, isProvider, getRepFn]);
 
-  async function loadReviews() { if (!uid) return; try { const r = await getReviewsFn({ data: { userId: uid } }); setReviews(r as any[]); } catch {} }
+  async function loadReviews() {
+    if (!uid) return;
+    try {
+      const result = await getReviewsFn({ data: { userId: uid } });
+      setReviews(result);
+    } catch (error) {
+      console.error("Failed to load provider reviews", error);
+    }
+  }
 
   if (loading) return null;
   if (!session) return <Navigate to="/auth" />;
