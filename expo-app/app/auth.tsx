@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Button, RealInput } from '@/components/ui';
 
 type Mode = 'signup' | 'login';
+type AuthSessionTokens = Pick<Session, 'access_token' | 'refresh_token'>;
 
 export default function AuthScreen() {
   const [mode, setMode] = useState<Mode>('signup');
@@ -40,7 +41,7 @@ export default function AuthScreen() {
         const normalized = normalizePhone(phone);
         const realEmail = email.trim().toLowerCase();
         const authEmail = realEmail || phoneToEmail(normalized);
-        const result = await authProxy<{ session: Session | null }>('/signup', { email: authEmail, password, phone: normalized, full_name: name.trim() });
+        const result = await authProxy<{ session: AuthSessionTokens | null }>('/signup', { email: authEmail, password, phone: normalized, full_name: name.trim() });
         if (!result.session) { Alert.alert('تم التسجيل', 'تحقق من بريدك الإلكتروني ثم سجل الدخول'); setMode('login'); return; }
         const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
@@ -70,7 +71,8 @@ export default function AuthScreen() {
             authEmail = `phone${digits}@mamnoon.app`;
           }
         }
-        const result = await authProxy<{ session: Session | null }>('/login', { email: authEmail, password });
+        const result = await authProxy<{ session: AuthSessionTokens | null }>('/login', { email: authEmail, password });
+        if (!result.session) throw new Error('تعذر إنشاء جلسة تسجيل الدخول');
         const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
         await refresh();
