@@ -8,8 +8,6 @@ export const loginWithIdentifier = createServerFn({ method: "POST" })
       .object({
         identifier: z.string().trim().min(3).max(255),
         password: z.string().min(6).max(128),
-        supabaseUrl: z.string().url().max(500),
-        publishableKey: z.string().min(10).max(2048),
       })
       .parse(d),
   )
@@ -28,7 +26,12 @@ export const loginWithIdentifier = createServerFn({ method: "POST" })
 
     // Resolve the real email and authenticate in one server call; never send
     // another customer's email address back to an unauthenticated browser.
-    const authClient = createClient(data.supabaseUrl, data.publishableKey, {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!supabaseUrl || !publishableKey) {
+      throw new Error("إعدادات تسجيل الدخول غير مكتملة على الخادم");
+    }
+    const authClient = createClient(supabaseUrl, publishableKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const { data: authData, error } = await authClient.auth.signInWithPassword({
