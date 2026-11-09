@@ -79,7 +79,12 @@ function Friends() {
     setAdding(phone);
     try {
       const normalized = normalizePhone(phone);
-      const friendsClient = supabase as unknown as {\n        from: (table: "friends") => {\n          insert: (values: { user_id: string; friend_phone: string }) => Promise<{ error: { message: string } | null }>;\n        };\n      };\n      const { error } = await friendsClient.from("friends").insert({
+      const friendsClient = supabase as unknown as {
+        from: (table: "friends") => {
+          insert: (values: { user_id: string; friend_phone: string }) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+      const { error } = await friendsClient.from("friends").insert({
         user_id: userId,
         friend_phone: normalized,
       });
