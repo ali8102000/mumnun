@@ -85,6 +85,7 @@ function NewRequest() {
   const createTaxiRequestFn = useServerFn(createTaxiRequest);
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState<string | null>(null);
+  const selectedService = services.find((service) => service.id === serviceId) ?? null;
   const [level, setLevel] = useState<"fani" | "khabir">("fani");
   const [khabirMode, setKhabirMode] = useState<"alone" | "with_workers">("alone");
   const [workersCount, setWorkersCount] = useState(1);
