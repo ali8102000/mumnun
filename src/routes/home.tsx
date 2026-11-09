@@ -2,6 +2,7 @@ import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-ro
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth, type AppRole } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { MobileShell } from "@/components/mobile-shell";
 import {
   Car, Wrench, Power, Bell, Sun, Moon, Zap, ShieldCheck,
@@ -233,6 +234,9 @@ function FeatureRow({
   );
 }
 
+type ProviderRequest = Pick<Database["public"]["Tables"]["service_requests"]["Row"], "id" | "pickup_text" | "dest_text" | "notes" | "created_at" | "service_id" | "type" | "price_estimate" | "customer_price" | "pricing_mode" | "work_hours" | "work_description">;
+type ProviderProfile = { available: boolean; is_verified: boolean; verification_status: string; completed_jobs?: number; completed_rides?: number };
+
 function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -240,7 +244,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const [available, setAvailable] = useState(false);
   const [verified, setVerified] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState('pending');
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<ProviderRequest[]>([]);
   const [stats, setStats] = useState({ jobs: 0 });
   const table = type === "taxi" ? "driver_profiles" : "worker_profiles";
 
@@ -259,7 +263,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     if (!session) return;
     supabase.from(table).select("*").eq("user_id", session.user.id).maybeSingle().then(({ data }) => {
       if (data) {
-        const d: any = data;
+        const d = data as ProviderProfile;
         setAvailable(Boolean(d.available));
         setVerified(Boolean(d.is_verified));
         setVerificationStatus(d.verification_status ?? "pending");
@@ -302,7 +306,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       return;
     }
     if (next && coords) {
-      const { error: presenceError } = await (supabase as any).from("provider_locations").upsert({
+      const { error: presenceError } = await supabase.from("provider_locations").upsert({
         user_id: session.user.id,
         role: type === "taxi" ? "driver" : "worker",
         lat: coords.lat,
@@ -361,8 +365,8 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       await acceptFn({ data: { requestId: id } });
       toast.success("تم قبول الطلب");
       navigate({ to: `/request/$id`, params: { id } });
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذّر قبول الطلب");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذّر قبول الطلب");
     }
   }
 
