@@ -29,7 +29,7 @@ function BootstrapPage() {
       try { const result = await checkExists(); setExists(result.exists); }
       catch (e) { setExists(false); }
     })();
-  }, [session]);
+  }, [session, checkExists]);
 
   if (loading || !session) return <Navigate to="/auth" />;
   if (exists === null) return <div className="min-h-screen grid place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
@@ -50,7 +50,7 @@ function BootstrapPage() {
   async function handleBootstrap() {
     setBootstrapping(true);
     try { await bootstrap(); toast.success("تم إنشاء المدير الأعلى بنجاح"); setTimeout(() => window.location.href = "/admin", 1500); }
-    catch (e: any) { toast.error(e.message ?? "فشل إنشاء المدير الأعلى"); }
+    catch (error: unknown) { toast.error(error instanceof Error ? error.message : "فشل إنشاء المدير الأعلى"); }
     finally { setBootstrapping(false); }
   }
 
