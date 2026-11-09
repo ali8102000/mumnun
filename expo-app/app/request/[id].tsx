@@ -9,12 +9,26 @@ import { useAuth } from '@/lib/auth-context';
 const QUICK_REPLIES_CUSTOMER = ['وصلت!', 'كم دقيقة؟', 'أين أنت؟', 'شكراً جزيلاً', 'هل أنت قريب؟'];
 const QUICK_REPLIES_PROVIDER = ['قادم إليك', 'وصلت للموقع', 'بانتظارك', 'تم الإنجاز', 'دقيقة واحدة'];
 type Coordinates = { latitude: number; longitude: number };
+type RequestRecord = {
+  provider_id: string | null;
+  customer_id: string;
+  status: string;
+  type: string;
+  pickup_text: string;
+  dest_text: string | null;
+  price_estimate: number | null;
+  pickup_lat: number | null;
+  pickup_lng: number | null;
+  dest_lat: number | null;
+  dest_lng: number | null;
+};
+type ChatMessage = { id: string; chat_id: string; sender_id: string; content: string; created_at: string };
 
 export default function RequestDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const [request, setRequest] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [request, setRequest] = useState<RequestRecord | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
   const [myLocation, setMyLocation] = useState<Coordinates | null>(null);
   const [otherLocation, setOtherLocation] = useState<Coordinates | null>(null);
@@ -33,7 +47,7 @@ export default function RequestDetail() {
 
   const loadRequest = useCallback(async () => {
     const { data } = await supabase.from('service_requests').select('*, customer:profiles!service_requests_customer_id_fkey(full_name, phone), provider:profiles!service_requests_provider_id_fkey(full_name, phone)').eq('id', id).maybeSingle();
-    setRequest(data); setLoading(false);
+    setRequest(data as RequestRecord | null); setLoading(false);
   }, [id]);
 
   const loadChat = useCallback(async () => {
@@ -59,7 +73,7 @@ export default function RequestDetail() {
       .select('id, chat_id, sender_id, content, created_at, sender:profiles(full_name)')
       .eq('chat_id', chatId)
       .order('created_at', { ascending: true });
-    if (!error) setMessages(data || []);
+    if (!error) setMessages((data ?? []) as ChatMessage[]);
   }, [chatId]);
 
   useEffect(() => {
@@ -68,7 +82,7 @@ export default function RequestDetail() {
     const sub = supabase
       .channel(`request-${id}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'service_requests', filter: `id=eq.${id}` }, (payload) => {
-        setRequest((prev: any) => ({ ...prev, ...payload.new }));
+        setRequest((prev) => prev ? { ...prev, ...payload.new } : prev);
         if (payload.new.status === 'completed') setShowRating(true);
         if (payload.new.status === 'accepted') loadChat();
       })
