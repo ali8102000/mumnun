@@ -13,6 +13,17 @@ ON public.service_requests FOR INSERT TO authenticated
 WITH CHECK (
   auth.uid() = customer_id
   AND type = 'service'::public.request_type
+  AND status = 'pending'::public.request_status
+  AND provider_id IS NULL
+  AND accepted_at IS NULL
+  AND completed_at IS NULL
+  AND cancelled_by IS NULL
+  AND commission IS NULL
+  AND service_id IS NOT NULL
+  AND pickup_lat BETWEEN -90 AND 90
+  AND pickup_lng BETWEEN -180 AND 180
+  AND workers_count BETWEEN 1 AND 20
+  AND (customer_price IS NULL OR customer_price >= 0)
 );
 
 -- Request transitions are performed by transition_service_request().
