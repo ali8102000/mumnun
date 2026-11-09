@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import { useAuth, type AppRole } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { Car, Wrench, User, Loader2, ArrowLeft } from "lucide-react";
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/select-role")({
   component: SelectRolePage,
 });
 
-const roles: { id: AppRole; title: string; desc: string; icon: any; gradient: string }[] = [
+const roles: { id: AppRole; title: string; desc: string; icon: LucideIcon; gradient: string }[] = [
   { id: "customer", title: "زبون", desc: "اطلب تكسي أو خدمة منزلية بضغطة واحدة", icon: User, gradient: "from-blue-500 to-cyan-400" },
   { id: "driver", title: "كابتن تكسي", desc: "استقبل طلبات الرحلات واكسب يومياً", icon: Car, gradient: "from-amber-500 to-yellow-400" },
   { id: "worker", title: "فني خدمات", desc: "قدم خدمتك واستقبل طلبات في اختصاصك", icon: Wrench, gradient: "from-emerald-500 to-teal-400" },
@@ -47,8 +48,8 @@ function SelectRolePage() {
       } else {
         navigate({ to: "/onboarding/worker" });
       }
-    } catch (e: any) {
-      toast.error(e.message || "حدث خطأ");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
       setBusy(false);
     }
