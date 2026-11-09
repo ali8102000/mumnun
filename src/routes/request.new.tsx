@@ -62,9 +62,9 @@ const VEHICLE_CATS: { key: VehicleCategory; label: string; emoji: string; gradie
   { key: "luxury",  label: "ممنون فاخر",   emoji: "🏎️", gradient: "from-amber-400 to-orange-500", eta: "5-8 د" },
 ];
 
-function shortAddr(address: string) {
-  const normalized = address.trim();
-  return normalized.length > 42 ? `${normalized.slice(0, 39)}…` : normalized;
+function shortAddr(addr: string) {
+  const first = addr.split("،")[0]?.split(",")[0]?.trim() ?? addr;
+  return first.length > 40 ? `${first.slice(0, 40)}…` : first;
 }
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
