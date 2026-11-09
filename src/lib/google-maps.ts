@@ -42,7 +42,7 @@ type AdapterMap = { _map: LeafletMap };
 type LatLngInput = google.maps.LatLng | google.maps.LatLngLiteral;
 
 function coordinates(position: LatLngInput): [number, number] {
-  if ("lat" in position && typeof position.lat === "function") {
+  if (position instanceof google.maps.LatLng) {
     return [position.lat(), position.lng()];
   }
   return [position.lat, position.lng];
