@@ -39,8 +39,8 @@ export async function getTrustedDrivingRoute(from: Coordinates, to: Coordinates)
   const distanceKm = Number(route?.distanceMeters ?? 0) / 1000;
   const durationMin = Number.parseFloat(String(route?.duration ?? "0s")) / 60;
 
-  if (!Number.isFinite(distanceKm) || distanceKm <= 0 || distanceKm > 500
-    || !Number.isFinite(durationMin) || durationMin <= 0 || durationMin > 1440) {
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0 || distanceKm > 1500
+    || !Number.isFinite(durationMin) || durationMin <= 0 || durationMin > 2880) {
     throw new Error("لم نحصل على مسار طريق صالح؛ تحقق من نقطتي الانطلاق والوجهة.");
   }
 
