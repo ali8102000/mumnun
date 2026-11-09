@@ -26,17 +26,17 @@ export const createTaxiRequest = createServerFn({ method: "POST" })
     if (roleError || !isCustomer) throw new Error("هذا الحساب غير مهيأ لطلب الرحلات.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: allowed, error: rateLimitError } = await supabaseAdmin.rpc("consume_taxi_request_slot", {
-      _user_id: context.userId,
-    });
-    if (rateLimitError) throw new Error("تعذر التحقق من عدد الطلبات؛ حاول مرة أخرى.");
-    if (!allowed) throw new Error("وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً.");
-
     const route = await getTrustedDrivingRoute(
       { lat: data.pickupLat, lng: data.pickupLng },
       { lat: data.destinationLat, lng: data.destinationLng },
     );
     const fare = taxiFare(data.vehicleCategory, route.distanceKm);
+
+    const { data: allowed, error: rateLimitError } = await supabaseAdmin.rpc("consume_taxi_request_slot", {
+      _user_id: context.userId,
+    });
+    if (rateLimitError) throw new Error("تعذر التحقق من عدد الطلبات؛ حاول مرة أخرى.");
+    if (!allowed) throw new Error("وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً.");
 
     const { data: request, error } = await supabaseAdmin
       .from("service_requests")
