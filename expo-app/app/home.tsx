@@ -35,7 +35,7 @@ export default function HomeScreen() {
       return;
     }
     const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
-    supabase.from(table).select('available, is_verified, verification_status').eq('user_id', userId).maybeSingle()
+    supabase.from(table).select('available, is_verified, verification_status').eq('user_id', user.id).maybeSingle()
       .then(({ data, error }) => {
         if (error) {
           Alert.alert('تعذر تحميل الحالة', 'حاول تحديث الصفحة');
@@ -49,7 +49,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!user || !verified || !available || (activeRole !== 'driver' && activeRole !== 'worker')) return;
-    const userId = userId;
+    const userId = user.id;
     let mounted = true;
     let subscription: Location.LocationSubscription | null = null;
 
