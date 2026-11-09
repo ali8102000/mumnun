@@ -22,7 +22,7 @@ export const loginWithIdentifier = createServerFn({ method: "POST" })
       const { data: foundEmail, error: lookupError } = await supabaseAdmin
         .rpc("lookup_email_by_phone", { _phone: id });
       if (lookupError) throw new Error("تعذر التحقق من بيانات الدخول");
-      const digits = id.replace(/[^\\d]/g, "");
+      const digits = id.replace(/[^\d]/g, "");
       email = foundEmail ? String(foundEmail).toLowerCase() : `phone${digits}@mamnoon.app`;
     }
 
@@ -70,7 +70,7 @@ export const sendPasswordReset = createServerFn({ method: "POST" })
       const redirectUrl = new URL(data.redirectTo);
       const allowedOrigins = (process.env.ALLOWED_REDIRECT_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
       if (allowedOrigins.length && !allowedOrigins.includes(redirectUrl.origin)) {
-        return { ok: true, hasEmail: false };
+        return { ok: true };
       }
     } catch {
       return { ok: true, hasEmail: false };
