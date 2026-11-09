@@ -151,7 +151,7 @@ const planSchema = z.object({
 
 export const adminSavePlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z.object({
       id: z.string().uuid().optional(),
       plan: planSchema,
@@ -185,7 +185,7 @@ export const adminSavePlan = createServerFn({ method: "POST" })
 
 export const adminTogglePlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z.object({ id: z.string().uuid(), is_active: z.boolean() }).parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -217,7 +217,7 @@ export const adminGetSettings = createServerFn({ method: "GET" })
 
 export const adminSaveSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z.object({
       subscription_enabled: z.boolean(),
       minimum_downloads_before_activation: z.number().int().min(0),
@@ -282,7 +282,7 @@ export const adminGetSubscriptions = createServerFn({ method: "GET" })
 
 export const adminAssignSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
+  .validator((d) =>
     z.object({
       user_id: z.string().uuid(),
       plan_id: z.string().uuid(),
