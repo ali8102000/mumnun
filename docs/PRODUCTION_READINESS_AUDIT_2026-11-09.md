@@ -92,3 +92,21 @@ A GitHub Actions workflow was added. Latest completed run at commit `9a411fa2b11
 
 ## Release decision
 NOT READY FOR PRODUCTION. No 10/10 rating is claimed. The changes are isolated to the development branch; main remains unchanged. The database migrations require review and deployment, and the GPS/map/dispatch workflow, verification, notifications, pricing, real-device tests, CI logs, and EAS build are still release blockers.
+
+
+## Latest verification update — 2026-11-09
+
+This section supersedes the older CI status above.
+
+- Latest code commit verified: `d97828a12a4ef35454a1860b9649258f09026860`.
+- GitHub Actions run `42594833705` completed successfully:
+  - Root TypeScript check, production web build, unit tests, focused hardened-module ESLint, and full root ESLint all passed.
+  - Expo public config, production environment validation, missing Maps-key rejection check, EAS Android profile validation, Expo TypeScript, and Android JavaScript export all passed.
+  - Deno type checks passed for `create-taxi-request`, `auth-proxy`, and `subscription-cron`.
+- Added migration `00114_rating_subscores`, `00115_restrict_phone_email_lookup`, `00116_limit_live_location_reads_to_active_requests`, `00117_prevent_reassigning_claimed_requests`, and `00118_fix_request_cancellation_authorization`.
+- Migration 00117 prevents accepting one's own request and prevents assigning a request that already has a provider.
+- Migration 00118 fixes a SQL NULL authorization bypass in cancellation: only the customer or assigned provider can cancel.
+- Migration 00116 limits request-scoped GPS reads to the request participants while the request is accepted or in progress.
+- The above are committed code changes only. No connected Supabase database tool was available during this audit; migration application, PostgreSQL execution, RLS integration tests, and live data checks remain unverified.
+- No signed EAS AAB, physical-device runtime test, production credentials validation, or Play Store release test has been completed. Do not mark production-ready.
+- The branch is still isolated from `main`; no pull request is open. Compare against `main` before any merge because the histories have diverged.
