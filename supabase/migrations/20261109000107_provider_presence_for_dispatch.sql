@@ -78,7 +78,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $
+AS $provider_presence$
 DECLARE
   previous_location record;
   distance_km numeric;
@@ -106,7 +106,7 @@ BEGIN
   NEW.updated_at := now();
   RETURN NEW;
 END;
-$;
+$provider_presence$;
 
 DROP TRIGGER IF EXISTS trg_guard_provider_location_speed ON public.provider_locations;
 CREATE TRIGGER trg_guard_provider_location_speed
