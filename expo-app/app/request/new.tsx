@@ -185,19 +185,6 @@ export default function NewRequest() {
 
     setBusy(true);
     try {
-      const chosenService = SERVICES.find((item) => item.slug === selectedService);
-      const { data: serviceRow, error: serviceError } = isTaxi
-        ? { data: null, error: null }
-        : await supabase
-            .from('services')
-            .select('id')
-            .eq('slug', selectedService)
-            .maybeSingle();
-      if (serviceError) throw serviceError;
-      if (!isTaxi && !serviceRow?.id) {
-        throw new Error('الخدمة المختارة غير متاحة حالياً.');
-      }
-
       let requestId: string;
       if (isTaxi) {
         const { data: taxiRequest, error: taxiError } = await supabase.functions.invoke('create-taxi-request', {
