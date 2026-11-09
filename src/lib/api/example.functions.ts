@@ -3,7 +3,8 @@ import { z } from "zod";
 
 import { getServerConfig } from "../config.server";
 
-// Example createServerFn. Server-side handler invoked from the client:
+// Example createServerFn. Use .validator() for the canonical input schema API.
+// Server-side handler invoked from the client:
 //   const result = await getGreeting({ data: { name: "Ada" } })
 // The .handler body runs server-only — imports used only inside it (like
 // .server.ts modules) are tree-shaken from the client bundle. Module-level
