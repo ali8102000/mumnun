@@ -78,7 +78,7 @@ export function useLiveTracking(opts: {
       heading,
       updated_at: new Date().toISOString(),
     }, { onConflict: "request_id,user_id" });
-  };
+  }, [requestId, myUserId, myRole]);
 
   useEffect(() => {
     if (!active) return;
