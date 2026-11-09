@@ -25,6 +25,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx tsc --noEmit
       - run: bun run build
+      - run: bun run test:unit
       - run: bun run lint
 
   expo:
