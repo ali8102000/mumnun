@@ -133,8 +133,11 @@ BEGIN
     AND provider_id = auth.uid()
     AND status = 'pending';
 
-  DELETE FROM public.request_offers
-  WHERE request_id = _request_id AND provider_id <> auth.uid();
+  UPDATE public.request_offers
+  SET status = 'superseded', responded_at = now()
+  WHERE request_id = _request_id
+    AND provider_id <> auth.uid()
+    AND status = 'pending';
 
   RETURN true;
 END;
