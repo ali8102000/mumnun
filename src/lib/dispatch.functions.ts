@@ -97,7 +97,7 @@ export const cancelRequest = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("cancel_service_request", { _request_id: data.requestId, _reason: data.reason ?? null });
+    const { error } = await (context.supabase as any).rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason ?? null });
     if (error) throw new Error(error.message.includes("request_finished") ? "الطلب منتهي أصلاً" : "تعذّر الإلغاء: " + error.message);
     return { ok: true };
   });
@@ -114,7 +114,7 @@ export const providerCancelRequest = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("cancel_service_request", { _request_id: data.requestId, _reason: data.reason ?? null });
+    const { error } = await (context.supabase as any).rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason ?? null });
     if (error) throw new Error(error.message.includes("request_finished") ? "الطلب منتهي أصلاً" : "تعذّر الإلغاء: " + error.message);
     return { ok: true };
   });
