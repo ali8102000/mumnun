@@ -1,3 +1,6 @@
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ratings ENABLE ROW LEVEL SECURITY;
+
 -- Prevent chat sender impersonation and ratings unrelated to a completed request.
 DROP POLICY IF EXISTS "Users insert messages in own chats" ON public.messages;
 CREATE POLICY "Participants insert messages as themselves"
