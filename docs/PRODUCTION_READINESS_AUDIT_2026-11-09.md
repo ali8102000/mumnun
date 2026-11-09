@@ -35,7 +35,7 @@ The Google Maps API key was previously committed in the repository. It has been 
 The three new SQL migrations are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
 
 ### P1: Expo taxi request lacks coordinates and map workflow
-expo-app/app/request/new.tsx currently collects pickup/destination as text. It does not populate pickup_lat/pickup_lng or destination coordinates. The dispatch database function rejects a taxi request without pickup coordinates. The form also imports fare helpers but does not calculate/set the displayed price. The Expo project does not currently include react-native-maps in expo-app/package.json. Therefore GPS/map selection, route distance/ETA, and fare confirmation are not production-ready.
+expo-app/app/request/new.tsx currently collects pickup/destination as text. It does not populate pickup_lat/pickup_lng or destination coordinates. The dispatch database function rejects a taxi request without pickup coordinates. The form also imports fare helpers but does not calculate/set the displayed price. The Expo project does include react-native-maps, but the inspected native request screen does not use a map picker or populate pickup_lat/pickup_lng and destination coordinates. The database dispatch RPC rejects a taxi request without pickup coordinates. The fare helper is imported but the fare state is never set. Therefore the native GPS/map selection, route distance/ETA, and fare confirmation flow are not production-ready.
 
 ### P1: incomplete dispatch lifecycle
 The database dispatch RPC now has progressive radius logic in a new migration, but it is not deployed or integration-tested. There is no verified scheduler/worker in this audit that retries after offer expiry, sends push notifications, or guarantees provider location freshness. The current offer creation alone does not prove a complete dispatch loop.
@@ -44,7 +44,7 @@ The database dispatch RPC now has progressive radius logic in a new migration, b
 Provider roles are now gated through the provider-profile RPC, but the current schema/flow still needs a formal admin verification/approval state before untrusted drivers or workers can receive live jobs. Vehicle/identity document review and audit workflow are not verified.
 
 ### P1: auth-proxy CORS and abuse protection
-supabase/functions/auth-proxy/index.ts defaults Access-Control-Allow-Origin to '*'. Production origin allowlisting, per-phone/IP rate limits, anti-enumeration controls, and monitoring must be implemented/configured before public launch.
+The wildcard CORS default was removed from supabase/functions/auth-proxy/index.ts. Production must set the exact ALLOWED_ORIGIN value for the real web origin; without it, browsers will block cross-origin access. Per-phone/IP rate limits, anti-enumeration controls, and monitoring still need implementation.
 
 ### P1: public app key and service-side controls
 Supabase anon/publishable keys are client-visible by design, but every exposed table/RPC must be protected by correct RLS and grants. Do not place SUPABASE_SERVICE_ROLE_KEY in Expo, web client bundles, or any EXPO_PUBLIC variable.
@@ -59,7 +59,7 @@ The native fare display is not currently calculated. The web fare helper uses ap
 No successful EAS Android AAB build was run during this work. EAS project association, EAS environment variables, signing credentials, push credentials, privacy policy, terms, store listing, and release testing remain to be completed.
 
 ## CI
-A GitHub Actions workflow was added. Its run was queued at the time of the last status check; no successful lint, TypeScript, web build, Expo typecheck, or E2E result is claimed until the run finishes and logs are reviewed.
+A GitHub Actions workflow was added. An Expo config + TypeScript job completed successfully on an earlier commit. The first root web TypeScript run found an undefined shortAddr helper, which has now been added and is being re-run. Root lint reported 425 errors (mostly explicit any) and 37 warnings; these remain unresolved. The web build and unit test run have not yet been confirmed successful. E2E was not run.
 
 ## Not verified
 - Full RLS coverage and grants across all tables and views.
