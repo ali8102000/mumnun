@@ -333,7 +333,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
           lng: position.coords.longitude,
           heading: position.coords.heading,
           updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id" }).then(({ error }: { error: { message: string } } | null) => {
+        }, { onConflict: "user_id" }).then(({ error }: { error: { message: string } | null }) => {
           if (error && !warned) {
             warned = true;
             toast.error("توقف تحديث موقعك؛ تحقق من اتصال الإنترنت والموقع");
