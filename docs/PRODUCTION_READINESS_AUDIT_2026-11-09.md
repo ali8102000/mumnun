@@ -33,6 +33,7 @@ Base branch: main (unchanged)
 - Corrected Expo request-detail chat reads/writes to use chats.id and messages.chat_id/content, and switched start/complete/cancel to the guarded transition RPC.
 - Added a safe provider-role grant RPC that requires the caller's driver/worker profile.
 - Added admin-controlled provider verification states (pending/approved/suspended/rejected), blocks unverified providers from setting available=true, and connected the existing admin provider console to show verification state.
+- Removed direct client update paths for service_requests and request_offers; customers can directly create only home-service requests, while taxi creation now runs server-side with trusted route-based fare calculation.
 - Added a separate provider_locations presence table for discoverable online drivers/workers, with authenticated writes and self-row-only reads, 90-second freshness checks, anti-spoof speed checks, and nearby driver/pin RPCs reading only verified available provider presence. Nearby map pins are rounded to 2 decimal places, use per-query IDs, and are restricted to authenticated customers.
 - Restricted home-service request visibility and acceptance to verified, available workers with fresh provider presence within 10 km; the acceptance RPC rechecks eligibility atomically.
 - Added foreground GPS presence publishing while a verified provider is online in both Expo and web home screens.
@@ -43,7 +44,7 @@ Base branch: main (unchanged)
 The Google Maps API key was previously committed in the repository. It has been removed from the edited source files, but it must be rotated/restricted in Google Cloud because removal from current source does not invalidate historical Git objects or prior builds. Restrict the replacement key by Android package name and signing SHA-1 and only the required Maps APIs. Set it as EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in the EAS environment.
 
 ### P1: Supabase migrations are not deployed
-The nine new SQL migrations (00100 through 00108) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
+The ten new SQL migrations (00100 through 00109) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
 
 ### P1: Expo route pricing and map verification
 The Expo request screen now uses expo-location and react-native-maps to collect pickup and destination coordinates and passes them to service_requests, fixing the missing-pickup-coordinate dispatch blocker. The displayed fare is explicitly a rough straight-line-derived estimate only. No trusted road-route distance/duration calculation or server-authoritative final fare has been integrated into the native flow. Google Maps key rotation/configuration and real-device map validation remain required.
@@ -64,13 +65,13 @@ Supabase anon/publishable keys are client-visible by design, but every exposed t
 The Expo home screen now publishes foreground provider presence while a verified driver/worker is available, and the request-detail screen publishes request-scoped foreground locations and displays the other participant. The web provider home screen also publishes foreground provider presence. Background tracking is not implemented in the main Expo app. Real-device foreground/background tracking, permission denial, GPS loss, stale data, network interruption, and battery use remain untested. The new provider-presence and request-location RLS migrations must be deployed before these sharing flows can work. The web nearby-pin server function now uses the authenticated Supabase session instead of the service-role client.
 
 ### P2: pricing and finance
-The native fare display is only a rough estimate derived from straight-line distance; the web fare helper also uses an approximate road-distance multiplier. Production pricing must be server-authoritative and based on a trusted route result. Wallet/commission/refund ledger integrity needs integration tests after the new RLS restrictions.
+The native fare display is only a rough estimate derived from straight-line distance; the web preview may also fall back to an approximate multiplier when routing credentials are unavailable. Taxi request creation on the web now recomputes road distance, duration and fare on the server through Google Routes before inserting. Native taxi creation still requires the same server-side path to be integrated. Wallet/commission/refund ledger integrity needs integration tests after the new RLS restrictions.
 
 ### P2: Android build and store readiness
 No successful EAS Android AAB build was run during this work. EAS project association, EAS environment variables, signing credentials, push credentials, privacy policy, terms, store listing, and release testing remain to be completed.
 
 ## CI
-A GitHub Actions workflow was added. An Expo config, TypeScript, and Android JavaScript bundle export job completed successfully on an earlier commit. Root web TypeScript, production build, and the 3 taxi fare unit tests passed in CI. Expo config, TypeScript, and Android JavaScript export also passed in the latest completed run (commit 0e1af536). Root lint still fails: the last completed run reported 426 errors and 41 warnings, mostly existing explicit-any violations; these remain unresolved. Newer commits are triggering another CI run. E2E was not run.
+A GitHub Actions workflow was added. An Expo config, TypeScript, and Android JavaScript bundle export job completed successfully on an earlier commit. Root web TypeScript, production build, and the 3 taxi fare unit tests passed in CI. Expo config, TypeScript, and Android JavaScript export also passed in the latest completed run (commit 0e1af536). Root lint still fails: the last completed run reported 412 errors and 40 warnings, mostly existing explicit-any violations; these remain unresolved. A focused ESLint check for the hardened web provider home, dispatch functions and nearby-provider hook passed. Newer commits are triggering another CI run. E2E was not run.
 
 ## Not verified
 - Full RLS coverage and grants across all tables and views.
