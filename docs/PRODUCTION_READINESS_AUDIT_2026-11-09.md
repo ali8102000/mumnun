@@ -33,7 +33,8 @@ Base branch: main (unchanged)
 - Corrected Expo request-detail chat reads/writes to use chats.id and messages.chat_id/content, and switched start/complete/cancel to the guarded transition RPC.
 - Added a safe provider-role grant RPC that requires the caller's driver/worker profile.
 - Added admin-controlled provider verification states (pending/approved/suspended/rejected), blocks unverified providers from setting available=true, and connected the existing admin provider console to show verification state.
-- Added a separate provider_locations presence table for discoverable online drivers/workers, with authenticated write-only RLS, 90-second freshness checks, and nearby driver/pin RPCs reading only verified available provider presence.
+- Added a separate provider_locations presence table for discoverable online drivers/workers, with authenticated write-only RLS, 90-second freshness checks, anti-spoof speed checks, and nearby driver/pin RPCs reading only verified available provider presence.
+- Restricted home-service request visibility and acceptance to verified, available workers with fresh provider presence within 10 km; the acceptance RPC rechecks eligibility atomically.
 - Added foreground GPS presence publishing while a verified provider is online in both Expo and web home screens.
 
 ## Critical remaining blockers
@@ -42,13 +43,13 @@ Base branch: main (unchanged)
 The Google Maps API key was previously committed in the repository. It has been removed from the edited source files, but it must be rotated/restricted in Google Cloud because removal from current source does not invalidate historical Git objects or prior builds. Restrict the replacement key by Android package name and signing SHA-1 and only the required Maps APIs. Set it as EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in the EAS environment.
 
 ### P1: Supabase migrations are not deployed
-The eight new SQL migrations (00100 through 00107) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
+The nine new SQL migrations (00100 through 00108) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
 
 ### P1: Expo route pricing and map verification
 The Expo request screen now uses expo-location and react-native-maps to collect pickup and destination coordinates and passes them to service_requests, fixing the missing-pickup-coordinate dispatch blocker. The displayed fare is explicitly a rough straight-line-derived estimate only. No trusted road-route distance/duration calculation or server-authoritative final fare has been integrated into the native flow. Google Maps key rotation/configuration and real-device map validation remain required.
 
 ### P1: incomplete dispatch lifecycle
-The database dispatch RPC now has progressive radius logic in a new migration, but it is not deployed or integration-tested. There is no verified scheduler/worker in this audit that retries after offer expiry, sends push notifications, or guarantees provider location freshness. The current offer creation alone does not prove a complete dispatch loop.
+The database taxi dispatch RPC now has progressive radius logic and reads fresh verified provider presence. Home-service requests are filtered to verified available workers within 10 km and acceptance is rechecked atomically. These migrations are not deployed or integration-tested. There is no verified scheduler/worker in this audit that retries after offer expiry or sends push notifications. The current matching logic alone does not prove a complete dispatch loop.
 
 ### P1: role approval and provider verification
 Provider roles are gated through the provider-profile RPC and the database now requires an admin-approved verification state before a driver/worker can become available. The existing admin provider console exposes approve/suspend/reject actions. However, actual identity-document capture/storage, manual review evidence, audit trail validation, and production testing of this workflow are not complete. These changes depend on migrations 00105/00106 being deployed.
