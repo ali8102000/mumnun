@@ -246,6 +246,8 @@ export default function NewRequest() {
             dest_lng: destinationCoords?.longitude ?? null,
             level_required: workerLevel,
             workers_count: extraWorkers + 1,
+            pricing_mode: 'negotiable',
+            customer_price: null,
             notes: notes || null,
           })
           .select('id')
