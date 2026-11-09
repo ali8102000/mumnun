@@ -1,10 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 
-type AdminContext = { supabase: SupabaseClient<Database>; userId: string };
+type AdminContext = { supabase: unknown; userId: string };
 type AdminRow = {
   id: string;
   user_id: string;
@@ -471,7 +470,7 @@ export const adminGetDashboardStats = createServerFn({ method: "GET" })
       adminQueries(supabaseAdmin).from("transactions").select("amount, type").gte("created_at", new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
       adminQueries(supabaseAdmin).from("transactions").select("amount, type").gte("created_at", new Date(new Date().getFullYear(), 0, 1).toISOString()),
     ]);
-    function sumCredit(rows: AdminRow[]) { return (rows ?? []).filter((r) => r.type === "credit").reduce((s, r) => s + Number(r.amount), 0); }
+    function sumCredit(rows: AdminRow[] | null) { return (rows ?? []).filter((r) => r.type === "credit").reduce((s, r) => s + Number(r.amount), 0); }
     return { totalUsers: usersRes.count ?? 0, totalDrivers: driversRes.count ?? 0, totalWorkers: workersRes.count ?? 0, activeDrivers: activeDriversRes.count ?? 0, activeWorkers: activeWorkersRes.count ?? 0, totalRequests: reqAllRes.count ?? 0, activeRequests: reqActiveRes.count ?? 0, completedRequests: reqDoneRes.count ?? 0, cancelledRequests: reqCancelledRes.count ?? 0, dailyRevenue: sumCredit(todayTxRes.data), monthlyRevenue: sumCredit(monthTxRes.data), yearlyRevenue: sumCredit(yearTxRes.data) };
   });
 
