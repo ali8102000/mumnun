@@ -23,9 +23,9 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bun run lint
       - run: bunx tsc --noEmit
       - run: bun run build
+      - run: bun run lint
 
   expo:
     name: Expo configuration and TypeScript
