@@ -91,3 +91,26 @@ eas build --platform android --profile production
 - هذا النجاح لا يثبت تطبيق migrations على قاعدة Supabase الحية، ولا يغني عن اختبار PostgreSQL/RLS.
 - لا يزال ملف AAB الموقّع واختبار الأجهزة الفعلية وإعداد الأسرار الإنتاجية مطلوبة قبل النشر.
 - OTP مؤجل حالياً حسب قرار صاحب المشروع.
+
+## بناء ملف Android AAB من GitHub Actions
+
+أُضيف سير عمل يدوي باسم **Android production AAB** في `.github/workflows/android-aab.yml`. لا يبدأ البناء تلقائياً؛ شغّله بعد إعداد المتطلبات التالية:
+
+### أسرار مستودع GitHub
+
+من Settings → Secrets and variables → Actions أضف الأسرار التالية دون وضع قيمها في الكود:
+
+- `EXPO_TOKEN`: رمز وصول من حساب Expo.
+- `EAS_PROJECT_ID`: معرّف مشروع Expo بصيغة UUID.
+- `EXPO_PUBLIC_SUPABASE_URL`: رابط مشروع Supabase الإنتاجي.
+- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: مفتاح Supabase العام القابل للنشر.
+- `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY`: مفتاح Google Maps المقيد بتطبيق Android.
+
+يجب أيضاً تعريف متغيرات Supabase وGoogle Maps نفسها في بيئة **production** داخل مشروع Expo/EAS؛ أسرار GitHub وحدها لا تُعد بديلاً عن إعداد بيئة البناء البعيدة. جهّز بيانات توقيع Android في EAS أو اسمح لـEAS بإنشاء مفتاح توقيع جديد.
+
+### تشغيل البناء
+
+من تبويب Actions اختر **Android production AAB** ثم **Run workflow**. عند النجاح يظهر ملف `mamnoon-production-aab` ضمن Artifacts ويمكن تنزيله من صفحة التشغيل. هذا الملف هو AAB موقّع مخصص للنشر، وليس APK للتثبيت المباشر.
+
+لا ترفع الملف إلى Google Play قبل اختبار نسخة التثبيت والتأكد من تطبيق migrations على قاعدة بيانات الإنتاج واختبار صلاحيات الموقع والخرائط والطلبات فعلياً.
+
