@@ -1,30 +1,42 @@
 import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-export const lookupAuthEmail = createServerFn({ method: "POST" })
+export const loginWithIdentifier = createServerFn({ method: "POST" })
   .validator((d) =>
     z
       .object({
         identifier: z.string().trim().min(3).max(255),
+        password: z.string().min(6).max(128),
+        supabaseUrl: z.string().url().max(500),
+        publishableKey: z.string().min(10).max(2048),
       })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const id = data.identifier.trim();
-    const isEmail = id.includes("@");
+    let email = id.toLowerCase();
 
-    if (isEmail) {
-      return { email: id.toLowerCase() };
+    if (!id.includes("@")) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: foundEmail, error: lookupError } = await supabaseAdmin
+        .rpc("lookup_email_by_phone", { _phone: id });
+      if (lookupError) throw new Error("تعذر التحقق من بيانات الدخول");
+      const digits = id.replace(/[^\\d]/g, "");
+      email = foundEmail ? String(foundEmail).toLowerCase() : `phone${digits}@mamnoon.app`;
     }
 
-    const { data: email } = await supabaseAdmin
-      .rpc("lookup_email_by_phone", { _phone: id });
-
-    if (email) return { email: String(email).toLowerCase() };
-
-    const digits = id.replace(/[^\d]/g, "");
-    return { email: `phone${digits}@mamnoon.app` };
+    // Resolve the real email and authenticate in one server call; never send
+    // another customer's email address back to an unauthenticated browser.
+    const authClient = createClient(data.supabaseUrl, data.publishableKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: authData, error } = await authClient.auth.signInWithPassword({
+      email,
+      password: data.password,
+    });
+    if (error || !authData.session) throw new Error("بيانات الدخول غير صحيحة");
+    return { session: authData.session };
   });
 
 export const sendPasswordReset = createServerFn({ method: "POST" })
@@ -51,7 +63,7 @@ export const sendPasswordReset = createServerFn({ method: "POST" })
     }
 
     if (!email) {
-      return { ok: true, hasEmail: false };
+      return { ok: true };
     }
 
     try {
@@ -68,5 +80,5 @@ export const sendPasswordReset = createServerFn({ method: "POST" })
       redirectTo: data.redirectTo,
     });
     if (error) console.error("[sendPasswordReset]", error.message);
-    return { ok: true, hasEmail: true };
+    return { ok: true };
   });
