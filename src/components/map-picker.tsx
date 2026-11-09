@@ -166,7 +166,7 @@ export function MapPicker({
           marker.setPosition(center);
           if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
           idleTimerRef.current = setTimeout(() => {
-            geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+            geocoderRef.current?.geocode({ location: c }, (results, status) => {
               if (status === "OK" && results?.[0]) {
                 const addr = results[0].formatted_address;
                 setAddress(addr);
@@ -203,8 +203,8 @@ export function MapPicker({
 
   useEffect(() => {
     if (!nearby?.length || !mapRef.current) return;
-    const g = (window as any).google;
-    if (!g) return;
+    const g = (window as Window & { google?: typeof google }).google;
+    if (!g?.maps) return;
 
     nearby.forEach((pin) => {
       const existing = nearbyMarkersRef.current.get(pin.pin_id);
@@ -289,7 +289,7 @@ export function MapPicker({
         };
         reverseFallback(c, finish);
         try {
-          geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+          geocoderRef.current?.geocode({ location: c }, (results, status) => {
             if (status === "OK" && results?.[0]) {
               const addr = results[0].formatted_address;
               setAddress(addr);
@@ -329,10 +329,11 @@ export function MapPicker({
         ? { lat: typeof center.lat === "function" ? center.lat() : center.lat, lng: typeof center.lng === "function" ? center.lng() : center.lng }
         : value ?? DEFAULT_CENTER;
       try {
-        const result = await lookupMapPlace({ data: { action: "autocomplete", input: q, sessionToken: sessionTokenRef.current, center: c } });\n        const response = result as { suggestions?: Array<{ id: string; text: string }> };
+        const result = await lookupMapPlace({ data: { action: "autocomplete", input: q, sessionToken: sessionTokenRef.current, center: c } });
+        const response = result as { suggestions?: Array<{ id: string; text: string }> };
         if (stale) return;
-        if (res.suggestions?.length) {
-          setSuggestions(res.suggestions.map((s: any) => ({ id: "g:" + s.id, text: s.text, secondary: "" })));
+        if (response.suggestions?.length) {
+          setSuggestions(response.suggestions.map((suggestion) => ({ id: "g:" + suggestion.id, text: suggestion.text, secondary: "" })));
           return;
         }
       } catch {
@@ -340,10 +341,11 @@ export function MapPicker({
       }
       try {
         const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=iq&accept-language=ar&limit=6`);
-        const data = await r.json();
+        const raw: unknown = await r.json();
         if (stale) return;
+        const data = Array.isArray(raw) ? raw as Array<{ place_id: number; display_name: string; lat: string; lon: string; name?: string }> : [];
         setSuggestions(
-          (data || []).map((d: any) => {
+          data.map((d) => {
             const id = "o:" + d.place_id;
             const parts = String(d.display_name || "").split(",");
             placeCacheRef.current.set(id, { coords: { lat: parseFloat(d.lat), lng: parseFloat(d.lon) }, address: d.display_name });
@@ -364,8 +366,9 @@ export function MapPicker({
     let place = placeCacheRef.current.get(id);
     if (!place && id.startsWith("g:")) {
       try {
-        const res: any = await lookupMapPlace({ data: { action: "details", placeId: id.slice(2), sessionToken: sessionTokenRef.current ?? crypto.randomUUID() } });
-        place = { coords: res.coords, address: res.address || label };
+        const result = await lookupMapPlace({ data: { action: "details", placeId: id.slice(2), sessionToken: sessionTokenRef.current ?? crypto.randomUUID() } });
+        const response = result as { coords: Coords; address?: string };
+        place = { coords: response.coords, address: response.address || label };
       } catch {
         setGeoError("تعذّر فتح هذا المكان، جرّب مكان ثاني");
         return;
