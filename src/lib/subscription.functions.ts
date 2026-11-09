@@ -68,6 +68,7 @@ export const getUserSubscription = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { data, error } = await adminDb.rpc<UserSubscriptionSummary[]>("get_user_subscription", {
       _user_id: userId,
     });
@@ -99,6 +100,7 @@ export const incrementUserRequestCount = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     const { userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     await adminDb.rpc("increment_request_count", { _user_id: userId });
     return { ok: true };
   });
@@ -106,6 +108,7 @@ export const incrementUserRequestCount = createServerFn({ method: "POST" })
 async function requireAdmin(context: { userId: string }) {
   const { userId } = context;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
   const { data } = await adminDb.rpc<boolean>("has_admin_access", {
     p_user_id: userId,
   });
@@ -117,6 +120,7 @@ export const adminGetPlans = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { data, error } = await adminDb
       .from("subscription_plans")
       .select("*")
@@ -156,6 +160,7 @@ export const adminSavePlan = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { id, plan } = data;
 
     if (id) {
@@ -186,6 +191,7 @@ export const adminTogglePlan = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { error } = await adminDb
       .from("subscription_plans")
       .update({ is_active: data.is_active })
@@ -199,6 +205,7 @@ export const adminGetSettings = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { data, error } = await adminDb
       .from("subscription_settings")
       .select("*")
@@ -219,6 +226,7 @@ export const adminSaveSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { error } = await adminDb
       .from("subscription_settings")
       .update({
@@ -235,6 +243,7 @@ export const adminGetStats = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { data, error } = await adminDb.rpc<SubscriptionStatsRow[]>("get_subscription_stats");
     if (error || !data || data.length === 0) {
       return { totalSubscribers: 0, activeSubscriptions: 0, expiredSubscriptions: 0, monthlyRevenue: 0, yearlyRevenue: 0, freeCount: 0, silverCount: 0, goldCount: 0 };
@@ -257,6 +266,7 @@ export const adminGetSubscriptions = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
     const { data, error } = await adminDb
       .from("user_subscriptions")
       .select(`
@@ -283,6 +293,7 @@ export const adminAssignSubscription = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SubscriptionAdminClient;
 
     const periodEnd = new Date();
     periodEnd.setDate(periodEnd.getDate() + data.period_days);
