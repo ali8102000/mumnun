@@ -188,6 +188,8 @@ AS $$
   FROM public.provider_locations pl
   WHERE auth.uid() IS NOT NULL
     AND public.has_role(auth.uid(), 'customer'::public.app_role)
+    AND _lat BETWEEN -90 AND 90
+    AND _lng BETWEEN -180 AND 180
     AND pl.updated_at > now() - interval '90 seconds'
     AND (
       (_type = 'taxi' AND pl.role = 'driver' AND EXISTS (
