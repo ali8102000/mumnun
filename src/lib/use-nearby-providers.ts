@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { findNearbyProviderPins, type ProviderPin as ServerPin } from "@/lib/dispatch.functions";
 
@@ -19,10 +18,9 @@ export function useNearbyProviders(opts: {
   enabled?: boolean;
   intervalMs?: number;
 }) {
-  const { center, type, category, serviceId, radiusKm = 5, enabled = true, intervalMs = 15000 } = opts;
+  const { center, type, category, serviceId, radiusKm = 5, enabled = true, intervalMs = 30000 } = opts;
   const [pins, setPins] = useState<ProviderPin[]>([]);
-  const timerRef = useRef<any>(null);
-  const debounceRef = useRef<any>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inflightRef = useRef(false);
   const findPinsFn = useServerFn(findNearbyProviderPins);
 
@@ -61,25 +59,14 @@ export function useNearbyProviders(opts: {
 
     timerRef.current = setInterval(fetchPins, intervalMs);
 
-    const ch = supabase
-      .channel("provider-pins")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "live_locations", filter: `status=eq.online` },
-        () => {
-          clearTimeout(debounceRef.current);
-          debounceRef.current = setTimeout(fetchPins, 2000);
-        },
-      )
-      .subscribe();
+
 
     return () => {
       cancelled = true;
       clearInterval(timerRef.current);
-      clearTimeout(debounceRef.current);
-      supabase.removeChannel(ch);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [center?.lat, center?.lng, type, category, serviceId, radiusKm, enabled, intervalMs]);
+  }, [center?.lat, center?.lng, type, category, serviceId, radiusKm, enabled, intervalMs, findPinsFn]);
 
   return pins;
 }
