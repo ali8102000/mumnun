@@ -26,6 +26,8 @@ jobs:
       - run: bunx tsc --noEmit
       - run: bun run build
       - run: bun run test:unit
+      - name: Lint hardened dispatch and provider-location modules
+        run: bunx eslint src/routes/home.tsx src/lib/dispatch.functions.ts src/lib/use-nearby-providers.ts
       - run: bun run lint
 
   expo:
@@ -41,5 +43,7 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bunx expo config --type public
+      - name: Validate EAS Android build profiles
+        run: node -e "const c=JSON.parse(require('fs').readFileSync('eas.json','utf8')); if(c.build?.preview?.android?.buildType!=='apk'||c.build?.production?.android?.buildType!=='app-bundle') throw new Error('Invalid EAS Android profiles')"
       - run: bunx tsc --noEmit
       - run: bunx expo export --platform android
