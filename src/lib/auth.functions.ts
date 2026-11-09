@@ -18,7 +18,7 @@ export const lookupAuthEmail = createServerFn({ method: "POST" })
       return { email: id.toLowerCase() };
     }
 
-    const { data: email } = await (supabaseAdmin as any)
+    const { data: email } = await supabaseAdmin
       .rpc("lookup_email_by_phone", { _phone: id });
 
     if (email) return { email: String(email).toLowerCase() };
