@@ -552,7 +552,7 @@ function WalletAdjustModal({ onConfirm, onClose }: { onConfirm: (userId: string,
         <h3 className="font-black mb-4">تعديل رصيد</h3>
         <div className="space-y-3">
           <input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="معرف المستخدم (UUID)" className="w-full glass rounded-xl px-4 py-2.5 text-sm" />
-          <div className="grid grid-cols-2 gap-3"><input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="المبلغ" className="glass rounded-xl px-4 py-2.5 text-sm" /><select value={type} onChange={(e) => setType(e.target.value)} className="glass rounded-xl px-4 py-2.5 text-sm"><option value="credit">إضافة (Credit)</option><option value="debit">خصم (Debit)</option></select></div>
+          <div className="grid grid-cols-2 gap-3"><input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="المبلغ" className="glass rounded-xl px-4 py-2.5 text-sm" /><select value={type} onChange={(e) => setType(e.target.value as "credit" | "debit")} className="glass rounded-xl px-4 py-2.5 text-sm"><option value="credit">إضافة (Credit)</option><option value="debit">خصم (Debit)</option></select></div>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ملاحظة" className="w-full glass rounded-xl px-4 py-2.5 text-sm" />
           <div className="flex gap-2"><button onClick={() => onConfirm(userId, amount, type, note)} disabled={!userId || amount === 0} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50">تنفيذ</button><button onClick={onClose} className="px-4 py-2.5 rounded-xl glass text-sm font-bold">إلغاء</button></div>
         </div>
