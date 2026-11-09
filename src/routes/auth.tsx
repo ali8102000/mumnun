@@ -107,10 +107,6 @@ function AuthPage() {
           data: {
             identifier: finalId,
             password,
-            supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-            publishableKey:
-              import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-              import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
         });
         if (!result.session) throw new Error("تعذر إنشاء جلسة تسجيل الدخول");
