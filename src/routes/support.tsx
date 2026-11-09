@@ -32,11 +32,12 @@ type TicketMessage = {
   created_at: string;
 };
 type QueryResult<T> = { data: T | null; error: { message: string } | null };
+type InsertShape<T> = T extends Array<infer Row> ? Partial<Row> : Partial<T>;
 interface SupportQuery<T> extends PromiseLike<QueryResult<T>> {
   select(columns?: string): SupportQuery<T>;
   eq(column: string, value: string): SupportQuery<T>;
   order(column: string, options?: { ascending?: boolean }): SupportQuery<T>;
-  insert(values: Partial<T> | Partial<T>[]): SupportQuery<T>;
+  insert(values: InsertShape<T> | InsertShape<T>[]): SupportQuery<T>;
   maybeSingle(): Promise<QueryResult<T extends Array<infer Row> ? Row : T>>;
 }
 type SupportClient = {
@@ -153,8 +154,8 @@ function SupportCenter() {
         });
       if (error) throw error;
       setReply("");
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "حدث خطأ غير متوقع");
     } finally {
       setBusy(false);
     }
