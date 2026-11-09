@@ -58,6 +58,7 @@ export default function HomeScreen() {
     if (!user || !verified || !available || (activeRole !== 'driver' && activeRole !== 'worker')) return;
     const userId = user.id;
     let mounted = true;
+    let loadedIncoming = false;
     let subscription: Location.LocationSubscription | null = null;
 
     async function publishPresence(location: Location.LocationObject) {
@@ -75,7 +76,8 @@ export default function HomeScreen() {
         const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
         await supabase.from(table).update({ available: false }).eq('user_id', userId);
         setAvailable(false);
-      } else if (mounted) {
+      } else if (mounted && !loadedIncoming) {
+        loadedIncoming = true;
         void loadIncoming();
       }
     }
@@ -95,7 +97,7 @@ export default function HomeScreen() {
       await publishPresence(first);
       if (!mounted) return;
       subscription = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 },
+        { accuracy: Location.Accuracy.Balanced, timeInterval: 15000, distanceInterval: 20 },
         (location) => { void publishPresence(location); },
       );
     }
