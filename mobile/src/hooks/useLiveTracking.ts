@@ -48,9 +48,9 @@ TaskManager.defineTask(BACKGROUND_TASK, async ({ data, error }) => {
   }, { onConflict: "request_id,user_id" });
 });
 
-(globalThis as any).__MUMNUN_TRACKING_REQUEST_ID = null;
-(globalThis as any).__MUMNUN_TRACKING_USER_ID = null;
-(globalThis as any).__MUMNUN_TRACKING_ROLE = null;
+trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID = null;
+trackingGlobal.__MUMNUN_TRACKING_USER_ID = null;
+trackingGlobal.__MUMNUN_TRACKING_ROLE = null;
 
 export function useLiveTracking(opts: {
   requestId: string | null;
@@ -106,9 +106,9 @@ export function useLiveTracking(opts: {
       if (myRole === "provider") {
         const bgStatus = await Location.requestBackgroundPermissionsAsync();
         if (bgStatus.status === "granted") {
-          (globalThis as any).__MUMNUN_TRACKING_REQUEST_ID = requestId;
-          (globalThis as any).__MUMNUN_TRACKING_USER_ID = myUserId;
-          (globalThis as any).__MUMNUN_TRACKING_ROLE = myRole;
+          trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID = requestId;
+          trackingGlobal.__MUMNUN_TRACKING_USER_ID = myUserId;
+          trackingGlobal.__MUMNUN_TRACKING_ROLE = myRole;
           await Location.startLocationUpdatesAsync(BACKGROUND_TASK, {
             accuracy: Location.Accuracy.High,
             timeInterval: 5000,
@@ -120,9 +120,9 @@ export function useLiveTracking(opts: {
 
       return () => {
         sub.remove();
-        if (TaskManager.isTaskDefined(BACKGROUND_TASK) && (globalThis as any).__MUMNUN_TRACKING_REQUEST_ID) {
+        if (TaskManager.isTaskDefined(BACKGROUND_TASK) && trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID) {
           Location.stopLocationUpdatesAsync(BACKGROUND_TASK).catch(() => {});
-          (globalThis as any).__MUMNUN_TRACKING_REQUEST_ID = null;
+          trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID = null;
         }
       };
     })();
@@ -135,8 +135,8 @@ export function useLiveTracking(opts: {
     const ch = supabase
       .channel(`live-${requestId}-${Math.random().toString(36).slice(2, 8)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "live_locations", filter: `request_id=eq.${requestId}` }, (payload) => {
-        const row = payload.new;
-        if (row.user_id === otherUserId) {
+        const row = payload.new as { user_id?: string; lat?: number; lng?: number; heading?: number | null };
+        if (row.user_id === otherUserId && typeof row.lat === "number" && typeof row.lng === "number") {
           setOther({ lat: row.lat, lng: row.lng, heading: row.heading });
         }
       })
