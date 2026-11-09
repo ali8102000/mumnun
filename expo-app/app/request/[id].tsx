@@ -183,6 +183,19 @@ export default function RequestDetail() {
     else loadMessages();
   }
 
+  async function retryDispatch() {
+    const { data, error } = await supabase.rpc('dispatch_request', { _request_id: id });
+    if (error) {
+      Alert.alert('تعذر إعادة البحث', 'حاول مرة أخرى بعد قليل.');
+      return;
+    }
+    if (Number(data ?? 0) > 0) {
+      Alert.alert('البحث مستمر', 'يوجد عرض حالي للسائقين أو أُرسلت عروض جديدة.');
+    } else {
+      Alert.alert('لا يوجد سائق متاح حالياً', 'سيبقى طلبك محفوظاً ويمكنك إعادة المحاولة لاحقاً.');
+    }
+  }
+
   async function acceptRequest() {
     const { error } = await supabase.rpc('accept_service_request', { _request_id: id });
     if (error) Alert.alert('خطأ', error.message);
@@ -295,6 +308,7 @@ export default function RequestDetail() {
           </View>
         )}
         <View style={styles.actionsRow}>
+          {request.type === 'taxi' && isCustomer && ['pending', 'searching'].includes(request.status) && <TouchableOpacity style={styles.actionBtn} onPress={retryDispatch}><Text style={styles.actionBtnText}>إعادة البحث عن سائقين</Text></TouchableOpacity>}
           {['pending', 'searching'].includes(request.status) && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={acceptRequest}><Text style={styles.actionBtnText}>قبول الطلب</Text></TouchableOpacity>}
           {request.status === 'accepted' && isProvider && <TouchableOpacity style={styles.actionBtn} onPress={startRide}><Text style={styles.actionBtnText}>بدء الرحلة</Text></TouchableOpacity>}
           {isActive && isProvider && <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#16a34a' }]} onPress={completeRide}><Text style={styles.actionBtnText}>إنهاء</Text></TouchableOpacity>}
