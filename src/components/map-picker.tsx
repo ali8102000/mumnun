@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
 import { getCurrentLocation, locationError } from "@/lib/location";
 import { lookupMapPlace } from "@/lib/maps.functions";
@@ -49,17 +49,21 @@ export function MapPicker({
   /** Fired once after "my location" succeeds and the address is read. */
   onAutoLocated?: (c: Coords, address?: string) => void;
 }) {
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const fallbackCenterRef = useRef(fallbackCenter);
+  fallbackCenterRef.current = fallbackCenter;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const onAutoLocatedRef = useRef(onAutoLocated);
   onAutoLocatedRef.current = onAutoLocated;
   const [full, setFull] = useState(startFull);
   const [picked, setPicked] = useState(false);
-  const report = (c: Coords, addr?: string) => {
+  const report = useCallback((c: Coords, addr?: string) => {
     setPicked(true);
     onChangeRef.current(c, addr);
-  };
-  const reverseFallback = (c: Coords, onDone?: (addr?: string) => void) => {
+  }, []);
+  const reverseFallback = useCallback((c: Coords, onDone?: (addr?: string) => void) => {
     lookupMapPlace({ data: { action: "reverse", center: c } })
       .then((r: any) => {
         if (r?.address) {
@@ -71,7 +75,7 @@ export function MapPicker({
         }
       })
       .catch(() => onDone?.());
-  };
+  }, [report]);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mapRef = useRef<any>(null);
@@ -107,7 +111,7 @@ export function MapPicker({
       .then((g) => {
         clearTimeout(slow);
         if (cancelled || !containerRef.current) return;
-        const center = value ?? fallbackCenter ?? DEFAULT_CENTER;
+        const center = valueRef.current ?? fallbackCenterRef.current ?? DEFAULT_CENTER;
         const map = new g.maps.Map(containerRef.current, {
           center,
           zoom: 14,
@@ -188,7 +192,7 @@ export function MapPicker({
       clearTimeout(slow);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, []);
+  }, [reverseFallback]);
 
   useEffect(() => {
     if (!readyRef.current || !mapRef.current || !value) return;
@@ -353,7 +357,7 @@ export function MapPicker({
       stale = true;
       clearTimeout(timer);
     };
-  }, [searchQuery, searchOpen]);
+  }, [searchQuery, searchOpen, value]);
 
   async function pickSuggestion(id: string, label: string) {
     let place = placeCacheRef.current.get(id);
@@ -636,24 +640,25 @@ export function StaticMapPreview({
   accent?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { lat, lng } = coords;
 
   useEffect(() => {
     let cancelled = false;
     loadGoogleMaps().then((g) => {
       if (cancelled || !containerRef.current) return;
       const map = new g.maps.Map(containerRef.current, {
-        center: coords,
+        center: { lat, lng },
         zoom: 15,
         disableDefaultUI: true,
         gestureHandling: "none",
         clickableIcons: false,
       });
-      new g.maps.Marker({ position: coords, map });
+      new g.maps.Marker({ position: { lat, lng }, map });
     });
     return () => {
       cancelled = true;
     };
-  }, [coords.lat, coords.lng]);
+  }, [lat, lng]);
 
   return (
     <div
