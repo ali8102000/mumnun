@@ -20,12 +20,12 @@ ON public.provider_locations FOR INSERT TO authenticated
 WITH CHECK (
   user_id = auth.uid()
   AND (
-    (role = 'driver' AND EXISTS (
+    (role = 'driver' AND public.has_role(auth.uid(), 'driver'::public.app_role) AND EXISTS (
       SELECT 1 FROM public.driver_profiles dp
       WHERE dp.user_id = auth.uid() AND dp.available = true AND dp.is_verified = true
     ))
     OR
-    (role = 'worker' AND EXISTS (
+    (role = 'worker' AND public.has_role(auth.uid(), 'worker'::public.app_role) AND EXISTS (
       SELECT 1 FROM public.worker_profiles wp
       WHERE wp.user_id = auth.uid() AND wp.available = true AND wp.is_verified = true
     ))
@@ -137,6 +137,7 @@ AS $$
   JOIN public.provider_locations pl ON pl.user_id = dp.user_id
   WHERE dp.available = true
     AND dp.is_verified = true
+    AND public.has_role(dp.user_id, 'driver'::public.app_role)
     AND pl.role = 'driver'
     AND dp.vehicle_category::text = _category
     AND pl.updated_at > now() - interval '90 seconds'
@@ -188,6 +189,7 @@ AS $$
         WHERE dp.user_id = pl.user_id
           AND dp.available = true
           AND dp.is_verified = true
+          AND public.has_role(dp.user_id, 'driver'::public.app_role)
           AND (_category IS NULL OR dp.vehicle_category::text = _category)
       ))
       OR
@@ -196,6 +198,7 @@ AS $$
         WHERE wp.user_id = pl.user_id
           AND wp.available = true
           AND wp.is_verified = true
+          AND public.has_role(wp.user_id, 'worker'::public.app_role)
           AND (
             _service_id IS NULL
             OR EXISTS (
