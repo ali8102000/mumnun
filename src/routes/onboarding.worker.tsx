@@ -55,7 +55,7 @@ function OnboardingWorker() {
     try {
       const uid = session!.user.id;
       const { error: pErr } = await supabase.from("worker_profiles").upsert({
-        user_id: uid, level, bio, available: true,
+        user_id: uid, level, bio, available: false,
       });
       if (pErr) throw pErr;
       await grantProviderRole({ data: { role: "worker" } });
