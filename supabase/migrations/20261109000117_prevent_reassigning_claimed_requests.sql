@@ -26,6 +26,7 @@ BEGIN
   UPDATE public.service_requests sr
   SET provider_id = auth.uid(), status = 'accepted', accepted_at = now()
   WHERE sr.id = _request_id
+    AND sr.customer_id <> auth.uid()
     AND sr.provider_id IS NULL
     AND (
       (
