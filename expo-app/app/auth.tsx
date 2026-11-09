@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { router } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { authProxy, supabase } from '@/lib/supabase';
-import { isValidPhone, normalizePhone, phoneToEmail } from '@/lib/phone';
+import { isValidPhone, normalizePhone } from '@/lib/phone';
 import { useAuth } from '@/lib/auth-context';
 import { Button, RealInput } from '@/components/ui';
 
@@ -40,7 +40,12 @@ export default function AuthScreen() {
         }
         const normalized = normalizePhone(phone);
         const realEmail = email.trim().toLowerCase();
-        const authEmail = realEmail || phoneToEmail(normalized);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(realEmail)) {
+          Alert.alert('تنبيه', 'حالياً يلزم بريد إلكتروني حقيقي للتسجيل إلى أن يتم تفعيل التحقق برسالة SMS.');
+          setBusy(false);
+          return;
+        }
+        const authEmail = realEmail;
         const result = await authProxy<{ session: AuthSessionTokens | null }>('/signup', { email: authEmail, password, phone: normalized, full_name: name.trim() });
         if (!result.session) { Alert.alert('تم التسجيل', 'تحقق من بريدك الإلكتروني ثم سجل الدخول'); setMode('login'); return; }
         const { error } = await supabase.auth.setSession(result.session);
@@ -110,7 +115,7 @@ export default function AuthScreen() {
             <RealInput value={name} onChangeText={setName} placeholder="مثال: أحمد محمد" />
             <Text style={styles.label}>رقم الهاتف</Text>
             <RealInput value={phone} onChangeText={setPhone} placeholder="07XXXXXXXXX" keyboardType="phone-pad" />
-            <Text style={styles.label}>البريد الإلكتروني (لاستعادة كلمة المرور)</Text>
+            <Text style={styles.label}>البريد الإلكتروني (مطلوب حالياً إلى حين تفعيل SMS)</Text>
             <RealInput value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" />
           </>
         ) : (
