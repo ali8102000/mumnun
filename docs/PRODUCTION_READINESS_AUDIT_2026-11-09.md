@@ -25,6 +25,12 @@ Base branch: main (unchanged)
 - Updated web dispatch/retry to use the authenticated dispatch_request database function instead of privileged direct inserts with a seven-day expiry.
 - Updated web ride start/completion/cancellation to use the guarded transition_service_request RPC.
 - Added migration 20261109000102 to dispatch in expanding radii of 2, 5, then 10 km, creating 45-second offers under a locked request row.
+- Added migration 20261109000103 to restrict live-location writes to active request participants and allow only those participants to read each other's request locations.
+- Added migration 20261109000104 to prevent chat sender impersonation and restrict ratings to the other participant on a completed request.
+- Added GPS acquisition, map point selection, pickup/destination coordinates, and a clearly labelled rough fare estimate to the Expo new-request screen.
+- Added foreground live-location publishing and a participant-only live map to active Expo taxi requests.
+- Corrected Expo service slugs to match the actual Supabase services catalog and exposed all seeded service categories on the native home screen.
+- Corrected Expo request-detail chat reads/writes to use chats.id and messages.chat_id/content, and switched start/complete/cancel to the guarded transition RPC.
 
 ## Critical remaining blockers
 
@@ -32,7 +38,7 @@ Base branch: main (unchanged)
 The Google Maps API key was previously committed in the repository. It has been removed from the edited source files, but it must be rotated/restricted in Google Cloud because removal from current source does not invalidate historical Git objects or prior builds. Restrict the replacement key by Android package name and signing SHA-1 and only the required Maps APIs. Set it as EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in the EAS environment.
 
 ### P1: Supabase migrations are not deployed
-The three new SQL migrations are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
+The five new SQL migrations (00100 through 00104) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
 
 ### P1: Expo taxi request lacks coordinates and map workflow
 expo-app/app/request/new.tsx currently collects pickup/destination as text. It does not populate pickup_lat/pickup_lng or destination coordinates. The dispatch database function rejects a taxi request without pickup coordinates. The form also imports fare helpers but does not calculate/set the displayed price. The Expo project does include react-native-maps, but the inspected native request screen does not use a map picker or populate pickup_lat/pickup_lng and destination coordinates. The database dispatch RPC rejects a taxi request without pickup coordinates. The fare helper is imported but the fare state is never set. Therefore the native GPS/map selection, route distance/ETA, and fare confirmation flow are not production-ready.
@@ -49,8 +55,8 @@ The wildcard CORS default was removed from supabase/functions/auth-proxy/index.t
 ### P1: public app key and service-side controls
 Supabase anon/publishable keys are client-visible by design, but every exposed table/RPC must be protected by correct RLS and grants. Do not place SUPABASE_SERVICE_ROLE_KEY in Expo, web client bundles, or any EXPO_PUBLIC variable.
 
-### P2: live location reliability
-The older mobile/ tracking hook has background-task cleanup and shared global state concerns; the main expo-app does not yet provide a verified live location tracking implementation in the inspected route set. Real-device foreground/background tracking, permission denial, GPS loss, stale data, and battery use remain untested.
+### P1: live location reliability
+The Expo request-detail screen now publishes foreground location updates and displays the other participant on the request map. Background tracking is not implemented in the main Expo app. Real-device foreground/background tracking, permission denial, GPS loss, stale data, network interruption, and battery use remain untested. The new live-location RLS migration must be deployed before this sharing flow can work.
 
 ### P2: pricing and finance
 The native fare display is not currently calculated. The web fare helper uses approximate straight-line-to-road distance assumptions; production pricing must be server-authoritative and based on a trusted route result. Wallet/commission/refund ledger integrity needs integration tests after the new RLS restrictions.
@@ -59,7 +65,7 @@ The native fare display is not currently calculated. The web fare helper uses ap
 No successful EAS Android AAB build was run during this work. EAS project association, EAS environment variables, signing credentials, push credentials, privacy policy, terms, store listing, and release testing remain to be completed.
 
 ## CI
-A GitHub Actions workflow was added. An Expo config + TypeScript job completed successfully on an earlier commit. The first root web TypeScript run found an undefined shortAddr helper, which has now been added and is being re-run. Root lint reported 425 errors (mostly explicit any) and 37 warnings; these remain unresolved. The web build and unit test run have not yet been confirmed successful. E2E was not run.
+A GitHub Actions workflow was added. An Expo config, TypeScript, and Android JavaScript bundle export job completed successfully on an earlier commit. Root web TypeScript, production build, and the 3 taxi fare unit tests have also passed. Root lint reported 425 errors (mostly explicit any) and 37 warnings; these remain unresolved. The latest Expo GPS/tracking changes are being rechecked. E2E was not run.
 
 ## Not verified
 - Full RLS coverage and grants across all tables and views.
