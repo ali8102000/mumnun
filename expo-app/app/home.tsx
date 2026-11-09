@@ -87,11 +87,22 @@ export default function HomeScreen() {
 function CustomerHome() {
   const tiles = [
     { key: 'taxi', label: 'سيارة', emoji: '🚕', color: '#2563eb' },
-    { key: 'plumber', label: 'سباك', emoji: '🔧', color: '#0891b2' },
-    { key: 'electrician', label: 'كهربائي', emoji: '💡', color: '#ca8a04' },
-    { key: 'carpenter', label: 'نجار', emoji: '🪚', color: '#9333ea' },
-    { key: 'cleaning', label: 'تنظيف', emoji: '🧹', color: '#16a34a' },
-    { key: 'ac', label: 'مكيفات', emoji: '❄️', color: '#0284c7' },
+    { key: 'build', label: 'بناء', emoji: '🧱', color: '#ea580c' },
+    { key: 'plaster', label: 'لبخ', emoji: '🪣', color: '#d97706' },
+    { key: 'carpentry_form', label: 'نجارة وقالب', emoji: '📐', color: '#a16207' },
+    { key: 'flooring', label: 'أرضيات', emoji: '🟫', color: '#78716c' },
+    { key: 'chef', label: 'طباخ', emoji: '👨‍🍳', color: '#e11d48' },
+    { key: 'plumbing', label: 'تأسيس ماء', emoji: '🚰', color: '#0891b2' },
+    { key: 'electric_setup', label: 'تأسيس كهرباء', emoji: '💡', color: '#ca8a04' },
+    { key: 'electric_street', label: 'تصليح كهرباء', emoji: '⚡', color: '#d97706' },
+    { key: 'washer_repair', label: 'تصليح غسالة', emoji: '🧺', color: '#0284c7' },
+    { key: 'stove_repair', label: 'تصليح طباخ', emoji: '🔥', color: '#dc2626' },
+    { key: 'fridge_repair', label: 'تصليح ثلاجة', emoji: '🧊', color: '#0ea5e9' },
+    { key: 'ac_repair', label: 'مكيفات', emoji: '❄️', color: '#0284c7' },
+    { key: 'cleaning', label: 'تنظيف بيوت', emoji: '🧹', color: '#16a34a' },
+    { key: 'wood_carpentry', label: 'نجارة أخشاب', emoji: '🪵', color: '#a16207' },
+    { key: 'blacksmith', label: 'حدادة', emoji: '⚒️', color: '#475569' },
+    { key: 'general', label: 'خدمات عامة', emoji: '🏠', color: '#7c3aed' },
   ];
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
