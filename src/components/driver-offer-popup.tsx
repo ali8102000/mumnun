@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/lib/auth-context";\nimport type { Tables } from "@/integrations/supabase/types";
 import { respondToOffer } from "@/lib/dispatch.functions";
 import { MapPin, Check, X, Loader2, Navigation } from "lucide-react";
 import { toast } from "sonner";
 
-type Offer = {
+type Offer = Pick<Tables<"request_offers">, "id" | "request_id" | "distance_km" | "expires_at" | "status">;\ntype RideRequest = Pick<Tables<"service_requests">, "pickup_text" | "dest_text" | "price_estimate">;\n\ntype LegacyOffer = {
   id: string;
   request_id: string;
   distance_km: number | null;
@@ -21,7 +21,7 @@ export function DriverOfferPopup() {
   const respond = useServerFn(respondToOffer);
   const offerRef = useRef<Offer | null>(null);
   const [offer, setOffer] = useState<Offer | null>(null);
-  const [request, setRequest] = useState<any>(null);
+  const [request, setRequest] = useState<RideRequest | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(45);
   const [totalSeconds, setTotalSeconds] = useState(45);
   const [busy, setBusy] = useState(false);
@@ -92,9 +92,9 @@ export function DriverOfferPopup() {
         (window as any).AudioContext || (window as any).webkitAudioContext;
       if (Ctx && !audioCtxRef.current) audioCtxRef.current = new Ctx();
       if (audioCtxRef.current?.state === "suspended") {
-        audioCtxRef.current.resume().catch(() => {});
+        audioCtxRef.current.resume().catch((error: unknown) => { console.warn("[driver-offer] audio resume failed", error); });
       }
-    } catch {}
+    } catch (error) { console.warn("[driver-offer] audio initialization failed", error); }
 
     const beep = () => {
       const ctx = audioCtxRef.current;
@@ -123,7 +123,7 @@ export function DriverOfferPopup() {
     if (!offer) return;
     setBusy(true);
     try {
-      const res: any = await respond({ data: { offerId: offer.id, action } });
+      const res = await respond({ data: { offerId: offer.id, action } });
       if (action === "accept" && res?.accepted) {
         toast.success("تم قبول الطلب");
         navigate({ to: "/request/$id", params: { id: res.requestId } });
