@@ -13,6 +13,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { acceptServiceRequest } from "@/lib/dispatch.functions";
 import { useTheme } from "@/lib/use-theme";
 import { playClick } from "@/lib/click-sound";
+import { getCurrentLocation, locationError } from "@/lib/location";
 
 export const Route = createFileRoute("/home")({ ssr: false,
   head: () => ({ meta: [
@@ -237,6 +238,8 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const navigate = useNavigate();
   const acceptFn = useServerFn(acceptServiceRequest);
   const [available, setAvailable] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState('pending');
   const [requests, setRequests] = useState<any[]>([]);
   const [stats, setStats] = useState({ jobs: 0 });
   const table = type === "taxi" ? "driver_profiles" : "worker_profiles";
@@ -268,15 +271,78 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
 
   async function toggleAvail() {
     playClick("toggle");
-    const prev = available;
-    const next = !prev;
-    setAvailable(next);
-    const { error } = await supabase.from(table).update({ available: next }).eq("user_id", session!.user.id);
+    if (!session) return;
+    if (!verified) {
+      toast.error("حسابك بانتظار توثيق الإدارة قبل استقبال الطلبات");
+      return;
+    }
+
+    const next = !available;
+    let coords: { lat: number; lng: number } | null = null;
+    if (next) {
+      try {
+        if (!navigator.geolocation) throw new Error("location_unavailable");
+        coords = await getCurrentLocation(navigator.geolocation);
+      } catch (error) {
+        toast.error(error instanceof Error && error.message === "location_unavailable"
+          ? "المتصفح لا يدعم تحديد الموقع"
+          : locationError(error as GeolocationPositionError));
+        return;
+      }
+    }
+
+    const { error } = await supabase.from(table).update({ available: next }).eq("user_id", session.user.id);
     if (error) {
-      setAvailable(prev);
-      toast.error("تعذّر تحديث الحالة");
+      toast.error(error.message.includes("provider_not_verified") ? "يجب توثيق الحساب أولاً" : "تعذّر تحديث الحالة");
+      return;
+    }
+    setAvailable(next);
+
+    if (next && coords) {
+      const { error: presenceError } = await (supabase as any).from("provider_locations").upsert({
+        user_id: session.user.id,
+        role: type === "taxi" ? "driver" : "worker",
+        lat: coords.lat,
+        lng: coords.lng,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+      if (presenceError) {
+        await supabase.from(table).update({ available: false }).eq("user_id", session.user.id);
+        setAvailable(false);
+        toast.error("تعذّر نشر موقعك؛ لم يتم تفعيل استقبال الطلبات");
+      }
     }
   }
+
+  useEffect(() => {
+    if (!session || !available || !verified || !navigator.geolocation) return;
+    let warned = false;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        void (supabase as any).from("provider_locations").upsert({
+          user_id: session.user.id,
+          role: type === "taxi" ? "driver" : "worker",
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          heading: position.coords.heading,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" }).then(({ error }: { error: { message: string } | null }) => {
+          if (error && !warned) {
+            warned = true;
+            toast.error("توقف تحديث موقعك؛ تحقق من اتصال الإنترنت والموقع");
+          }
+        });
+      },
+      () => {
+        if (!warned) {
+          warned = true;
+          toast.error("تعذّر تحديث موقعك؛ قد لا تصلك الطلبات القريبة");
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [available, verified, session?.user.id, type]);
 
   async function accept(id: string) {
     playClick("pop");
@@ -299,12 +365,13 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
         {available && <div className="absolute inset-0 shine opacity-30 mix-blend-overlay" />}
         <div className="relative flex items-center justify-between">
           <div>
-            <div className={`text-xs ${available ? "text-white/80" : "text-muted-foreground"}`}>حالة التوفر</div>
-            <div className="font-black text-lg mt-0.5">{available ? "متاح للعمل" : "غير متاح"}</div>
+            <div className={`text-xs ${available ? "text-white/80" : "text-muted-foreground"}`}>{verified ? "حالة التوفر" : "حالة التوثيق"}</div>
+            <div className="font-black text-lg mt-0.5">{!verified ? (verificationStatus === "rejected" ? "مرفوض" : verificationStatus === "suspended" ? "معلّق" : "بانتظار التوثيق") : available ? "متاح للعمل" : "غير متاح"}</div>
           </div>
           <button
             onClick={toggleAvail}
-            className={`h-14 w-14 rounded-2xl grid place-items-center btn-press transition ${
+            disabled={!verified}
+            className={`h-14 w-14 rounded-2xl grid place-items-center btn-press transition disabled:opacity-40 ${
               available ? "bg-white/25 backdrop-blur" : "bg-surface-2"
             }`}
           >
