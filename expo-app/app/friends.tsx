@@ -4,7 +4,11 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { normalizePhone } from '@/lib/phone';
 
-type FriendProfile = { id: string; full_name: string | null; phone: string };\ntype FriendRequest = { id: string; sender_id: string; sender: FriendProfile | null };\ntype SearchProfile = FriendProfile;\n\nexport default function FriendsScreen() {
+type FriendProfile = { id: string; full_name: string | null; phone: string };
+type FriendRequest = { id: string; sender_id: string; sender: FriendProfile | null };
+type SearchProfile = FriendProfile;
+
+export default function FriendsScreen() {
   const { user } = useAuth();
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
