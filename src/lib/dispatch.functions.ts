@@ -26,7 +26,7 @@ export const dispatchRequest = createServerFn({ method: "POST" })
 
     // The database function locks the request row, verifies ownership,
     // selects eligible nearby drivers and creates 45-second offers atomically.
-    const { data: offers, error: dispatchError } = await (supabase as any).rpc(
+    const { data: offers, error: dispatchError } = await supabase.rpc(
       "dispatch_request",
       { _request_id: req.id },
     );
@@ -41,7 +41,7 @@ export const acceptServiceRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("accept_service_request", { _request_id: data.requestId });
+    const { error } = await context.supabase.rpc("accept_service_request", { _request_id: data.requestId });
     if (error) throw new Error(error.message.includes("request_unavailable") ? "العميل ألغى الطلب أو قبله فني ثاني" : error.message);
     return { ok: true };
   });
@@ -73,7 +73,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
     
 
     if (data.action === "accept") {
-      const { error: accErr } = await (supabase as any).rpc("accept_service_request", { _request_id: offer.request_id });
+      const { error: accErr } = await supabase.rpc("accept_service_request", { _request_id: offer.request_id });
       if (accErr) throw new Error(accErr.message.includes("request_unavailable") ? "العميل ألغى الطلب أو قبله كابتن ثاني" : accErr.message);
       return { ok: true, action: "accepted", accepted: true, requestId: offer.request_id };
     } else {
@@ -97,7 +97,7 @@ export const cancelRequest = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason ?? null });
+    const { error } = await context.supabase.rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason ?? null });
     if (error) throw new Error(error.message.includes("request_finished") ? "الطلب منتهي أصلاً" : "تعذّر الإلغاء: " + error.message);
     return { ok: true };
   });
@@ -114,7 +114,7 @@ export const providerCancelRequest = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason ?? null });
+    const { error } = await context.supabase.rpc("transition_service_request", { _request_id: data.requestId, _status: "cancelled", _reason: data.reason ?? null });
     if (error) throw new Error(error.message.includes("request_finished") ? "الطلب منتهي أصلاً" : "تعذّر الإلغاء: " + error.message);
     return { ok: true };
   });
@@ -143,7 +143,7 @@ export const retryDispatch = createServerFn({ method: "POST" })
 
     // Reuse the same atomic database dispatcher; never create long-lived
     // offers or bypass the server-side 45-second expiry.
-    const { data: offers, error: dispatchError } = await (supabase as any).rpc(
+    const { data: offers, error: dispatchError } = await supabase.rpc(
       "dispatch_request",
       { _request_id: req.id },
     );
@@ -158,7 +158,7 @@ export const startRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("transition_service_request", {
+    const { error } = await context.supabase.rpc("transition_service_request", {
       _request_id: data.requestId,
       _status: "in_progress",
       _reason: null,
@@ -176,7 +176,7 @@ export const completeRide = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ requestId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await (context.supabase as any).rpc("transition_service_request", {
+    const { error } = await context.supabase.rpc("transition_service_request", {
       _request_id: data.requestId,
       _status: "completed",
       _reason: null,
