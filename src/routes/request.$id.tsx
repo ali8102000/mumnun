@@ -295,7 +295,7 @@ function RequestDetail() {
                   await runStartRide({ data: { requestId: id } });
                   toast.success("بدأت الرحلة");
                 } catch (e: unknown) {
-                  toast.error(e.message ?? "تعذّر بدء الرحلة");
+                  toast.error(e instanceof Error ? e.message : "تعذّر بدء الرحلة");
                 }
               }} className="text-xs px-3 py-2 rounded-xl bg-primary text-primary-foreground font-bold btn-press">بدء الرحلة</button>
             )}
@@ -418,7 +418,7 @@ function RequestDetail() {
               setShowCancel(false);
               loadAll();
             } catch (e: unknown) {
-              toast.error(e.message ?? "تعذّر الإلغاء");
+              toast.error(e instanceof Error ? e.message : "تعذّر الإلغاء");
             }
           }}
         />
