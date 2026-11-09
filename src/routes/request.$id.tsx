@@ -177,8 +177,8 @@ function RequestDetail() {
     try {
       await runCompleteRide({ data: { requestId: id } });
       toast.success("تم إنهاء الطلب");
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذّر إنهاء الطلب");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذّر إنهاء الطلب");
     }
   }
 
@@ -231,11 +231,11 @@ function RequestDetail() {
         {req.type === "service" && (req.pricing_mode || req.work_description) && (
           <div className="glass rounded-2xl p-3 space-y-1">
             <div className="text-[11px] text-muted-foreground">السعر والشغل</div>
-            {(req as any).work_description && <div className="text-sm font-bold">🛠️ {(req as any).work_description}</div>}
+            {req.work_description && <div className="text-sm font-bold">🛠️ {(req as any).work_description}</div>}
             <div className="font-black text-primary">
-              {(req as any).pricing_mode === "negotiable"
+              {req.pricing_mode === "negotiable"
                 ? "💰 السعر يتفق عليه الطرفين"
-                : `💰 ${Number(req.customer_price ?? 0).toLocaleString()} د.ع${(req as any).pricing_mode === "hourly" && req.work_hours ? ` · ${(req as any).work_hours} ساعة` : " · إنجاز تام"}`}
+                : `💰 ${Number(req.customer_price ?? 0).toLocaleString()} د.ع${(req as any).pricing_mode === "hourly" && req.work_hours ? ` · ${req.work_hours} ساعة` : " · إنجاز تام"}`}
             </div>
           </div>
         )}
