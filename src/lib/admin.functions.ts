@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+import type { Json } from "@/integrations/supabase/types";
+
 type AdminContext = { supabase: unknown; userId: string };
 type AdminRow = {
   id: string;
@@ -13,7 +15,7 @@ type AdminRow = {
   amount: number;
   created_at: string;
   updated_at: string;
-  [key: string]: unknown;
+  [key: string]: Json | undefined;
 };
 type AdminQueryResult<T> = { data: T | null; error: { message: string } | null; count: number | null };
 type AdminSingle<T> = T extends Array<infer Row> ? Row | null : T | null;
