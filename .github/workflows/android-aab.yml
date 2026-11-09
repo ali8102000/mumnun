@@ -1,0 +1,83 @@
+name: Android production AAB
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-aab:
+    name: Build signed Android App Bundle
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: expo-app
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Expo app dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Validate build credentials and production configuration
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          APP_ENV: production
+        run: |
+          set -euo pipefail
+          for name in EXPO_TOKEN EAS_PROJECT_ID EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY EXPO_PUBLIC_GOOGLE_MAPS_API_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+          bunx expo config --type public >/dev/null
+
+      - name: Start and wait for signed production AAB
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          APP_ENV: production
+        run: |
+          set -euo pipefail
+          bunx eas-cli@latest build --platform android --profile production --non-interactive --wait --json | tee eas-build-result.json
+
+      - name: Download completed AAB
+        run: |
+          set -euo pipefail
+          BUILD_ID="$(node -e "const fs=require('fs'); const raw=fs.readFileSync('eas-build-result.json','utf8'); const parsed=JSON.parse(raw); const item=Array.isArray(parsed)?parsed[parsed.length-1]:parsed; const id=item.id || item.build?.id; if(!id) process.exit(2); process.stdout.write(id);")"
+          bunx eas-cli@latest build:download --build-id "$BUILD_ID" --non-interactive
+          mkdir -p dist
+          AAB_PATH="$(find . -maxdepth 3 -type f -name '*.aab' -print -quit)"
+          if [ -z "$AAB_PATH" ]; then
+            echo "::error::EAS build completed but no .aab file was downloaded."
+            exit 1
+          fi
+          cp "$AAB_PATH" dist/mamnoon-production.aab
+          test -s dist/mamnoon-production.aab
+
+      - name: Upload signed AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mamnoon-production-aab
+          path: expo-app/dist/mamnoon-production.aab
+          if-no-files-found: error
+          retention-days: 14
