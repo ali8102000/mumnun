@@ -822,7 +822,7 @@ export type Database = {
           _type: string
         }
         Returns: {
-          heading: number
+          heading: number | null
           lat: number
           lng: number
           pin_id: string
