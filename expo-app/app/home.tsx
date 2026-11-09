@@ -114,7 +114,7 @@ export default function HomeScreen() {
       mounted = false;
       subscription?.remove();
     };
-  }, [activeRole, available, verified, user?.id]);
+  }, [activeRole, available, verified, user, loadIncoming]);
 
   async function toggleAvailable() {
     if (!user || (activeRole !== 'driver' && activeRole !== 'worker')) return;
