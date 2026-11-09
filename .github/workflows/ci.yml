@@ -43,6 +43,14 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bunx expo config --type public
+      - name: Validate production Expo configuration fails closed on missing secrets
+        env:
+          APP_ENV: production
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ci-maps-placeholder
+          EAS_PROJECT_ID: 00000000-0000-4000-8000-000000000000
+        run: bunx expo config --type public
       - name: Validate EAS Android build profiles
         run: node -e "const c=JSON.parse(require('fs').readFileSync('eas.json','utf8')); if(c.build?.preview?.android?.buildType!=='apk'||c.build?.production?.android?.buildType!=='app-bundle') throw new Error('Invalid EAS Android profiles')"
       - run: bunx tsc --noEmit
