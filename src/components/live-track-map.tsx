@@ -146,7 +146,7 @@ export function LiveTrackMap({
   }
 
   function drawLine() {
-    const g = (window as any).google;
+    const g = window.google;
     const map = mapRef.current;
     if (!g || !map) return;
     if (me && other) {
@@ -175,7 +175,7 @@ export function LiveTrackMap({
   }
 
   function apply(animate: boolean) {
-    const g = (window as any).google;
+    const g = window.google;
     const map = mapRef.current;
     if (!g || !map) return;
 
