@@ -181,7 +181,7 @@ function StatsSection() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const getStats = useServerFn(adminGetDashboardStats);
-  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [listCoupons]);
+  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [getStats]);
   if (loading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   if (!stats) return <div className="text-sm text-muted-foreground">تعذّر تحميل البيانات</div>;
   return (
@@ -547,7 +547,7 @@ function MapSection() {
   const [loading, setLoading] = useState(true);
   const getLocations = useServerFn(adminGetLiveLocations);
   const getRequests = useServerFn(adminGetLiveRequests);
-  useEffect(() => { (async () => { try { const [l, r] = await Promise.all([getLocations(), getRequests()]); setLocations(l); setRequests(r); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { const [l, r] = await Promise.all([getLocations(), getRequests()]); setLocations(l); setRequests(r); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [getLocations, getRequests]);
   if (loading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   return (
     <div>
@@ -630,7 +630,7 @@ function AuditSection() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const listLogs = useServerFn(adminListAuditLogs);
-  useEffect(() => { (async () => { try { setLogs(await listLogs({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { setLogs(await listLogs({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [listLogs]);
   const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى" };
   return (
     <div>
