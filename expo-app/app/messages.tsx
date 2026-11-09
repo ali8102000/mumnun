@@ -4,9 +4,11 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } 
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
+type ChatListItem = { id: string; request_id: string; other: { full_name: string | null; phone: string | null } | null; request: { type: string; status: string } | null };
+
 export default function MessagesScreen() {
   const { user } = useAuth();
-  const [chats, setChats] = useState<any[]>([]);
+  const [chats, setChats] = useState<ChatListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
