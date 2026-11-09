@@ -62,12 +62,6 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: allowed, error: rateLimitError } = await admin.rpc("consume_taxi_request_slot", {
-      _user_id: authData.user.id,
-    });
-    if (rateLimitError) return json({ error: "تعذر التحقق من عدد الطلبات؛ حاول مرة أخرى." }, 500);
-    if (!allowed) return json({ error: "وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً." }, 429);
-
     const body = await req.json();
     const pickupLat = body?.pickupLat;
     const pickupLng = body?.pickupLng;
@@ -114,6 +108,15 @@ Deno.serve(async (req: Request) => {
     }
 
     const fare = fareFor(category, distanceKm);
+
+    // Consume the atomic request slot only after payload and route validation.
+    // Invalid coordinates or unavailable routes must not exhaust a customer's quota.
+    const { data: allowed, error: rateLimitError } = await admin.rpc("consume_taxi_request_slot", {
+      _user_id: authData.user.id,
+    });
+    if (rateLimitError) return json({ error: "تعذر التحقق من عدد الطلبات؛ حاول مرة أخرى." }, 500);
+    if (!allowed) return json({ error: "وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً." }, 429);
+
     const { data: request, error: insertError } = await admin
       .from("service_requests")
       .insert({
