@@ -9,6 +9,21 @@ export const getMapConfig = createServerFn({ method: "GET" }).handler(async () =
   channel: process.env['VITE_LOVABLE_CONNECTOR_GOOGLE_MAPS_TRACKING_ID'] || "mumnun",
 }));
 
+type GoogleMapsResponse = {
+  suggestions?: Array<{
+    placePrediction?: {
+      placeId?: unknown;
+      text?: { text?: unknown };
+    };
+  }>;
+  location?: { latitude?: unknown; longitude?: unknown };
+  formattedAddress?: unknown;
+  displayName?: { text?: unknown };
+  status?: string;
+  error_message?: string;
+  results?: Array<{ formatted_address?: unknown }>;
+};
+
 const coords = z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) });
 const input = z.discriminatedUnion("action", [
   z.object({ action: z.literal("autocomplete"), input: z.string().trim().min(2).max(200), sessionToken: z.string().uuid(), center: coords }),
@@ -49,12 +64,31 @@ export const lookupMapPlace = createServerFn({ method: "POST" })
       }
       throw new Error(`Google Maps [${response.status}]: ${text}`);
     }
-    const result = await response.json() as any;
-    if (data.action === "autocomplete") return { suggestions: (result.suggestions ?? []).slice(0, 5).flatMap((s: any) => s.placePrediction ? [{ id: s.placePrediction.placeId as string, text: s.placePrediction.text.text as string }] : []) };
-    if (data.action === "details") {
-      if (!result.location) throw new Error("لا يتوفر موقع لهذا المكان");
-      return { coords: { lat: result.location.latitude as number, lng: result.location.longitude as number }, address: (result.formattedAddress || result.displayName?.text || "") as string };
+    const result = await response.json() as GoogleMapsResponse;
+    if (data.action === "autocomplete") {
+      const suggestions = (result.suggestions ?? []).slice(0, 5).flatMap((suggestion) => {
+        const prediction = suggestion.placePrediction;
+        const id = prediction?.placeId;
+        const text = prediction?.text?.text;
+        return typeof id === "string" && typeof text === "string" ? [{ id, text }] : [];
+      });
+      return { suggestions };
     }
-    if (result.status !== "OK" && result.status !== "ZERO_RESULTS") throw new Error(`Google Maps: ${result.status}: ${result.error_message || ""}`);
-    return { address: (result.results?.[0]?.formatted_address || "") as string };
+    if (data.action === "details") {
+      const latitude = result.location?.latitude;
+      const longitude = result.location?.longitude;
+      if (typeof latitude !== "number" || !Number.isFinite(latitude)
+        || typeof longitude !== "number" || !Number.isFinite(longitude)) {
+        throw new Error("لا يتوفر موقع صالح لهذا المكان");
+      }
+      const address = typeof result.formattedAddress === "string"
+        ? result.formattedAddress
+        : typeof result.displayName?.text === "string" ? result.displayName.text : "";
+      return { coords: { lat: latitude, lng: longitude }, address };
+    }
+    if (result.status !== "OK" && result.status !== "ZERO_RESULTS") {
+      throw new Error(`Google Maps: ${result.status}: ${result.error_message || ""}`);
+    }
+    const formattedAddress = result.results?.[0]?.formatted_address;
+    return { address: typeof formattedAddress === "string" ? formattedAddress : "" };
   });
