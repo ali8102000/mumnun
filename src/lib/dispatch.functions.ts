@@ -199,19 +199,18 @@ export const findNearbyProviderPins = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
-        lat: z.number(),
-        lng: z.number(),
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
         type: z.enum(["taxi", "service"]),
         category: z.string().nullable().optional(),
         serviceId: z.string().uuid().nullable().optional(),
-        radiusKm: z.number().min(0.1).max(100).default(5),
-        limit: z.number().int().min(1).max(100).default(30),
+        radiusKm: z.number().min(0.1).max(20).default(5),
+        limit: z.number().int().min(1).max(50).default(30),
       })
       .parse(d),
   )
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await (supabaseAdmin as any).rpc(
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase.rpc(
       "find_nearby_provider_pins",
       {
         _lat: data.lat,
