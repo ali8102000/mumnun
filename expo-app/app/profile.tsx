@@ -4,10 +4,13 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'rea
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
+type DriverWallet = { balance: number; total_earned: number; total_commission: number };
+type WalletTransaction = { id: string; type: string; created_at: string; amount: number };
+
 export default function ProfileScreen() {
   const { user, profile, roles, signOut } = useAuth();
-  const [wallet, setWallet] = useState<any>(null);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [wallet, setWallet] = useState<DriverWallet | null>(null);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {

@@ -4,11 +4,26 @@ import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
+type AdminStats = { totalRequests: number; totalUsers: number; totalDrivers: number };
+type PricingRule = {
+  id: string;
+  category: string;
+  base_fare: number | null;
+  per_km: number | null;
+};
+type RecentRequest = {
+  id: string;
+  type: string;
+  customer?: { full_name: string | null } | null;
+  created_at: string;
+  status: string;
+};
+
 export default function AdminScreen() {
   const { user } = useAuth();
-  const [stats, setStats] = useState<any>({});
-  const [pricing, setPricing] = useState<any[]>([]);
-  const [recent, setRecent] = useState<any[]>([]);
+  const [stats, setStats] = useState<AdminStats>({ totalRequests: 0, totalUsers: 0, totalDrivers: 0 });
+  const [pricing, setPricing] = useState<PricingRule[]>([]);
+  const [recent, setRecent] = useState<RecentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 

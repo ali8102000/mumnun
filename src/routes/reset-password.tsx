@@ -55,8 +55,8 @@ function ResetPasswordPage() {
       if (error) throw error;
       toast.success("تم تحديث كلمة المرور");
       navigate({ to: "/" });
-    } catch (err: any) {
-      toast.error(err.message ?? "تعذّر تحديث كلمة المرور");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "تعذّر تحديث كلمة المرور");
     } finally {
       setBusy(false);
     }

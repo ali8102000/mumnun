@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
 import { supabase } from "@/lib/supabase";
@@ -6,6 +6,13 @@ import { supabase } from "@/lib/supabase";
 const BACKGROUND_TASK = "background-location-task";
 
 type Coords = { lat: number; lng: number; heading?: number | null };
+type BackgroundTaskData = { locations?: Location.LocationObject[] };
+type TrackingGlobal = typeof globalThis & {
+  __MUMNUN_TRACKING_REQUEST_ID?: string | null;
+  __MUMNUN_TRACKING_USER_ID?: string | null;
+  __MUMNUN_TRACKING_ROLE?: "customer" | "provider" | null;
+};
+const trackingGlobal = globalThis as TrackingGlobal;
 
 const MIN_DISTANCE_M = 15;
 const MAX_INTERVAL_MS = 4000;
@@ -22,12 +29,12 @@ function distanceMeters(a: Coords, b: Coords): number {
 
 TaskManager.defineTask(BACKGROUND_TASK, async ({ data, error }) => {
   if (error) return;
-  const locations = (data as any)?.locations;
+  const locations = (data as BackgroundTaskData | undefined)?.locations;
   if (!locations || locations.length === 0) return;
   const loc = locations[0];
-  const requestId = (globalThis as any).__MUMNUN_TRACKING_REQUEST_ID;
-  const userId = (globalThis as any).__MUMNUN_TRACKING_USER_ID;
-  const role = (globalThis as any).__MUMNUN_TRACKING_ROLE;
+  const requestId = trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID;
+  const userId = trackingGlobal.__MUMNUN_TRACKING_USER_ID;
+  const role = trackingGlobal.__MUMNUN_TRACKING_ROLE;
   if (!requestId || !userId) return;
 
   await supabase.from("live_locations").upsert({
@@ -41,9 +48,9 @@ TaskManager.defineTask(BACKGROUND_TASK, async ({ data, error }) => {
   }, { onConflict: "request_id,user_id" });
 });
 
-(globalThis as any).__MUMNUN_TRACKING_REQUEST_ID = null;
-(globalThis as any).__MUMNUN_TRACKING_USER_ID = null;
-(globalThis as any).__MUMNUN_TRACKING_ROLE = null;
+trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID = null;
+trackingGlobal.__MUMNUN_TRACKING_USER_ID = null;
+trackingGlobal.__MUMNUN_TRACKING_ROLE = null;
 
 export function useLiveTracking(opts: {
   requestId: string | null;
@@ -58,7 +65,7 @@ export function useLiveTracking(opts: {
   const lastPushRef = useRef<Coords | null>(null);
   const lastPushTimeRef = useRef<number>(0);
 
-  const push = async (lat: number, lng: number, heading: number | null) => {
+  const push = useCallback(async (lat: number, lng: number, heading: number | null) => {
     if (!requestId || !myUserId) return;
     const now = Date.now();
     const coords: Coords = { lat, lng, heading };
@@ -78,7 +85,7 @@ export function useLiveTracking(opts: {
       heading,
       updated_at: new Date().toISOString(),
     }, { onConflict: "request_id,user_id" });
-  };
+  }, [requestId, myUserId, myRole]);
 
   useEffect(() => {
     if (!active) return;
@@ -99,9 +106,9 @@ export function useLiveTracking(opts: {
       if (myRole === "provider") {
         const bgStatus = await Location.requestBackgroundPermissionsAsync();
         if (bgStatus.status === "granted") {
-          (globalThis as any).__MUMNUN_TRACKING_REQUEST_ID = requestId;
-          (globalThis as any).__MUMNUN_TRACKING_USER_ID = myUserId;
-          (globalThis as any).__MUMNUN_TRACKING_ROLE = myRole;
+          trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID = requestId;
+          trackingGlobal.__MUMNUN_TRACKING_USER_ID = myUserId;
+          trackingGlobal.__MUMNUN_TRACKING_ROLE = myRole;
           await Location.startLocationUpdatesAsync(BACKGROUND_TASK, {
             accuracy: Location.Accuracy.High,
             timeInterval: 5000,
@@ -113,23 +120,23 @@ export function useLiveTracking(opts: {
 
       return () => {
         sub.remove();
-        if (TaskManager.isTaskDefined(BACKGROUND_TASK) && (globalThis as any).__MUMNUN_TRACKING_REQUEST_ID) {
+        if (TaskManager.isTaskDefined(BACKGROUND_TASK) && trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID) {
           Location.stopLocationUpdatesAsync(BACKGROUND_TASK).catch(() => {});
-          (globalThis as any).__MUMNUN_TRACKING_REQUEST_ID = null;
+          trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID = null;
         }
       };
     })();
 
     return () => {};
-  }, [active, requestId, myUserId, myRole]);
+  }, [active, requestId, myUserId, myRole, push]);
 
   useEffect(() => {
     if (!active || !requestId || !otherUserId) return;
     const ch = supabase
       .channel(`live-${requestId}-${Math.random().toString(36).slice(2, 8)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_locations", filter: `request_id=eq.${requestId}` }, (payload: any) => {
-        const row = payload.new;
-        if (row.user_id === otherUserId) {
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_locations", filter: `request_id=eq.${requestId}` }, (payload) => {
+        const row = payload.new as { user_id?: string; lat?: number; lng?: number; heading?: number | null };
+        if (row.user_id === otherUserId && typeof row.lat === "number" && typeof row.lng === "number") {
           setOther({ lat: row.lat, lng: row.lng, heading: row.heading });
         }
       })

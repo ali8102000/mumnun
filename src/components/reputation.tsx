@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ReputationData } from "@/lib/reputation.functions";
 import { Star, Shield, Zap, Trophy, Award } from "lucide-react";
 
 export interface BadgeData {
@@ -118,7 +119,7 @@ export function SubScoreBar({ label, value, icon }: { label: string; value: numb
   );
 }
 
-export function ReputationCard({ reputation }: { reputation: any }) {
+export function ReputationCard({ reputation }: { reputation: ReputationData | null }) {
   if (!reputation) return null;
 
   return (

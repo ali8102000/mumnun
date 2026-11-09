@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { getFriendsStatuses, searchProfileByPhone, type FriendStatus } from "@/lib/friends.functions";
+import { getFriendsStatuses, searchProfileByPhone, type FriendStatus, type ProfileSearchResult } from "@/lib/friends.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +34,7 @@ function Friends() {
   const [friends, setFriends] = useState<FriendStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<ProfileSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [adding, setAdding] = useState<string | null>(null);
 
@@ -45,7 +45,7 @@ function Friends() {
     setLoading(true);
     try {
       const data = await getStatusesFn();
-      setFriends(data as FriendStatus[]);
+      setFriends(data);
     } catch {
       toast.error("Failed to load friends");
     } finally {
@@ -62,7 +62,7 @@ function Friends() {
     setSearching(true);
     try {
       const rows = await searchProfilesFn({ data: { phone: search.trim() } });
-      setResults(rows as any[]);
+      setResults(rows);
     } catch {
       setResults([]);
     } finally {
@@ -79,7 +79,12 @@ function Friends() {
     setAdding(phone);
     try {
       const normalized = normalizePhone(phone);
-      const { error } = await (supabase as any).from("friends").insert({
+      const friendsClient = supabase as unknown as {
+        from: (table: "friends") => {
+          insert: (values: { user_id: string; friend_phone: string }) => Promise<{ error: { message: string } | null }>;
+        };
+      };
+      const { error } = await friendsClient.from("friends").insert({
         user_id: userId,
         friend_phone: normalized,
       });
@@ -88,8 +93,8 @@ function Friends() {
       setSearch("");
       setResults([]);
       loadFriends();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to add friend");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to add friend");
     } finally {
       setAdding(null);
     }

@@ -3,17 +3,15 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import type { Tables } from "@/integrations/supabase/types";
 import { respondToOffer } from "@/lib/dispatch.functions";
 import { MapPin, Check, X, Loader2, Navigation } from "lucide-react";
 import { toast } from "sonner";
 
-type Offer = {
-  id: string;
-  request_id: string;
-  distance_km: number | null;
-  expires_at: string;
-  status: string;
-};
+type Offer = Pick<Tables<"request_offers">, "id" | "request_id" | "distance_km" | "expires_at" | "status">;
+type RideRequest = Pick<Tables<"service_requests">, "pickup_text" | "dest_text" | "price_estimate">;
+
+
 
 export function DriverOfferPopup() {
   const { session, roles } = useAuth();
@@ -21,7 +19,7 @@ export function DriverOfferPopup() {
   const respond = useServerFn(respondToOffer);
   const offerRef = useRef<Offer | null>(null);
   const [offer, setOffer] = useState<Offer | null>(null);
-  const [request, setRequest] = useState<any>(null);
+  const [request, setRequest] = useState<RideRequest | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(45);
   const [totalSeconds, setTotalSeconds] = useState(45);
   const [busy, setBusy] = useState(false);
@@ -44,7 +42,7 @@ export function DriverOfferPopup() {
           table: "request_offers",
           filter: `provider_id=eq.${uid}`,
         },
-        async (payload: any) => {
+        async (payload) => {
           const o = payload.new as Offer;
           if (o.status !== "pending") return;
           if (offerRef.current) return;
@@ -89,12 +87,12 @@ export function DriverOfferPopup() {
     if (!offer) return;
     try {
       const Ctx =
-        (window as any).AudioContext || (window as any).webkitAudioContext;
+        window.AudioContext ?? (Reflect.get(window, "webkitAudioContext") as typeof AudioContext | undefined);
       if (Ctx && !audioCtxRef.current) audioCtxRef.current = new Ctx();
       if (audioCtxRef.current?.state === "suspended") {
-        audioCtxRef.current.resume().catch(() => {});
+        audioCtxRef.current.resume().catch((error: unknown) => { console.warn("[driver-offer] audio resume failed", error); });
       }
-    } catch {}
+    } catch (error) { console.warn("[driver-offer] audio initialization failed", error); }
 
     const beep = () => {
       const ctx = audioCtxRef.current;
@@ -123,7 +121,7 @@ export function DriverOfferPopup() {
     if (!offer) return;
     setBusy(true);
     try {
-      const res: any = await respond({ data: { offerId: offer.id, action } });
+      const res = await respond({ data: { offerId: offer.id, action } });
       if (action === "accept" && res?.accepted) {
         toast.success("تم قبول الطلب");
         navigate({ to: "/request/$id", params: { id: res.requestId } });
@@ -132,8 +130,8 @@ export function DriverOfferPopup() {
       }
       setOffer(null);
       setRequest(null);
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذّر تنفيذ العملية");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "تعذّر تنفيذ العملية");
       setOffer(null);
       setRequest(null);
     } finally {

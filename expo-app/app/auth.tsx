@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { router } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { authProxy, supabase } from '@/lib/supabase';
-import { isValidPhone, normalizePhone, phoneToEmail } from '@/lib/phone';
+import { isValidPhone, normalizePhone } from '@/lib/phone';
 import { useAuth } from '@/lib/auth-context';
 import { Button, RealInput } from '@/components/ui';
 
 type Mode = 'signup' | 'login';
+type AuthSessionTokens = Pick<Session, 'access_token' | 'refresh_token'>;
 
 export default function AuthScreen() {
   const [mode, setMode] = useState<Mode>('signup');
@@ -38,8 +40,13 @@ export default function AuthScreen() {
         }
         const normalized = normalizePhone(phone);
         const realEmail = email.trim().toLowerCase();
-        const authEmail = realEmail || phoneToEmail(normalized);
-        const result = await authProxy<{ session: any }>('/signup', { email: authEmail, password, phone: normalized, full_name: name.trim() });
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(realEmail)) {
+          Alert.alert('تنبيه', 'حالياً يلزم بريد إلكتروني حقيقي للتسجيل إلى أن يتم تفعيل التحقق برسالة SMS.');
+          setBusy(false);
+          return;
+        }
+        const authEmail = realEmail;
+        const result = await authProxy<{ session: AuthSessionTokens | null }>('/signup', { email: authEmail, password, phone: normalized, full_name: name.trim() });
         if (!result.session) { Alert.alert('تم التسجيل', 'تحقق من بريدك الإلكتروني ثم سجل الدخول'); setMode('login'); return; }
         const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
@@ -59,24 +66,18 @@ export default function AuthScreen() {
           setBusy(false);
           return;
         }
-        let authEmail = finalId;
-        if (!isEmail) {
-          const lookup = await authProxy<{ email: string | null }>('/lookup-email', { phone: finalId });
-          if (lookup.email) {
-            authEmail = lookup.email.toLowerCase();
-          } else {
-            const digits = finalId.replace(/[^\d]/g, '');
-            authEmail = `phone${digits}@mamnoon.app`;
-          }
-        }
-        const result = await authProxy<{ session: any }>('/login', { email: authEmail, password });
+        const loginPayload = isEmail
+          ? { email: finalId, password }
+          : { phone: finalId, password };
+        const result = await authProxy<{ session: AuthSessionTokens | null }>('/login', loginPayload);
+        if (!result.session) throw new Error('تعذر إنشاء جلسة تسجيل الدخول');
         const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
         await refresh();
         router.replace('/');
       }
-    } catch (err: any) {
-      const msg = err?.message || 'حدث خطأ';
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'حدث خطأ';
       if (/Failed to fetch|NetworkError/i.test(msg)) {
         Alert.alert('خطأ', 'تعذّر الاتصال بالخادم. تحقق من اتصال الإنترنت');
       } else if (/already registered|User already/i.test(msg)) {
@@ -114,7 +115,7 @@ export default function AuthScreen() {
             <RealInput value={name} onChangeText={setName} placeholder="مثال: أحمد محمد" />
             <Text style={styles.label}>رقم الهاتف</Text>
             <RealInput value={phone} onChangeText={setPhone} placeholder="07XXXXXXXXX" keyboardType="phone-pad" />
-            <Text style={styles.label}>البريد الإلكتروني (لاستعادة كلمة المرور)</Text>
+            <Text style={styles.label}>البريد الإلكتروني (مطلوب حالياً إلى حين تفعيل SMS)</Text>
             <RealInput value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" />
           </>
         ) : (

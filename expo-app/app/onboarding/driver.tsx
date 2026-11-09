@@ -5,11 +5,13 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui';
 
+type VehicleModel = { id: string; make: string; model: string; category: string };
+
 export default function DriverOnboarding() {
   const { user } = useAuth();
-  const [models, setModels] = useState<any[]>([]);
+  const [models, setModels] = useState<VehicleModel[]>([]);
   const [selectedMake, setSelectedMake] = useState('');
-  const [selectedModel, setSelectedModel] = useState<any>(null);
+  const [selectedModel, setSelectedModel] = useState<VehicleModel | null>(null);
   const [year, setYear] = useState('');
   const [plate, setPlate] = useState('');
   const [color, setColor] = useState('');
@@ -27,7 +29,7 @@ export default function DriverOnboarding() {
       const { error: roleError } = await supabase.rpc('grant_provider_role_safe', { _role: 'driver' });
       if (roleError) throw roleError;
       router.replace('/home');
-    } catch (err: any) { Alert.alert('خطأ', err?.message || 'حدث خطأ'); } finally { setBusy(false); }
+    } catch (err: unknown) { Alert.alert('خطأ', err instanceof Error ? err.message : 'حدث خطأ'); } finally { setBusy(false); }
   }
 
   return (

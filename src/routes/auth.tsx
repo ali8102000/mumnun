@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { isValidPhone, normalizePhone, phoneToEmail } from "@/lib/phone";
 import { useAuth } from "@/lib/auth-context";
-import { lookupAuthEmail } from "@/lib/auth.functions";
+import { loginWithIdentifier } from "@/lib/auth.functions";
 import { Loader2, Phone, Lock, ArrowLeft, ArrowRight, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { useWelcomePreferences } from "@/lib/welcome-preferences";
@@ -40,7 +40,7 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const { refresh } = useAuth();
-  const lookup = useServerFn(lookupAuthEmail);
+  const login = useServerFn(loginWithIdentifier);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,18 +103,21 @@ function AuthPage() {
           return;
         }
         const finalId = isEmail ? id : normalizePhone(id);
-        const { email: authEmail } = await lookup({ data: { identifier: finalId } });
-        const { error } = await supabase.auth.signInWithPassword({
-          email: authEmail,
-          password,
+        const result = await login({
+          data: {
+            identifier: finalId,
+            password,
+          },
         });
+        if (!result.session) throw new Error("تعذر إنشاء جلسة تسجيل الدخول");
+        const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
         await refresh();
         toast.success(t("أهلاً بعودتك", "Welcome back"));
         navigate({ to: "/" });
       }
-    } catch (err: any) {
-      const msg = err?.message || t("حدث خطأ", "Something went wrong");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("حدث خطأ", "Something went wrong");
       if (/Failed to fetch|NetworkError|fetch.*failed/i.test(msg)) {
         toast.error(t("تعذّر الاتصال بالخادم. تحقق من اتصال الإنترنت وحاول مرة أخرى.", "Unable to connect. Check your internet and try again."));
       } else if (/already registered|User already/i.test(msg)) {

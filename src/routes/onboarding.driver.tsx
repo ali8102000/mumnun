@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -28,7 +29,7 @@ type VehicleModel = {
   per_km: number;
 };
 
-const CATEGORY_META: Record<string, { label: string; emoji: string; gradient: string; icon: any; desc: string }> = {
+const CATEGORY_META: Record<string, { label: string; emoji: string; gradient: string; icon: LucideIcon; desc: string }> = {
   economy: { label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500", icon: Wallet, desc: "موديلات موفرة وعملية" },
   premium: { label: "ممنون المتميز", emoji: "🚙", gradient: "from-sky-500 to-indigo-600", icon: Sparkles, desc: "موديلات حديثة ومتوسطة" },
   luxury: { label: "ممنون فاخر", emoji: "🏎️", gradient: "from-amber-400 to-orange-500", icon: Crown, desc: "سيارات فاخرة وراقية" },
@@ -70,7 +71,7 @@ function OnboardingDriver() {
         vehicle_category: selected.category,
         vehicle_plate: plate.trim(),
         vehicle_color: color.trim() || null,
-        available: true,
+        available: false,
       });
       if (error) throw error;
       await grantProviderRole({ data: { role: "driver" } });
@@ -78,8 +79,8 @@ function OnboardingDriver() {
       await refresh();
       toast.success("تم تفعيل ملفك — " + CATEGORY_META[selected.category].label);
       navigate({ to: "/home" });
-    } catch (e: any) {
-      toast.error(e.message || "حدث خطأ");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "حدث خطأ");
     } finally {
       setBusy(false);
     }

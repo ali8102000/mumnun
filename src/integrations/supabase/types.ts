@@ -46,9 +46,40 @@ export type Database = {
           },
         ]
       }
+      provider_locations: {
+        Row: {
+          user_id: string
+          role: string
+          lat: number
+          lng: number
+          heading: number | null
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          role: string
+          lat: number
+          lng: number
+          heading?: number | null
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          role?: string
+          lat?: number
+          lng?: number
+          heading?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       driver_profiles: {
         Row: {
           available: boolean
+          is_verified: boolean
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
           completed_rides: number
           rating_avg: number
           ratings_count: number
@@ -65,6 +96,10 @@ export type Database = {
         }
         Insert: {
           available?: boolean
+          is_verified?: boolean
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
           completed_rides?: number
           rating_avg?: number
           ratings_count?: number
@@ -307,6 +342,9 @@ export type Database = {
           comment: string | null
           created_at: string
           id: string
+          professionalism: number | null
+          punctuality: number | null
+          quality: number | null
           ratee_id: string
           rater_id: string
           request_id: string
@@ -316,6 +354,9 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          professionalism?: number | null
+          punctuality?: number | null
+          quality?: number | null
           ratee_id: string
           rater_id: string
           request_id: string
@@ -325,6 +366,9 @@ export type Database = {
           comment?: string | null
           created_at?: string
           id?: string
+          professionalism?: number | null
+          punctuality?: number | null
+          quality?: number | null
           ratee_id?: string
           rater_id?: string
           request_id?: string
@@ -634,6 +678,10 @@ export type Database = {
       worker_profiles: {
         Row: {
           available: boolean
+          is_verified: boolean
+          verification_status: string
+          verified_at: string | null
+          verified_by: string | null
           bio: string | null
           completed_jobs: number
           level: Database["public"]["Enums"]["worker_level"]
@@ -644,6 +692,10 @@ export type Database = {
         }
         Insert: {
           available?: boolean
+          is_verified?: boolean
+          verification_status?: string
+          verified_at?: string | null
+          verified_by?: string | null
           bio?: string | null
           completed_jobs?: number
           level?: Database["public"]["Enums"]["worker_level"]
@@ -745,6 +797,10 @@ export type Database = {
       }
     }
     Functions: {
+      consume_taxi_request_slot: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       accept_service_request: {
         Args: { _request_id: string }
         Returns: boolean
@@ -770,16 +826,16 @@ export type Database = {
       }
       find_nearby_provider_pins: {
         Args: {
-          _category?: string
+          _category?: string | null
           _lat: number
           _limit?: number
           _lng: number
           _radius_km?: number
-          _service_id?: string
+          _service_id?: string | null
           _type: string
         }
         Returns: {
-          heading: number
+          heading: number | null
           lat: number
           lng: number
           pin_id: string

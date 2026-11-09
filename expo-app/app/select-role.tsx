@@ -15,15 +15,31 @@ export default function SelectRole() {
   const [busy, setBusy] = useState(false);
 
   async function pickRole(role: string) {
+    if (!user) {
+      Alert.alert('تنبيه', 'سجّل الدخول أولاً');
+      return;
+    }
     setBusy(true);
     try {
-      await supabase.from('user_roles').upsert({ user_id: user?.id, role });
+      // Provider roles are granted only after their onboarding profile exists.
+      if (role === 'driver') {
+        router.push('/onboarding/driver');
+        return;
+      }
+      if (role === 'worker') {
+        router.push('/onboarding/worker');
+        return;
+      }
+
+      const { error } = await supabase.from('user_roles').upsert(
+        { user_id: user.id, role: 'customer' },
+        { onConflict: 'user_id,role' },
+      );
+      if (error) throw error;
       await refresh();
-      if (role === 'driver') router.replace('/onboarding/driver');
-      else if (role === 'worker') router.replace('/onboarding/worker');
-      else router.replace('/home');
-    } catch (err: any) {
-      Alert.alert('خطأ', err?.message || 'حدث خطأ');
+      router.replace('/home');
+    } catch (err: unknown) {
+      Alert.alert('خطأ', err instanceof Error ? err.message : 'حدث خطأ');
     } finally {
       setBusy(false);
     }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
 import { getCurrentLocation, locationError } from "@/lib/location";
 import { lookupMapPlace } from "@/lib/maps.functions";
@@ -49,34 +49,39 @@ export function MapPicker({
   /** Fired once after "my location" succeeds and the address is read. */
   onAutoLocated?: (c: Coords, address?: string) => void;
 }) {
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const fallbackCenterRef = useRef(fallbackCenter);
+  fallbackCenterRef.current = fallbackCenter;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const onAutoLocatedRef = useRef(onAutoLocated);
   onAutoLocatedRef.current = onAutoLocated;
   const [full, setFull] = useState(startFull);
   const [picked, setPicked] = useState(false);
-  const report = (c: Coords, addr?: string) => {
+  const report = useCallback((c: Coords, addr?: string) => {
     setPicked(true);
     onChangeRef.current(c, addr);
-  };
-  const reverseFallback = (c: Coords, onDone?: (addr?: string) => void) => {
+  }, []);
+  const reverseFallback = useCallback((c: Coords, onDone?: (addr?: string) => void) => {
     lookupMapPlace({ data: { action: "reverse", center: c } })
-      .then((r: any) => {
-        if (r?.address) {
-          setAddress(r.address);
-          report(c, r.address);
-          onDone?.(r.address);
+      .then((result) => {
+        const response = result as { address?: string };
+        if (response.address) {
+          setAddress(response.address);
+          report(c, response.address);
+          onDone?.(response.address);
         } else {
           onDone?.();
         }
       })
       .catch(() => onDone?.());
-  };
+  }, [report]);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const mapRef = useRef<any>(null);
-  const geocoderRef = useRef<any>(null);
-  const idleTimerRef = useRef<any>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressIdleRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,11 +92,11 @@ export function MapPicker({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Array<{ id: string; text: string; secondary: string }>>([]);
-  const sessionTokenRef = useRef<any>(null);
-  const acServiceRef = useRef<any>(null);
-  const placesSvcRef = useRef<any>(null);
+  const sessionTokenRef = useRef<string | null>(null);
+  const acServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesSvcRef = useRef<google.maps.places.PlacesService | null>(null);
   const nearbyMarkersRef = useRef<
-    Map<string, { marker: any; anim: { from: Coords; to: Coords; startedAt: number; raf: number | null; heading: number } | null }>
+    Map<string, { marker: google.maps.Marker; anim: { from: Coords; to: Coords; startedAt: number; raf: number | null; heading: number } | null }>
   >(new Map());
   const readyRef = useRef(false);
 
@@ -107,7 +112,7 @@ export function MapPicker({
       .then((g) => {
         clearTimeout(slow);
         if (cancelled || !containerRef.current) return;
-        const center = value ?? fallbackCenter ?? DEFAULT_CENTER;
+        const center = valueRef.current ?? fallbackCenterRef.current ?? DEFAULT_CENTER;
         const map = new g.maps.Map(containerRef.current, {
           center,
           zoom: 14,
@@ -117,7 +122,7 @@ export function MapPicker({
         });
         mapRef.current = map;
         // Don't report the default city centre as the user's location.
-        if (!value) suppressIdleRef.current = true;
+        if (!valueRef.current) suppressIdleRef.current = true;
         geocoderRef.current = new g.maps.Geocoder();
 
         const marker = new g.maps.Marker({
@@ -137,7 +142,7 @@ export function MapPicker({
               suppressIdleRef.current = false;
               return;
             }
-            geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+            geocoderRef.current?.geocode({ location: c }, (results, status) => {
               if (status === "OK" && results?.[0]) {
                 const addr = results[0].formatted_address;
                 setAddress(addr);
@@ -161,7 +166,7 @@ export function MapPicker({
           marker.setPosition(center);
           if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
           idleTimerRef.current = setTimeout(() => {
-            geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+            geocoderRef.current?.geocode({ location: c }, (results, status) => {
               if (status === "OK" && results?.[0]) {
                 const addr = results[0].formatted_address;
                 setAddress(addr);
@@ -188,7 +193,7 @@ export function MapPicker({
       clearTimeout(slow);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, []);
+  }, [reverseFallback, report]);
 
   useEffect(() => {
     if (!readyRef.current || !mapRef.current || !value) return;
@@ -198,8 +203,8 @@ export function MapPicker({
 
   useEffect(() => {
     if (!nearby?.length || !mapRef.current) return;
-    const g = (window as any).google;
-    if (!g) return;
+    const g = (window as Window & { google?: typeof google }).google;
+    if (!g?.maps) return;
 
     nearby.forEach((pin) => {
       const existing = nearbyMarkersRef.current.get(pin.pin_id);
@@ -232,7 +237,7 @@ export function MapPicker({
         };
         existing.anim.raf = requestAnimationFrame(animate);
       } else {
-        const icon: any = {
+        const icon: google.maps.Symbol = {
           path: g.maps.SymbolPath.CIRCLE,
           scale: 8,
           fillColor: nearbyKind === "worker" ? "#10b981" : "#3b82f6",
@@ -284,7 +289,7 @@ export function MapPicker({
         };
         reverseFallback(c, finish);
         try {
-          geocoderRef.current?.geocode({ location: c }, (results: any, status: any) => {
+          geocoderRef.current?.geocode({ location: c }, (results, status) => {
             if (status === "OK" && results?.[0]) {
               const addr = results[0].formatted_address;
               setAddress(addr);
@@ -320,14 +325,19 @@ export function MapPicker({
     const timer = setTimeout(async () => {
       if (!sessionTokenRef.current) sessionTokenRef.current = crypto.randomUUID();
       const center = mapRef.current?.getCenter?.();
-      const c = center
-        ? { lat: typeof center.lat === "function" ? center.lat() : center.lat, lng: typeof center.lng === "function" ? center.lng() : center.lng }
+      const centerValue = center as unknown as { lat: number | (() => number); lng: number | (() => number) } | null;
+      const c: Coords = centerValue
+        ? {
+            lat: typeof centerValue.lat === "function" ? centerValue.lat() : centerValue.lat,
+            lng: typeof centerValue.lng === "function" ? centerValue.lng() : centerValue.lng,
+          }
         : value ?? DEFAULT_CENTER;
       try {
-        const res: any = await lookupMapPlace({ data: { action: "autocomplete", input: q, sessionToken: sessionTokenRef.current, center: c } });
+        const result = await lookupMapPlace({ data: { action: "autocomplete", input: q, sessionToken: sessionTokenRef.current, center: c } });
+        const response = result as { suggestions?: Array<{ id: string; text: string }> };
         if (stale) return;
-        if (res.suggestions?.length) {
-          setSuggestions(res.suggestions.map((s: any) => ({ id: "g:" + s.id, text: s.text, secondary: "" })));
+        if (response.suggestions?.length) {
+          setSuggestions(response.suggestions.map((suggestion) => ({ id: "g:" + suggestion.id, text: suggestion.text, secondary: "" })));
           return;
         }
       } catch {
@@ -335,10 +345,11 @@ export function MapPicker({
       }
       try {
         const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=iq&accept-language=ar&limit=6`);
-        const data = await r.json();
+        const raw: unknown = await r.json();
         if (stale) return;
+        const data = Array.isArray(raw) ? raw as Array<{ place_id: number; display_name: string; lat: string; lon: string; name?: string }> : [];
         setSuggestions(
-          (data || []).map((d: any) => {
+          data.map((d) => {
             const id = "o:" + d.place_id;
             const parts = String(d.display_name || "").split(",");
             placeCacheRef.current.set(id, { coords: { lat: parseFloat(d.lat), lng: parseFloat(d.lon) }, address: d.display_name });
@@ -353,14 +364,15 @@ export function MapPicker({
       stale = true;
       clearTimeout(timer);
     };
-  }, [searchQuery, searchOpen]);
+  }, [searchQuery, searchOpen, value]);
 
   async function pickSuggestion(id: string, label: string) {
     let place = placeCacheRef.current.get(id);
     if (!place && id.startsWith("g:")) {
       try {
-        const res: any = await lookupMapPlace({ data: { action: "details", placeId: id.slice(2), sessionToken: sessionTokenRef.current ?? crypto.randomUUID() } });
-        place = { coords: res.coords, address: res.address || label };
+        const result = await lookupMapPlace({ data: { action: "details", placeId: id.slice(2), sessionToken: sessionTokenRef.current ?? crypto.randomUUID() } });
+        const response = result as { coords: Coords; address?: string };
+        place = { coords: response.coords, address: response.address || label };
       } catch {
         setGeoError("تعذّر فتح هذا المكان، جرّب مكان ثاني");
         return;
@@ -636,24 +648,25 @@ export function StaticMapPreview({
   accent?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { lat, lng } = coords;
 
   useEffect(() => {
     let cancelled = false;
     loadGoogleMaps().then((g) => {
       if (cancelled || !containerRef.current) return;
       const map = new g.maps.Map(containerRef.current, {
-        center: coords,
+        center: { lat, lng },
         zoom: 15,
         disableDefaultUI: true,
         gestureHandling: "none",
         clickableIcons: false,
       });
-      new g.maps.Marker({ position: coords, map });
+      new g.maps.Marker({ position: { lat, lng }, map });
     });
     return () => {
       cancelled = true;
     };
-  }, [coords.lat, coords.lng]);
+  }, [lat, lng]);
 
   return (
     <div

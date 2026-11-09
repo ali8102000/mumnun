@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { adminGetPlans, adminSavePlan, adminTogglePlan, adminGetSettings, adminSaveSettings, adminGetStats, adminGetSubscriptions } from "@/lib/subscription.functions";
 import { Loader2, ShieldCheck, Crown, Award, Sparkles, ToggleLeft, ToggleRight, Users, TrendingUp, Calendar, AlertCircle, Plus, Save, X, BadgeCheck, Headphones, BarChart3, Star, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/admin/subscriptions")({ ssr: false,
   head: () => ({ meta: [
@@ -17,6 +19,8 @@ export const Route = createFileRoute("/admin/subscriptions")({ ssr: false,
   ] }), component: SubscriptionsAdmin });
 
 type Plan = { id: string; code: string; name_ar: string; name_en: string; description_ar: string | null; tier: number; max_requests_per_month: number | null; priority_weight: number; offer_priority: number; badge_label: string | null; badge_color: string | null; show_stats: boolean; priority_support: boolean; monthly_price: number; yearly_price: number; currency: string; is_active: boolean; sort_order: number };
+type SubscriptionSettings = { subscription_enabled: boolean; minimum_downloads_before_activation: number };
+type PlanDraft = Omit<Plan, "id">;
 type Stats = { totalSubscribers: number; activeSubscriptions: number; expiredSubscriptions: number; monthlyRevenue: number; yearlyRevenue: number; freeCount: number; silverCount: number; goldCount: number };
 type SubscriptionRow = { id: string; user_id: string; status: string; billing_cycle: string; current_period_start: string; current_period_end: string | null; request_count: number; auto_renew: boolean; created_at: string; plan: { code: string; name_ar: string; tier: number } | null };
 
@@ -24,7 +28,7 @@ function SubscriptionsAdmin() {
   const { session, loading } = useAuth();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<SubscriptionSettings | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [subs, setSubs] = useState<SubscriptionRow[]>([]);
   const [tab, setTab] = useState("overview");
@@ -34,8 +38,8 @@ function SubscriptionsAdmin() {
   const loadAll = useCallback(async () => {
     try {
       const [plansData, settingsData, statsData, subsData] = await Promise.all([adminGetPlans(), adminGetSettings(), adminGetStats(), adminGetSubscriptions()]);
-      setPlans(plansData as Plan[]); setSettings(settingsData); setStats(statsData as Stats); setSubs(subsData as SubscriptionRow[]);
-    } catch (e: any) { toast.error(e.message); }
+      setPlans(plansData as Plan[]); setSettings(settingsData as SubscriptionSettings); setStats(statsData as Stats); setSubs(subsData as SubscriptionRow[]);
+    } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "حدث خطأ غير متوقع"); }
   }, []);
 
   useEffect(() => {
@@ -43,7 +47,9 @@ function SubscriptionsAdmin() {
     if (!session) { setAuthorized(false); return; }
     (async () => {
       try {
-        const { data: roleData } = await (supabase as any).rpc("has_admin_access", { p_user_id: session.user.id });
+        const adminClient = supabase as unknown as { rpc: (name: "has_admin_access", args: { p_user_id: string }) => Promise<{ data: boolean | null; error: { message: string } | null }> };
+        const { data: roleData, error: roleError } = await adminClient.rpc("has_admin_access", { p_user_id: session.user.id });
+        if (roleError) throw new Error(roleError.message);
         if (roleData) { setAuthorized(true); loadAll(); } else { setAuthorized(false); }
       } catch { setAuthorized(false); }
     })();
@@ -58,15 +64,15 @@ function SubscriptionsAdmin() {
       <div className="flex items-center gap-3 mb-4"><Link to="/admin" className="glass rounded-xl p-2"><ChevronLeft className="h-5 w-5" /></Link><h1 className="text-lg font-black flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary" />نظام الاشتراكات</h1></div>
       <div className="flex gap-1 mb-4 glass rounded-2xl p-1">{["overview", "plans", "subscriptions", "settings"].map((t) => (<button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{t === "overview" ? "نظرة عامة" : t === "plans" ? "الباقات" : t === "subscriptions" ? "المشتركون" : "الإعدادات"}</button>))}</div>
       {tab === "overview" && <OverviewTab stats={stats} settings={settings} />}
-      {tab === "plans" && <PlansTab plans={plans} onEdit={(p: Plan) => { setEditingPlan(p); setShowEditModal(true); }} onToggle={async (id: string, isActive: boolean) => { try { await adminTogglePlan({ data: { id, is_active: isActive } }); toast.success(isActive ? "تم تفعيل الباقة" : "تم إيقاف الباقة"); loadAll(); } catch (e: any) { toast.error(e.message); } }} onNew={() => { setEditingPlan(null); setShowEditModal(true); }} />}
+      {tab === "plans" && <PlansTab plans={plans} onEdit={(p: Plan) => { setEditingPlan(p); setShowEditModal(true); }} onToggle={async (id: string, isActive: boolean) => { try { await adminTogglePlan({ data: { id, is_active: isActive } }); toast.success(isActive ? "تم تفعيل الباقة" : "تم إيقاف الباقة"); loadAll(); } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "حدث خطأ غير متوقع"); } }} onNew={() => { setEditingPlan(null); setShowEditModal(true); }} />}
       {tab === "subscriptions" && <SubscriptionsTab subs={subs} />}
-      {tab === "settings" && <SettingsTab settings={settings} onSave={async (enabled: boolean, minDownloads: number) => { try { await adminSaveSettings({ data: { subscription_enabled: enabled, minimum_downloads_before_activation: minDownloads } }); toast.success("تم حفظ الإعدادات"); loadAll(); } catch (e: any) { toast.error(e.message); } }} />}
-      {showEditModal && <PlanEditModal plan={editingPlan} onClose={() => setShowEditModal(false)} onSave={async (planData: Partial<Plan>) => { try { await adminSavePlan({ data: { id: editingPlan?.id, plan: planData } }); toast.success(editingPlan ? "تم تحديث الباقة" : "تم إنشاء الباقة"); setShowEditModal(false); loadAll(); } catch (e: any) { toast.error(e.message); } }} />}
+      {tab === "settings" && <SettingsTab settings={settings} onSave={async (enabled: boolean, minDownloads: number) => { try { await adminSaveSettings({ data: { subscription_enabled: enabled, minimum_downloads_before_activation: minDownloads } }); toast.success("تم حفظ الإعدادات"); loadAll(); } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "حدث خطأ غير متوقع"); } }} />}
+      {showEditModal && <PlanEditModal plan={editingPlan} onClose={() => setShowEditModal(false)} onSave={async (planData: PlanDraft) => { try { await adminSavePlan({ data: { id: editingPlan?.id, plan: planData } }); toast.success(editingPlan ? "تم تحديث الباقة" : "تم إنشاء الباقة"); setShowEditModal(false); loadAll(); } catch (e: unknown) { toast.error(e instanceof Error ? e.message : "حدث خطأ غير متوقع"); } }} />}
     </div>
   );
 }
 
-function OverviewTab({ stats, settings }: { stats: Stats | null; settings: any }) {
+function OverviewTab({ stats, settings }: { stats: Stats | null; settings: SubscriptionSettings | null }) {
   if (!stats || !settings) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   const enabled = settings?.subscription_enabled ?? false;
   return (
@@ -79,10 +85,10 @@ function OverviewTab({ stats, settings }: { stats: Stats | null; settings: any }
   );
 }
 
-function StatCard({ icon: Icon, label, value, accent }: any) { return (<div className="glass rounded-2xl p-4"><Icon className={`h-5 w-5 mb-2 ${accent ?? "text-primary"}`} /><div className="text-xl font-black">{value ?? "—"}</div><div className="text-[10px] text-muted-foreground font-bold mt-0.5">{label}</div></div>); }
-function PlanCountRow({ label, count, color }: any) { return (<div className="flex items-center justify-between text-sm"><div className="flex items-center gap-2"><span className={`h-3 w-3 rounded-full ${color}`} /><span className="font-bold">{label}</span></div><span className="font-black">{count}</span></div>); }
+function StatCard({ icon: Icon, label, value, accent }: { icon: LucideIcon; label: string; value: string | number; accent?: string }) { return (<div className="glass rounded-2xl p-4"><Icon className={`h-5 w-5 mb-2 ${accent ?? "text-primary"}`} /><div className="text-xl font-black">{value ?? "—"}</div><div className="text-[10px] text-muted-foreground font-bold mt-0.5">{label}</div></div>); }
+function PlanCountRow({ label, count, color }: { label: string; count: number; color: string }) { return (<div className="flex items-center justify-between text-sm"><div className="flex items-center gap-2"><span className={`h-3 w-3 rounded-full ${color}`} /><span className="font-bold">{label}</span></div><span className="font-black">{count}</span></div>); }
 
-function PlansTab({ plans, onEdit, onToggle, onNew }: any) {
+function PlansTab({ plans, onEdit, onToggle, onNew }: { plans: Plan[]; onEdit: (plan: Plan) => void; onToggle: (id: string, active: boolean) => Promise<void>; onNew: () => void }) {
   return (
     <div className="space-y-3">
       <button onClick={onNew} className="w-full glass rounded-2xl p-3 flex items-center justify-center gap-2 text-sm font-bold text-primary border-2 border-dashed border-primary/30"><Plus className="h-4 w-4" /> إضافة باقة جديدة</button>
@@ -98,14 +104,14 @@ function PlansTab({ plans, onEdit, onToggle, onNew }: any) {
   );
 }
 
-function Feature({ icon: Icon, label, value }: any) { return (<div className="flex items-center gap-1.5"><Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">{label}:</span><span className="font-bold">{value}</span></div>); }
+function Feature({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) { return (<div className="flex items-center gap-1.5"><Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" /><span className="text-muted-foreground">{label}:</span><span className="font-bold">{value}</span></div>); }
 
 function SubscriptionsTab({ subs }: { subs: SubscriptionRow[] }) {
   if (subs.length === 0) return (<div className="glass rounded-2xl p-8 text-center"><Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" /><div className="text-sm text-muted-foreground">لا يوجد مشتركون بعد</div></div>);
   return (<div className="space-y-2">{subs.map((s) => (<div key={s.id} className="glass rounded-2xl p-3 text-sm"><div className="flex items-center justify-between mb-1"><div className="font-bold">{s.plan?.name_ar ?? "—"}</div><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.status === "active" ? "bg-emerald-100 text-emerald-700" : s.status === "expired" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-600"}`}>{s.status === "active" ? "نشط" : s.status === "expired" ? "منتهي" : s.status}</span></div><div className="text-[10px] text-muted-foreground">المستخدم: {s.user_id.slice(0, 8)}... · طلبات: {s.request_count}</div>{s.current_period_end && <div className="text-[10px] text-muted-foreground">ينتهي: {new Date(s.current_period_end).toLocaleDateString("ar-IQ")}</div>}</div>))}</div>);
 }
 
-function SettingsTab({ settings, onSave }: any) {
+function SettingsTab({ settings, onSave }: { settings: SubscriptionSettings | null; onSave: (enabled: boolean, minDownloads: number) => Promise<void> }) {
   const [enabled, setEnabled] = useState(false);
   const [minDownloads, setMinDownloads] = useState(100000);
   const [saving, setSaving] = useState(false);
@@ -119,10 +125,10 @@ function SettingsTab({ settings, onSave }: any) {
   );
 }
 
-function PlanEditModal({ plan, onClose, onSave }: any) {
-  const [form, setForm] = useState<any>(plan ?? { code: "", name_ar: "", name_en: "", description_ar: "", tier: 0, max_requests_per_month: 50, priority_weight: 0, offer_priority: 0, badge_label: "", badge_color: "", show_stats: false, priority_support: false, monthly_price: 0, yearly_price: 0, currency: "IQD", is_active: true, sort_order: 0 });
+function PlanEditModal({ plan, onClose, onSave }: { plan: Plan | null; onClose: () => void; onSave: (plan: PlanDraft) => Promise<void> }) {
+  const [form, setForm] = useState<PlanDraft>(plan ?? { code: "", name_ar: "", name_en: "", description_ar: "", tier: 0, max_requests_per_month: 50, priority_weight: 0, offer_priority: 0, badge_label: "", badge_color: "", show_stats: false, priority_support: false, monthly_price: 0, yearly_price: 0, currency: "IQD", is_active: true, sort_order: 0 });
   const [saving, setSaving] = useState(false);
-  const upd = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+  const upd = <K extends keyof PlanDraft>(key: K, value: PlanDraft[K]) => setForm((current) => ({ ...current, [key]: value }));
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4 overflow-y-auto">
       <div className="glass rounded-3xl p-5 w-full max-w-md my-8 max-h-[90vh] overflow-y-auto">
@@ -145,4 +151,4 @@ function PlanEditModal({ plan, onClose, onSave }: any) {
   );
 }
 
-function Field({ label, children }: any) { return (<div><div className="text-[11px] font-bold text-muted-foreground mb-1">{label}</div>{children}</div>); }
+function Field({ label, children }: { label: string; children: ReactNode }) { return (<div><div className="text-[11px] font-bold text-muted-foreground mb-1">{label}</div>{children}</div>); }

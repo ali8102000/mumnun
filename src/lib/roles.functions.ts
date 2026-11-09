@@ -3,7 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const grantProviderRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { role: "driver" | "worker" }) => {
+  .validator((input: { role: "driver" | "worker" }) => {
     if (input?.role !== "driver" && input?.role !== "worker") {
       throw new Error("Invalid role");
     }
@@ -12,7 +12,7 @@ export const grantProviderRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // Runs as the signed-in user: the database function checks auth.uid()
     // and requires the matching driver/worker profile to exist first.
-    const { error } = await (context.supabase as any).rpc("grant_provider_role_safe", {
+    const { error } = await context.supabase.rpc("grant_provider_role_safe", {
       _role: data.role,
     });
     if (error) {

@@ -45,10 +45,10 @@ export function LiveTrackMap({
   follow?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const meMarkerRef = useRef<any>(null);
-  const otherMarkerRef = useRef<any>(null);
-  const lineRef = useRef<any>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const meMarkerRef = useRef<google.maps.Marker | null>(null);
+  const otherMarkerRef = useRef<google.maps.Marker | null>(null);
+  const lineRef = useRef<google.maps.Polyline | null>(null);
   const readyRef = useRef(false);
   const didFitRef = useRef(false);
 
@@ -94,25 +94,25 @@ export function LiveTrackMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function setMarkerPosition(marker: any, pos: Coords, heading: number | null) {
+  function setMarkerPosition(marker: google.maps.Marker, pos: Coords, heading: number | null) {
     if (!marker) return;
     marker.setPosition(pos);
     if (heading != null) {
       const icon = marker.getIcon();
-      if (icon && typeof icon === "object") {
+      if (icon && typeof icon === "object" && "path" in icon) {
         marker.setIcon({ ...icon, rotation: heading });
       }
     }
   }
 
   function upsertDot(
-    cur: any | null,
+    cur: google.maps.Marker | null,
     coords: Coords | null,
     color: string,
     label: string,
     arrow: boolean
   ) {
-    const g = (window as any).google;
+    const g = window.google;
     const map = mapRef.current;
     if (!g || !map) return cur;
     if (!coords) {
@@ -146,7 +146,7 @@ export function LiveTrackMap({
   }
 
   function drawLine() {
-    const g = (window as any).google;
+    const g = window.google;
     const map = mapRef.current;
     if (!g || !map) return;
     if (me && other) {
@@ -175,7 +175,7 @@ export function LiveTrackMap({
   }
 
   function apply(animate: boolean) {
-    const g = (window as any).google;
+    const g = window.google;
     const map = mapRef.current;
     if (!g || !map) return;
 

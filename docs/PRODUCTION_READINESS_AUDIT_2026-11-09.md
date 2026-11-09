@@ -1,0 +1,112 @@
+# Mamnoon production-readiness audit
+Date: 2026-11-09
+Repository: ali8102000/mumnun
+Development branch: mamnoon-production-hardening-2026-11-09
+Backup branch: mamnoon-backup-main-2026-11-09
+Base branch: main (unchanged)
+
+## Confirmed project structure
+- The repository contains a web application at the root (React, TypeScript, TanStack Start).
+- The native Expo Router application is in expo-app/ and has route screens and image assets.
+- mobile/ is a separate, incomplete/older native experiment and must not be mistaken for the primary Expo app.
+- Supabase project_id in supabase/config.toml and the previous Expo client URL both identify zvfdymcalzqhvwnipuup. The earlier concern about a project mismatch came from comparing the partial mobile/ experiment; it is not evidence of a mismatch in expo-app/.
+
+## Changes committed to this branch
+- Removed hard-coded Google Maps key and Supabase client values from expo-app/app.json.
+- Added expo-app/app.config.ts to inject Google Maps and Supabase public client configuration from build environment variables.
+- Updated expo-app/src/lib/supabase.ts to require EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY; no service-role key is accepted by the client.
+- Added expo-app/.env.example.
+- Removed hard-coded Google Maps key from mobile/app.json and moved mobile config reads to environment variables; added mobile/.env.example.
+- Added GitHub Actions workflow .github/workflows/ci.yml for web lint/typecheck/build and Expo config/typecheck.
+- Added migration 20261109000100 to remove permissive authenticated write policies for notifications, chats, request offers, driver wallets, and transactions. Server service_role and owner-controlled SECURITY DEFINER operations remain the intended write paths.
+- Added migration 20261109000101 to prevent users from directly self-assigning, updating, or deleting provider/admin roles. Direct self-assignment is limited to the customer role; driver/worker roles use grant_provider_role_safe after provider profile creation. Anonymous execution of has_role is revoked.
+- Updated Expo role selection so driver/worker roles go through onboarding instead of being written directly to user_roles.
+- Updated Expo provider availability to use the actual database column available and reload its value from the database.
+- Updated web dispatch/retry to use the authenticated dispatch_request database function instead of privileged direct inserts with a seven-day expiry.
+- Updated web ride start/completion/cancellation to use the guarded transition_service_request RPC.
+- Added migration 20261109000102 to dispatch in expanding radii of 2, 5, then 10 km, creating 45-second offers under a locked request row.
+- Added migration 20261109000103 to restrict live-location writes to active request participants and allow only those participants to read each other's request locations.
+- Added migration 20261109000104 to prevent chat sender impersonation and restrict ratings to the other participant on a completed request.
+- Added GPS acquisition, map point selection, pickup/destination coordinates, and a clearly labelled rough fare estimate to the Expo new-request screen.
+- Added foreground live-location publishing and a participant-only live map to active Expo taxi requests.
+- Corrected Expo service slugs to match the actual Supabase services catalog and exposed all seeded service categories on the native home screen.
+- Corrected Expo request-detail chat reads/writes to use chats.id and messages.chat_id/content, and switched start/complete/cancel to the guarded transition RPC.
+- Added a safe provider-role grant RPC that requires the caller's driver/worker profile.
+- Added admin-controlled provider verification states (pending/approved/suspended/rejected), blocks unverified providers from setting available=true, and connected the existing admin provider console to show verification state.
+- Removed direct client update paths for service_requests and request_offers; customers can directly create only home-service requests, while taxi creation now runs server-side with trusted route-based fare calculation.
+- Hardened taxi dispatch retries: active 45-second offer batches are not resent, expired offers are retained as expired history, and eligible providers can be re-offered safely after expiry. Expo request details expose a retry action.
+- Protected driver/worker rating aggregates and completed-job counters from direct profile edits; verified vehicle identity and worker level cannot be changed by providers without administrative review.
+- Added an atomic per-customer rolling 60-second taxi request limiter (3 requests) used by both web and Expo server-side taxi creation paths.
+- Removed the admin monitoring page's direct client-side imports of the service-role Supabase client; reports, blocks and support tickets now load or mutate through staff-authorized server functions. User-role inspection now uses a super-admin-only server function.
+- Added `create-taxi-request` Edge Function for authenticated Expo taxi creation with server-computed route distance, duration and fare; the native client no longer supplies taxi fare/distance to the database.
+- Added a separate provider_locations presence table for discoverable online drivers/workers, with authenticated writes and self-row-only reads, 90-second freshness checks, anti-spoof speed checks, and nearby driver/pin RPCs reading only verified available provider presence. Nearby map pins are rounded to 2 decimal places, use per-query IDs, and are restricted to authenticated customers.
+- Restricted home-service request visibility and acceptance to verified, available workers with fresh provider presence within 10 km; the acceptance RPC rechecks eligibility atomically.
+- Added foreground GPS presence publishing while a verified provider is online in both Expo and web home screens.
+
+## Critical remaining blockers
+
+### P0: exposed Google Maps credential
+The Google Maps API key was previously committed in the repository. It has been removed from the edited source files, but it must be rotated/restricted in Google Cloud because removal from current source does not invalidate historical Git objects or prior builds. Restrict the replacement key by Android package name and signing SHA-1 and only the required Maps APIs. Set it as EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in the EAS environment.
+
+### P1: Supabase migrations are not deployed
+The fourteen new SQL migrations (00100 through 00113) are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
+
+### P1: Expo route pricing and map verification
+The Expo taxi request screen now sends pickup/destination coordinates to the authenticated `create-taxi-request` Edge Function. The function validates the customer role, applies the atomic request limiter, calculates road distance/duration with Google Routes on the server, calculates the fare on the server, and inserts the request without accepting a client-supplied fare. This is code-level implementation only: the function still needs deployment, its server-only `GOOGLE_MAPS_API_KEY`, migration deployment, and real-device route/map verification.
+
+### P1: incomplete dispatch lifecycle
+The database taxi dispatch RPC now has progressive radius logic and reads fresh verified provider presence. Home-service requests are filtered to verified available workers within 10 km and acceptance is rechecked atomically. These migrations are not deployed or integration-tested. There is no verified scheduler/worker in this audit that automatically retries after offer expiry or sends push notifications; retry currently requires a customer action. The current matching logic alone does not prove a complete dispatch loop.
+
+### P1: role approval and provider verification
+Provider roles are gated through the provider-profile RPC and the database now requires an admin-approved verification state before a driver/worker can become available. The existing admin provider console exposes approve/suspend/reject actions. However, actual identity-document capture/storage, manual review evidence, audit trail validation, and production testing of this workflow are not complete. These changes depend on migrations 00105/00106 being deployed.
+
+### P1: auth-proxy CORS and abuse protection
+The wildcard CORS default was removed from supabase/functions/auth-proxy/index.ts. Production must set the exact ALLOWED_ORIGIN value for the real web origin; without it, browsers will block cross-origin access. Per-phone/IP rate limits, anti-enumeration controls, and monitoring still need implementation.
+
+### P1: public app key and service-side controls
+Supabase anon/publishable keys are client-visible by design, but every exposed table/RPC must be protected by correct RLS and grants. Do not place SUPABASE_SERVICE_ROLE_KEY in Expo, web client bundles, or any EXPO_PUBLIC variable.
+
+### P1: live location reliability
+The Expo home screen now publishes foreground provider presence while a verified driver/worker is available, and the request-detail screen publishes request-scoped foreground locations and displays the other participant. The web provider home screen also publishes foreground provider presence. Background tracking is not implemented in the main Expo app. Real-device foreground/background tracking, permission denial, GPS loss, stale data, network interruption, and battery use remain untested. The new provider-presence and request-location RLS migrations must be deployed before these sharing flows can work. The web nearby-pin server function now uses the authenticated Supabase session instead of the service-role client.
+
+### P2: pricing and finance
+Both web and Expo taxi creation now have server-side road-route distance, duration and fare calculation paths; neither client should be treated as authoritative for taxi fare. The web path uses the trusted Google Routes gateway and the Expo path uses `create-taxi-request`. Both require correctly restricted server-side route credentials. The Edge Function must be deployed with `GOOGLE_MAPS_API_KEY`. Wallet/commission/refund ledger integrity needs integration tests after the new RLS restrictions.
+
+### P2: Android build and store readiness
+No successful EAS Android AAB build was run during this work. EAS project association, EAS environment variables, signing credentials, push credentials, privacy policy, terms, store listing, and release testing remain to be completed.
+
+## CI
+A GitHub Actions workflow was added. Latest completed run at commit `9a411fa2b11d8d9a63719cab894e42214ae5746e` passed root web TypeScript, production build, unit tests, focused ESLint for hardened dispatch/provider-location modules, Deno typecheck for `create-taxi-request`, Expo TypeScript/config and Android JavaScript export. Full root lint still fails with 395 errors and 40 warnings across the repository, largely legacy explicit-any and hook issues; they remain unresolved. The monitoring page changes in this commit introduced no remaining lint errors in that file. No E2E test suite or signed EAS AAB build was run.
+
+## Not verified
+- Full RLS coverage and grants across all tables and views.
+- All SECURITY DEFINER functions, search_path, and EXECUTE grants.
+- Phone lookup anti-enumeration and auth-proxy rate limiting.
+- Real user registration/login/password recovery against the intended Supabase project.
+- Taxi acceptance race conditions under concurrent driver sessions.
+- Home-service offer/accept/complete lifecycle.
+- Realtime chat and push delivery on physical devices.
+- GPS and route services in Iraq.
+- Load tests, cost limits, backup restoration, and incident response.
+- Successful web E2E and Android EAS AAB build.
+
+## Release decision
+NOT READY FOR PRODUCTION. No 10/10 rating is claimed. The changes are isolated to the development branch; main remains unchanged. The database migrations require review and deployment, and the GPS/map/dispatch workflow, verification, notifications, pricing, real-device tests, CI logs, and EAS build are still release blockers.
+
+
+## Latest verification update — 2026-11-09
+
+This section supersedes the older CI status above.
+
+- Latest code commit verified: `d97828a12a4ef35454a1860b9649258f09026860`.
+- GitHub Actions run `42594833705` completed successfully:
+  - Root TypeScript check, production web build, unit tests, focused hardened-module ESLint, and full root ESLint all passed.
+  - Expo public config, production environment validation, missing Maps-key rejection check, EAS Android profile validation, Expo TypeScript, and Android JavaScript export all passed.
+  - Deno type checks passed for `create-taxi-request`, `auth-proxy`, and `subscription-cron`.
+- Added migration `00114_rating_subscores`, `00115_restrict_phone_email_lookup`, `00116_limit_live_location_reads_to_active_requests`, `00117_prevent_reassigning_claimed_requests`, and `00118_fix_request_cancellation_authorization`.
+- Migration 00117 prevents accepting one's own request and prevents assigning a request that already has a provider.
+- Migration 00118 fixes a SQL NULL authorization bypass in cancellation: only the customer or assigned provider can cancel.
+- Migration 00116 limits request-scoped GPS reads to the request participants while the request is accepted or in progress.
+- The above are committed code changes only. No connected Supabase database tool was available during this audit; migration application, PostgreSQL execution, RLS integration tests, and live data checks remain unverified.
+- No signed EAS AAB, physical-device runtime test, production credentials validation, or Play Store release test has been completed. Do not mark production-ready.
+- The branch is still isolated from `main`; no pull request is open. Compare against `main` before any merge because the histories have diverged.

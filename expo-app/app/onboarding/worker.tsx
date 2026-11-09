@@ -5,9 +5,11 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui';
 
+type WorkerService = { id: string; slug: string; name_ar: string };
+
 export default function WorkerOnboarding() {
   const { user } = useAuth();
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<WorkerService[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [level, setLevel] = useState<'fani' | 'khabir'>('fani');
   const [bio, setBio] = useState('');
@@ -27,7 +29,7 @@ export default function WorkerOnboarding() {
       const { error: roleError } = await supabase.rpc('grant_provider_role_safe', { _role: 'worker' });
       if (roleError) throw roleError;
       router.replace('/home');
-    } catch (err: any) { Alert.alert('خطأ', err?.message || 'حدث خطأ'); } finally { setBusy(false); }
+    } catch (err: unknown) { Alert.alert('خطأ', err instanceof Error ? err.message : 'حدث خطأ'); } finally { setBusy(false); }
   }
 
   return (

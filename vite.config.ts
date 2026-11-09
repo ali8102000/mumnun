@@ -13,6 +13,22 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    build: {
+      // Keep the browser entry small; split framework and UI dependencies into cacheable vendor chunks.
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("/node_modules/")) return;
+            if (id.includes("/node_modules/firebase/") || id.includes("/node_modules/@firebase/")) return "firebase-vendor";
+            if (id.includes("/node_modules/@supabase/")) return "supabase-vendor";
+            if (id.includes("/node_modules/recharts/") || id.includes("/node_modules/d3-")) return "charts-vendor";
+            if (id.includes("/node_modules/@tanstack/")) return "tanstack-vendor";
+            if (id.includes("/node_modules/@radix-ui/")) return "radix-vendor";
+            if (id.includes("/node_modules/react/") || id.includes("/node_modules/react-dom/") || id.includes("/node_modules/scheduler/")) return "react-vendor";
+          },
+        },
+      },
+    },
     // Fallback for hosted preview/published builds where .env is not shipped.
     // These are the public (publishable) backend URL and key — safe for browser code.
     define: {

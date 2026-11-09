@@ -4,17 +4,21 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { normalizePhone } from '@/lib/phone';
 
+type FriendProfile = { id: string; full_name: string | null; phone: string };
+type FriendRequest = { id: string; sender_id: string; sender: FriendProfile | null };
+type SearchProfile = FriendProfile;
+
 export default function FriendsScreen() {
   const { user } = useAuth();
-  const [friends, setFriends] = useState<any[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [friends, setFriends] = useState<FriendProfile[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
   const [searchPhone, setSearchPhone] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchProfile[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadFriends = useCallback(async () => {
     const { data } = await supabase.from('friends').select('friend:profiles!friends_friend_id_fkey(id, full_name, phone)').eq('user_id', user?.id);
-    setFriends(data?.map((d: any) => d.friend).filter(Boolean) || []);
+    setFriends((data ?? []).flatMap((row) => row.friend ?? []));
   }, [user?.id]);
 
   const loadPending = useCallback(async () => {
@@ -22,13 +26,13 @@ export default function FriendsScreen() {
     setPendingRequests(data || []);
   }, [user?.id]);
 
-  const loadAll = async () => { await Promise.all([loadFriends(), loadPending()]); };
+  const loadAll = useCallback(async () => { await Promise.all([loadFriends(), loadPending()]); }, [loadFriends, loadPending]);
 
   useEffect(() => {
     loadAll();
     const sub = supabase.channel('friends-realtime').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_requests', filter: `receiver_id=eq.${user?.id}` }, () => loadPending()).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friends', filter: `user_id=eq.${user?.id}` }, () => loadFriends()).subscribe();
     return () => { supabase.removeChannel(sub); };
-  }, [user?.id, loadFriends, loadPending]);
+  }, [user?.id, loadFriends, loadPending, loadAll]);
 
   const onRefresh = async () => { setRefreshing(true); await loadAll(); setRefreshing(false); };
 

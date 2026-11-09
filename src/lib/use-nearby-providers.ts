@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
-import { findNearbyProviderPins, type ProviderPin as ServerPin } from "@/lib/dispatch.functions";
+import { findNearbyProviderPins } from "@/lib/dispatch.functions";
 
 export type ProviderPin = {
   pin_id: string;
@@ -19,15 +18,16 @@ export function useNearbyProviders(opts: {
   enabled?: boolean;
   intervalMs?: number;
 }) {
-  const { center, type, category, serviceId, radiusKm = 5, enabled = true, intervalMs = 15000 } = opts;
+  const { center, type, category, serviceId, radiusKm = 5, enabled = true, intervalMs = 30000 } = opts;
+  const centerLat = center?.lat;
+  const centerLng = center?.lng;
   const [pins, setPins] = useState<ProviderPin[]>([]);
-  const timerRef = useRef<any>(null);
-  const debounceRef = useRef<any>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inflightRef = useRef(false);
   const findPinsFn = useServerFn(findNearbyProviderPins);
 
   useEffect(() => {
-    if (!enabled || !center) {
+    if (!enabled || centerLat == null || centerLng == null) {
       setPins([]);
       return;
     }
@@ -39,11 +39,11 @@ export function useNearbyProviders(opts: {
       inflightRef.current = true;
       try {
         const rows = await findPinsFn({ data: {
-          lat: center.lat, lng: center.lng, type, category, serviceId, radiusKm, limit: 30,
+          lat: centerLat, lng: centerLng, type, category, serviceId, radiusKm, limit: 30,
         } });
         if (cancelled) return;
         setPins(
-          (rows as ServerPin[]).map((r) => ({
+          rows.map((r) => ({
             pin_id: String(r.pin_id),
             lat: Number(r.lat),
             lng: Number(r.lng),
@@ -61,25 +61,12 @@ export function useNearbyProviders(opts: {
 
     timerRef.current = setInterval(fetchPins, intervalMs);
 
-    const ch = supabase
-      .channel("provider-pins")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "live_locations", filter: `status=eq.online` },
-        () => {
-          clearTimeout(debounceRef.current);
-          debounceRef.current = setTimeout(fetchPins, 2000);
-        },
-      )
-      .subscribe();
-
     return () => {
       cancelled = true;
-      clearInterval(timerRef.current);
-      clearTimeout(debounceRef.current);
-      supabase.removeChannel(ch);
+      const intervalId = timerRef.current;
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [center?.lat, center?.lng, type, category, serviceId, radiusKm, enabled, intervalMs]);
+  }, [centerLat, centerLng, type, category, serviceId, radiusKm, enabled, intervalMs, findPinsFn]);
 
   return pins;
 }

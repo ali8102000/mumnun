@@ -1,8 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
 const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("ALLOWED_ORIGIN") ?? "*",
+  ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin } : {}),
+  "Vary": "Origin",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
@@ -56,15 +58,6 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const path = url.pathname.replace("/auth-proxy", "");
 
-    if (path === "/lookup-email" && req.method === "POST") {
-      const body = await req.json();
-      const phone = typeof body?.phone === "string" && body.phone.trim().length >= 3 && body.phone.trim().length <= 255 ? body.phone.trim() : null;
-      if (!phone) return json({ error: "Invalid phone" }, 400);
-      const { data, error } = await supabase.rpc("lookup_email_by_phone", { _phone: phone });
-      if (error) return json({ error: safeError(error.message) }, 400);
-      return json({ email: data });
-    }
-
     if (path === "/signup" && req.method === "POST") {
       const body = await req.json();
       const email = typeof body?.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email) ? body.email : null;
@@ -76,6 +69,12 @@ Deno.serve(async (req: Request) => {
       const client = createClient(supabaseUrl, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
+      // Do not use the admin API to auto-confirm synthetic phone emails:
+      // that would let anyone claim a phone number without proving ownership.
+      if (email.endsWith("@mamnoon.app")) {
+        return json({ error: "Phone verification is not configured. Register with a real email address until SMS verification is enabled." }, 503);
+      }
+
       const { data, error } = await client.auth.signUp({
         email,
         password,
@@ -87,7 +86,7 @@ Deno.serve(async (req: Request) => {
           id: data.user.id,
           phone,
           full_name,
-          email: email.includes("@mamnoon.app") ? null : email,
+          email,
         });
         if (profileError) return json({ error: "Account created but profile setup failed" }, 500);
       }
@@ -96,14 +95,27 @@ Deno.serve(async (req: Request) => {
 
     if (path === "/login" && req.method === "POST") {
       const body = await req.json();
-      const email = typeof body?.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email) ? body.email : null;
+      const suppliedEmail = typeof body?.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)
+        ? body.email.trim().toLowerCase()
+        : null;
+      const phone = typeof body?.phone === "string" && /^\+\d{8,15}$/.test(body.phone.trim())
+        ? body.phone.trim()
+        : null;
       const password = typeof body?.password === "string" && body.password.length >= 6 && body.password.length <= 128 ? body.password : null;
-      if (!email || !password) return json({ error: "Invalid input" }, 400);
+      if ((!suppliedEmail && !phone) || !password) return json({ error: "Invalid input" }, 400);
+
+      let email = suppliedEmail;
+      if (phone) {
+        const { data: foundEmail, error: lookupError } = await supabase.rpc("lookup_email_by_phone", { _phone: phone });
+        if (lookupError) return json({ error: safeError(lookupError.message) }, 400);
+        const digits = phone.replace(/[^\d]/g, "");
+        email = foundEmail ? String(foundEmail).toLowerCase() : `phone${digits}@mamnoon.app`;
+      }
 
       const client = createClient(supabaseUrl, anonKey, {
         auth: { persistSession: false, autoRefreshToken: false },
       });
-      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      const { data, error } = await client.auth.signInWithPassword({ email: email!, password });
       if (error) return json({ error: safeError(error.message) }, 400);
       return json({ session: data.session, user: data.user });
     }

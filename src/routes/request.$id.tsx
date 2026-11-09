@@ -1,8 +1,9 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { Phone, Send, Loader2, CheckCircle2, Clock, Star, X, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { LiveTrackMap } from "@/components/live-track-map";
@@ -34,13 +35,13 @@ function RequestDetail() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
-  const [req, setReq] = useState<any>(null);
-  const [other, setOther] = useState<any>(null);
-  const [chat, setChat] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [req, setReq] = useState<Tables<"service_requests"> | null>(null);
+  const [other, setOther] = useState<Pick<Tables<"profiles">, "id" | "full_name" | "phone" | "avatar_url"> | null>(null);
+  const [chat, setChat] = useState<Tables<"chats"> | null>(null);
+  const [messages, setMessages] = useState<Tables<"messages">[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
-  const [myRating, setMyRating] = useState<any>(null);
+  const [myRating, setMyRating] = useState<Tables<"ratings"> | null>(null);
   const [showRating, setShowRating] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [otherRep, setOtherRep] = useState<ReputationData | null>(null);
@@ -65,7 +66,7 @@ function RequestDetail() {
   });
 
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     try {
       const { data: r } = await supabase.from("service_requests").select("*").eq("id", id).maybeSingle();
       if (!r) { setLoading(false); return; }
@@ -94,16 +95,44 @@ function RequestDetail() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id, session, getRepFn]);
 
-  useEffect(() => { if (session) loadAll(); }, [session, id]);
+  useEffect(() => { if (session) void loadAll(); }, [session, loadAll]);
 
 
   useEffect(() => {
     if (!chat) return;
     const ch = supabase.channel(`messages-${chat.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `chat_id=eq.${chat.id}` },
-        (payload) => setMessages((m) => [...m, payload.new]))
+        (payload) => {
+          const incoming = payload.new;
+          if (
+            typeof incoming.id !== "string" ||
+            typeof incoming.chat_id !== "string" ||
+            typeof incoming.sender_id !== "string" ||
+            typeof incoming.content !== "string" ||
+            typeof incoming.created_at !== "string" ||
+            (incoming.read_at !== null && typeof incoming.read_at !== "string")
+          ) {
+            console.error("[request] Ignored malformed realtime message payload");
+            return;
+          }
+
+          const message: Tables<"messages"> = {
+            id: incoming.id,
+            chat_id: incoming.chat_id,
+            sender_id: incoming.sender_id,
+            content: incoming.content,
+            created_at: incoming.created_at,
+            read_at: incoming.read_at,
+          };
+
+          setMessages((current) =>
+            current.some((item) => item.id === message.id)
+              ? current
+              : [...current, message],
+          );
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [chat]);
@@ -115,7 +144,7 @@ function RequestDetail() {
         () => loadAll())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [req?.id]);
+  }, [req?.id, req, id, loadAll]);
 
   useEffect(() => {
     if (!req || myRole !== "customer") return;
@@ -124,7 +153,7 @@ function RequestDetail() {
       retryFn({ data: { requestId: req.id } }).catch(() => {});
     }, 30_000);
     return () => clearInterval(t);
-  }, [req?.id, req?.status, myRole]);
+  }, [req, myRole, retryFn]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -148,8 +177,8 @@ function RequestDetail() {
     try {
       await runCompleteRide({ data: { requestId: id } });
       toast.success("تم إنهاء الطلب");
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذّر إنهاء الطلب");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذّر إنهاء الطلب");
     }
   }
 
@@ -199,14 +228,14 @@ function RequestDetail() {
           </div>
         )}
 
-        {req.type === "service" && ((req as any).pricing_mode || (req as any).work_description) && (
+        {req.type === "service" && (req.pricing_mode || req.work_description) && (
           <div className="glass rounded-2xl p-3 space-y-1">
             <div className="text-[11px] text-muted-foreground">السعر والشغل</div>
-            {(req as any).work_description && <div className="text-sm font-bold">🛠️ {(req as any).work_description}</div>}
+            {req.work_description && <div className="text-sm font-bold">🛠️ {req.work_description}</div>}
             <div className="font-black text-primary">
-              {(req as any).pricing_mode === "negotiable"
+              {req.pricing_mode === "negotiable"
                 ? "💰 السعر يتفق عليه الطرفين"
-                : `💰 ${Number((req as any).customer_price ?? 0).toLocaleString()} د.ع${(req as any).pricing_mode === "hourly" && (req as any).work_hours ? ` · ${(req as any).work_hours} ساعة` : " · إنجاز تام"}`}
+                : `💰 ${Number(req.customer_price ?? 0).toLocaleString()} د.ع${req.pricing_mode === "hourly" && req.work_hours ? ` · ${req.work_hours} ساعة` : " · إنجاز تام"}`}
             </div>
           </div>
         )}
@@ -265,8 +294,8 @@ function RequestDetail() {
                 try {
                   await runStartRide({ data: { requestId: id } });
                   toast.success("بدأت الرحلة");
-                } catch (e: any) {
-                  toast.error(e.message ?? "تعذّر بدء الرحلة");
+                } catch (e: unknown) {
+                  toast.error(e instanceof Error ? e.message : "تعذّر بدء الرحلة");
                 }
               }} className="text-xs px-3 py-2 rounded-xl bg-primary text-primary-foreground font-bold btn-press">بدء الرحلة</button>
             )}
@@ -388,8 +417,8 @@ function RequestDetail() {
               toast.success("تم الإلغاء");
               setShowCancel(false);
               loadAll();
-            } catch (e: any) {
-              toast.error(e.message ?? "تعذّر الإلغاء");
+            } catch (e: unknown) {
+              toast.error(e instanceof Error ? e.message : "تعذّر الإلغاء");
             }
           }}
         />
@@ -400,7 +429,7 @@ function RequestDetail() {
           target={other}
           onClose={() => setShowRating(false)}
           onSubmit={async (stars, comment, subscores) => {
-            const { data, error } = await (supabase as any).from("ratings").insert({
+            const { data, error } = await supabase.from("ratings").insert({
               request_id: id,
               rater_id: session.user.id,
               ratee_id: other.id,
@@ -421,7 +450,7 @@ function RequestDetail() {
   );
 }
 
-function RatingModal({ target, onClose, onSubmit }: { target: any; onClose: () => void; onSubmit: (stars: number, comment: string, subscores: { professionalism: number; punctuality: number; quality: number }) => Promise<void> }) {
+function RatingModal({ target, onClose, onSubmit }: { target: Pick<Tables<"profiles">, "id" | "full_name" | "phone" | "avatar_url">; onClose: () => void; onSubmit: (stars: number, comment: string, subscores: { professionalism: number; punctuality: number; quality: number }) => Promise<void> }) {
   const [stars, setStars] = useState(5);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");

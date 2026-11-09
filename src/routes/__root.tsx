@@ -126,7 +126,9 @@ function RootComponent() {
 
   useEffect(() => {
     if ("serviceWorker" in navigator && window.location.hostname !== "localhost") {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      navigator.serviceWorker.register("/sw.js").catch((error: unknown) => {
+        console.warn("Mumnun service worker registration failed:", error);
+      });
     }
   }, []);
 

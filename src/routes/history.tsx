@@ -2,6 +2,7 @@ import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { MobileShell } from "@/components/mobile-shell";
 import { ClipboardList } from "lucide-react";
 
@@ -17,7 +18,8 @@ export const Route = createFileRoute("/history")({ ssr: false,
 
 function HistoryPage() {
   const { session, loading } = useAuth();
-  const [items, setItems] = useState<any[]>([]);
+  type HistoryItem = Pick<Tables<"service_requests">, "id" | "type" | "status" | "price_estimate" | "pickup_text" | "dest_text" | "created_at">;
+  const [items, setItems] = useState<HistoryItem[]>([]);
   const [tab, setTab] = useState<"all" | "active" | "done">("all");
 
   useEffect(() => {

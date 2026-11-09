@@ -1,0 +1,80 @@
+name: Mamnoon CI
+
+on:
+  push:
+    branches:
+      - main
+      - mamnoon-production-hardening-2026-11-09
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Web lint, typecheck and production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bunx tsc --noEmit
+      - run: bun run build
+      - run: bun run test:unit
+      - name: Lint hardened dispatch and provider-location modules
+        run: bunx eslint src/routes/home.tsx src/lib/dispatch.functions.ts src/lib/use-nearby-providers.ts
+      - run: bun run lint
+
+  expo:
+    name: Expo configuration and TypeScript
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: expo-app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bunx expo config --type public
+      - name: Validate production Expo configuration with all required variables
+        env:
+          APP_ENV: production
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ci-maps-placeholder
+          EAS_PROJECT_ID: 00000000-0000-4000-8000-000000000000
+        run: bunx expo config --type public
+      - name: Ensure production config rejects a missing Maps key
+        env:
+          APP_ENV: production
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
+          EAS_PROJECT_ID: 00000000-0000-4000-8000-000000000000
+        run: |
+          if bunx expo config --type public >/dev/null 2>&1; then
+            echo "Production config unexpectedly accepted a missing Google Maps key."
+            exit 1
+          fi
+      - name: Validate EAS Android build profiles
+        run: node -e "const c=JSON.parse(require('fs').readFileSync('eas.json','utf8')); if(c.build?.preview?.android?.buildType!=='apk'||c.build?.production?.android?.buildType!=='app-bundle') throw new Error('Invalid EAS Android profiles')"
+      - run: bunx tsc --noEmit
+      - run: bunx expo export --platform android
+
+  supabase-functions:
+    name: Supabase Edge Function typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check --node-modules-dir=auto supabase/functions/create-taxi-request/index.ts
+      - run: deno check --node-modules-dir=auto supabase/functions/auth-proxy/index.ts
+      - run: deno check --node-modules-dir=auto supabase/functions/subscription-cron/index.ts

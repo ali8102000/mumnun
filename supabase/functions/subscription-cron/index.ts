@@ -13,9 +13,27 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceKey) {
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // This job performs privileged subscription expiry and counter resets.
+    // Require the service-role bearer token so the public anon key cannot trigger it.
+    if (req.headers.get("Authorization") !== `Bearer ${serviceKey}`) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
     const { data: expiredCount } = await supabase.rpc("handle_expired_subscriptions");
 
@@ -53,7 +71,9 @@ Deno.serve(async (req: Request) => {
 
         if (existing) continue;
 
-        const planName = (sub.plan as any)?.name_ar ?? "اشتراكك";
+        const planRelation = sub.plan;
+        const plan = Array.isArray(planRelation) ? planRelation[0] : planRelation;
+        const planName = typeof plan?.name_ar === "string" ? plan.name_ar : "اشتراكك";
         const notifBody =
           days === 1
             ? `ينتهي ${planName} غداً. جدد الآن للاستمرار في استقبال الطلبات.`
@@ -89,8 +109,9 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
+    console.error("[subscription-cron]", err instanceof Error ? err.message : "unknown error");
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }

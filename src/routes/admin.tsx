@@ -1,17 +1,16 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Loader2, ShieldCheck, Users, Car, ListChecks, Wallet, Crown, Activity,
   LayoutDashboard, Tag, MessageSquare, UserCheck, Flag, Bell, ScrollText,
-  Map, ChevronLeft, Settings, AlertCircle,
+  Map, ChevronLeft, Settings, AlertCircle, type LucideIcon,
 } from "lucide-react";
 import {
   adminAdjustWallet, adminBlockUser, adminBroadcastNotification, adminCancelRequest,
   adminDeleteCoupon, adminDeleteFriendRequest, adminDeleteFriendship, adminDeleteMessage,
-  adminGetDashboardStats, adminGetLiveLocations, adminGetLiveRequests, adminGetUserDetail,
-  adminGrantRole, adminListAuditLogs, adminListChats, adminListCoupons, adminListFriendRequests,
+  adminGetDashboardStats, adminGetLiveLocations, adminGetLiveRequests, adminGetUserDetail, adminGetUserRoles,
+  adminGrantRole, adminListAuditLogs, adminListChats, adminListCoupons, adminListFriendRequests, getStaffRoles,
   adminListFriends, adminListMessages, adminListProviders, adminListReports, adminListRequests,
   adminListTransactions, adminListUsers, adminReopenRequest, adminResolveReport, adminRevokeRole,
   adminSaveCoupon, adminSearchUsers, adminSetProviderStatus, adminUnblockUser,
@@ -28,9 +27,30 @@ export const Route = createFileRoute("/admin")({ ssr: false,
     { name: "twitter:card", content: "summary" },
   ] }), component: AdminPage });
 
+
+type AdminProfile = { id: string; full_name: string | null; phone: string; email?: string | null; avatar_url?: string | null; created_at?: string };
+type AdminRole = { role: string; created_at?: string };
+type AdminBlock = { user_id?: string; reason: string | null; expires_at: string | null; blocked_at?: string };
+type AdminUser = AdminProfile & { blocked?: AdminBlock | null };
+type AdminTransaction = { id: string; type: string; amount: number; created_at: string; note?: string | null; profiles?: AdminProfile | null };
+type AdminRequest = { id: string; type: string; status: string; created_at: string; price_estimate?: number | null; pickup_text?: string | null; dest_text?: string | null; customer_id?: string; provider_id?: string };
+type AdminProvider = { id?: string; user_id: string; available?: boolean; is_verified?: boolean; verification_status?: string; vehicle_make?: string | null; vehicle_model?: string | null; vehicle_plate?: string | null; updated_at?: string; profiles?: AdminProfile | null };
+type AdminReport = { id: string; status: string; created_at: string; reason?: string | null; details?: string | null; reporter?: AdminProfile | null; reported?: AdminProfile | null };
+type AdminCoupon = { id: string; code: string; type: "percentage" | "fixed"; value: number; used_count: number; max_uses: number; expires_at: string | null; active: boolean; min_amount: number };
+type CouponInput = { id?: string; code: string; type: "percentage" | "fixed"; value: number; max_uses: number; expires_at: string | null; active: boolean; min_amount: number };
+type AdminChat = { id: string; created_at: string; updated_at?: string; participant1?: AdminProfile | null; participant2?: AdminProfile | null };
+type AdminFriend = { id: string; user_id: string; friend_id: string; created_at: string; user?: AdminProfile | null; friend?: AdminProfile | null };
+type AdminFriendRequest = { id: string; status: string; created_at: string; sender?: AdminProfile | null; receiver?: AdminProfile | null };
+type AdminMessage = { id: string; content: string; body?: string | null; created_at: string; sender?: AdminProfile | null; chat?: { id: string } | null };
+type AdminAuditLog = { id: string; action: string; created_at: string; user_id: string; admin?: AdminProfile | null; metadata?: Record<string, unknown> | null };
+type AdminLocation = { user_id: string; latitude?: number | null; longitude?: number | null; lat?: number; lng?: number; profile?: AdminProfile | null };
+type AdminUserDetail = { profile: AdminProfile | null; roles: AdminRole[]; block: AdminBlock | null; driverProfile: AdminProvider | null; workerProfile: AdminProvider | null; transactions: AdminTransaction[]; requests: AdminRequest[] };
+type BlockTarget = { id: string; name: string | null };
+type DashboardStats = { totalUsers: number; totalDrivers: number; totalWorkers: number; totalRequests: number; activeRequests: number; completedRequests: number; cancelledRequests: number; activeDrivers: number; activeWorkers: number; dailyRevenue: number; monthlyRevenue: number; yearlyRevenue: number };
+
 type Section = "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles";
 
-const NAV_ITEMS: { key: Section; label: string; icon: any; roles: string[] }[] = [
+const NAV_ITEMS: { key: Section; label: string; icon: LucideIcon; roles: string[] }[] = [
   { key: "overview", label: "نظرة عامة", icon: LayoutDashboard, roles: ["super_admin", "admin", "support", "finance", "moderator"] },
   { key: "stats", label: "الإحصائيات", icon: Activity, roles: ["super_admin", "admin", "finance"] },
   { key: "users", label: "المستخدمون", icon: Users, roles: ["super_admin", "admin", "support", "moderator"] },
@@ -54,21 +74,20 @@ function AdminPage() {
   const [staffRoles, setStaffRoles] = useState<string[]>([]);
   const [section, setSection] = useState<Section>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const getStaffRolesFn = useServerFn(getStaffRoles);
 
   useEffect(() => {
     if (!session || loading) return;
-    (async () => {
-      try {
-        const { data: isStaff } = await (supabase as any).rpc("has_staff_role", { p_user_id: session.user.id });
-        if (!isStaff) { setAuthorized(false); return; }
-        const { data: roles } = await (supabase as any).rpc("get_staff_roles", { p_user_id: session.user.id });
-        setStaffRoles((roles ?? []).map((r: any) => r));
+    void getStaffRolesFn({ data: {} })
+      .then((roles) => {
+        setStaffRoles(roles as string[]);
         setAuthorized(true);
-      } catch {
+      })
+      .catch((error: unknown) => {
+        console.error("[admin] staff authorization failed", error);
         setAuthorized(false);
-      }
-    })();
-  }, [session, loading]);
+      });
+  }, [session, loading, getStaffRolesFn]);
 
   if (loading) return null;
   if (!session) return <Navigate to="/auth" />;
@@ -144,10 +163,10 @@ function AdminPage() {
 }
 
 function OverviewSection() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const getStats = useServerFn(adminGetDashboardStats);
-  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (e) {} finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [getStats]);
   if (loading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   if (!stats) return <div className="text-sm text-muted-foreground">تعذّر تحميل البيانات</div>;
   return (
@@ -167,7 +186,7 @@ function OverviewSection() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, accent }: any) {
+function StatCard({ icon: Icon, label, value, accent }: { icon: LucideIcon; label: string; value: ReactNode; accent?: string }) {
   return (
     <div className="glass rounded-2xl p-4">
       <Icon className={`h-5 w-5 mb-2 ${accent ?? "text-primary"}`} />
@@ -178,10 +197,10 @@ function StatCard({ icon: Icon, label, value, accent }: any) {
 }
 
 function StatsSection() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const getStats = useServerFn(adminGetDashboardStats);
-  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (e) {} finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [getStats]);
   if (loading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   if (!stats) return <div className="text-sm text-muted-foreground">تعذّر تحميل البيانات</div>;
   return (
@@ -208,13 +227,13 @@ function StatsSection() {
 }
 
 function UsersSection() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [blockModal, setBlockModal] = useState<any | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
+  const [blockModal, setBlockModal] = useState<BlockTarget | null>(null);
   const listUsers = useServerFn(adminListUsers);
   const searchUsers = useServerFn(adminSearchUsers);
   const blockUser = useServerFn(adminBlockUser);
@@ -223,14 +242,14 @@ function UsersSection() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      if (searchQuery.trim()) { const r = await searchUsers({ data: { query: searchQuery.trim() } }); setUsers(r); setTotal(r.length); }
-      else { const d = await listUsers({ data: { page, limit: 50 } }); setUsers(d.users); setTotal(d.total); }
-    } catch (e) {} finally { setLoading(false); }
-  }, [page, searchQuery]);
+      if (searchQuery.trim()) { const r = await searchUsers({ data: { query: searchQuery.trim() } }); setUsers(r as unknown as AdminUser[]); setTotal(r.length); }
+      else { const d = await listUsers({ data: { page, limit: 50 } }); setUsers(d.users as unknown as AdminUser[]); setTotal(d.total); }
+    } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); }
+  }, [page, searchQuery, listUsers, searchUsers]);
   useEffect(() => { load(); }, [load]);
-  async function viewUser(userId: string) { try { setSelectedUser(await getUserDetail({ data: { user_id: userId } })); } catch (e) {} }
-  async function handleBlock(userId: string, reason: string, expiresAt: string | null) { try { await blockUser({ data: { user_id: userId, reason, expires_at: expiresAt ?? undefined } }); setBlockModal(null); load(); } catch (e) {} }
-  async function handleUnblock(userId: string) { try { await unblockUser({ data: { user_id: userId } }); load(); } catch (e) {} }
+  async function viewUser(userId: string) { try { setSelectedUser(await getUserDetail({ data: { user_id: userId } }) as unknown as AdminUserDetail); } catch (error) { console.error("[admin] action failed", error); } }
+  async function handleBlock(userId: string, reason: string, expiresAt: string | null) { try { await blockUser({ data: { user_id: userId, reason, expires_at: expiresAt ?? undefined } }); setBlockModal(null); load(); } catch (error) { console.error("[admin] action failed", error); } }
+  async function handleUnblock(userId: string) { try { await unblockUser({ data: { user_id: userId } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة المستخدمين</h2>
@@ -267,7 +286,7 @@ function UsersSection() {
   );
 }
 
-function UserDetailModal({ user, onClose }: { user: any; onClose: () => void }) {
+function UserDetailModal({ user, onClose }: { user: AdminUserDetail; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4 overflow-y-auto">
       <div className="glass rounded-3xl p-5 w-full max-w-lg my-8 max-h-[90vh] overflow-y-auto">
@@ -277,19 +296,19 @@ function UserDetailModal({ user, onClose }: { user: any; onClose: () => void }) 
           <InfoRow label="الهاتف" value={user.profile?.phone} />
           <InfoRow label="البريد" value={user.profile?.email ?? "—"} />
           <InfoRow label="تاريخ التسجيل" value={user.profile?.created_at ? new Date(user.profile.created_at).toLocaleString("ar-IQ") : "—"} />
-          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الأدوار</div><div className="flex flex-wrap gap-1">{(user.roles ?? []).map((r: any) => (<span key={r.role} className="text-[10px] font-bold px-2 py-1 rounded-full bg-primary/15 text-primary">{r.role}</span>))}{user.roles?.length === 0 && <span className="text-xs text-muted-foreground">لا أدوار</span>}</div></div>
+          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الأدوار</div><div className="flex flex-wrap gap-1">{(user.roles ?? []).map((r: AdminRole) => (<span key={r.role} className="text-[10px] font-bold px-2 py-1 rounded-full bg-primary/15 text-primary">{r.role}</span>))}{user.roles?.length === 0 && <span className="text-xs text-muted-foreground">لا أدوار</span>}</div></div>
           {user.block && (<div className="glass rounded-xl p-3 border border-red-500/30"><div className="text-xs font-bold text-red-500">محظور</div><div className="text-[10px] text-muted-foreground">{user.block.reason ?? "بدون سبب"}</div>{user.block.expires_at && <div className="text-[10px] text-muted-foreground">حتى: {new Date(user.block.expires_at).toLocaleString("ar-IQ")}</div>}</div>)}
           {user.driverProfile && (<div className="glass rounded-xl p-3"><div className="text-xs font-bold mb-1">ملف السائق</div><InfoRow label="السيارة" value={`${user.driverProfile.vehicle_make ?? "—"} ${user.driverProfile.vehicle_model ?? ""}`} /><InfoRow label="متاح" value={user.driverProfile.available ? "نعم" : "لا"} /></div>)}
           {user.workerProfile && (<div className="glass rounded-xl p-3"><div className="text-xs font-bold mb-1">ملف الفني</div><InfoRow label="متاح" value={user.workerProfile.available ? "نعم" : "لا"} /></div>)}
-          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">المعاملات ({user.transactions?.length ?? 0})</div><div className="space-y-1 max-h-32 overflow-y-auto">{(user.transactions ?? []).map((tx: any) => (<div key={tx.id} className="text-[10px] flex justify-between glass rounded-lg px-2 py-1"><span>{tx.type === "credit" ? "+" : "-"}{Number(tx.amount).toLocaleString()} د.ع</span><span className="text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("ar-IQ")}</span></div>))}</div></div>
-          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الطلبات ({user.requests?.length ?? 0})</div><div className="space-y-1 max-h-32 overflow-y-auto">{(user.requests ?? []).map((r: any) => (<div key={r.id} className="text-[10px] flex justify-between glass rounded-lg px-2 py-1"><span>{r.type === "taxi" ? "🚕" : "🛠️"} {r.status}</span><span className="text-muted-foreground">{new Date(r.created_at).toLocaleDateString("ar-IQ")}</span></div>))}</div></div>
+          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">المعاملات ({user.transactions?.length ?? 0})</div><div className="space-y-1 max-h-32 overflow-y-auto">{(user.transactions ?? []).map((tx: AdminTransaction) => (<div key={tx.id} className="text-[10px] flex justify-between glass rounded-lg px-2 py-1"><span>{tx.type === "credit" ? "+" : "-"}{Number(tx.amount).toLocaleString()} د.ع</span><span className="text-muted-foreground">{new Date(tx.created_at).toLocaleDateString("ar-IQ")}</span></div>))}</div></div>
+          <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الطلبات ({user.requests?.length ?? 0})</div><div className="space-y-1 max-h-32 overflow-y-auto">{(user.requests ?? []).map((r: AdminRequest) => (<div key={r.id} className="text-[10px] flex justify-between glass rounded-lg px-2 py-1"><span>{r.type === "taxi" ? "🚕" : "🛠️"} {r.status}</span><span className="text-muted-foreground">{new Date(r.created_at).toLocaleDateString("ar-IQ")}</span></div>))}</div></div>
         </div>
       </div>
     </div>
   );
 }
 
-function BlockModal({ target, onConfirm, onClose }: any) {
+function BlockModal({ target, onConfirm, onClose }: { target: BlockTarget; onConfirm: (id: string, reason: string, expiresAt: string | null) => void; onClose: () => void }) {
   const [reason, setReason] = useState("");
   const [duration, setDuration] = useState("permanent");
   function getExpiry(): string | null { if (duration === "permanent") return null; const now = new Date(); switch (duration) { case "1h": now.setHours(now.getHours() + 1); break; case "24h": now.setDate(now.getDate() + 1); break; case "7d": now.setDate(now.getDate() + 7); break; case "30d": now.setDate(now.getDate() + 30); break; } return now.toISOString(); }
@@ -310,25 +329,25 @@ function BlockModal({ target, onConfirm, onClose }: any) {
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: any }) { return (<div className="flex justify-between text-xs"><span className="text-muted-foreground">{label}</span><span className="font-bold">{value ?? "—"}</span></div>); }
+function InfoRow({ label, value }: { label: string; value: ReactNode }) { return (<div className="flex justify-between text-xs"><span className="text-muted-foreground">{label}</span><span className="font-bold">{value ?? "—"}</span></div>); }
 
 function ProvidersSection() {
   const [type, setType] = useState("driver");
-  const [providers, setProviders] = useState<any[]>([]);
+  const [providers, setProviders] = useState<AdminProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const listProviders = useServerFn(adminListProviders);
   const setStatus = useServerFn(adminSetProviderStatus);
-  const load = useCallback(async () => { setLoading(true); try { setProviders(await listProviders({ data: { type } })); } catch (e) {} finally { setLoading(false); } }, [type]);
+  const load = useCallback(async () => { setLoading(true); try { setProviders(await listProviders({ data: { type } }) as unknown as AdminProvider[]); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [type, listProviders]);
   useEffect(() => { load(); }, [load]);
-  async function handleAction(userId: string, status: string) { try { await setStatus({ data: { user_id: userId, type, status } }); load(); } catch (e) {} }
+  async function handleAction(userId: string, status: string) { try { await setStatus({ data: { user_id: userId, type, status } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة السائقين والفنيين</h2>
       <div className="flex gap-1 mb-4 glass rounded-2xl p-1">{["driver", "worker"].map((t) => (<button key={t} onClick={() => setType(t)} className={`flex-1 py-2 rounded-xl text-xs font-bold ${type === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{t === "driver" ? "السائقون" : "الفنيون"}</button>))}</div>
       {loading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : providers.length === 0 ? <div className="glass rounded-2xl p-8 text-center text-sm text-muted-foreground">لا يوجد مزودون</div> : (
         <div className="space-y-2">{providers.map((p) => (
-          <div key={p.id} className="glass rounded-2xl p-3">
-            <div className="flex items-center justify-between mb-2"><div><div className="font-bold text-sm">{p.profiles?.full_name ?? "—"}</div><div className="text-[10px] text-muted-foreground">{p.profiles?.phone ?? "—"}</div></div><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${p.available ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{p.available ? "متاح" : "غير متاح"}</span></div>
+          <div key={p.user_id} className="glass rounded-2xl p-3">
+            <div className="flex items-center justify-between mb-2"><div><div className="font-bold text-sm">{p.profiles?.full_name ?? "—"}</div><div className="text-[10px] text-muted-foreground">{p.profiles?.phone ?? "—"}</div></div><div className="flex items-center gap-2"><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${p.is_verified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{p.verification_status === "approved" ? "موثق" : p.verification_status === "suspended" ? "معلّق" : p.verification_status === "rejected" ? "مرفوض" : "بانتظار التوثيق"}</span><span className={`text-[10px] font-bold px-2 py-1 rounded-full ${p.available ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{p.available ? "متاح" : "غير متاح"}</span></div></div>
             {type === "driver" && p.vehicle_make && <div className="text-[10px] text-muted-foreground mb-2">{p.vehicle_make} {p.vehicle_model} · {p.vehicle_plate}</div>}
             <div className="flex gap-1.5"><button onClick={() => handleAction(p.user_id, "approved")} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-bold">تفعيل</button><button onClick={() => handleAction(p.user_id, "suspended")} className="text-xs px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700 font-bold">تعليق</button><button onClick={() => handleAction(p.user_id, "rejected")} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-bold">رفض</button></div>
           </div>
@@ -340,15 +359,15 @@ function ProvidersSection() {
 
 function RequestsSection() {
   const [statusFilter, setStatusFilter] = useState("all");
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const listRequests = useServerFn(adminListRequests);
   const cancelRequest = useServerFn(adminCancelRequest);
   const reopenRequest = useServerFn(adminReopenRequest);
-  const load = useCallback(async () => { setLoading(true); try { setRequests(await listRequests({ data: { status: statusFilter } })); } catch (e) {} finally { setLoading(false); } }, [statusFilter]);
+  const load = useCallback(async () => { setLoading(true); try { setRequests(await listRequests({ data: { status: statusFilter } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [statusFilter, listRequests]);
   useEffect(() => { load(); }, [load]);
-  async function handleCancel(id: string) { try { await cancelRequest({ data: { request_id: id } }); load(); } catch (e) {} }
-  async function handleReopen(id: string) { try { await reopenRequest({ data: { request_id: id } }); load(); } catch (e) {} }
+  async function handleCancel(id: string) { try { await cancelRequest({ data: { request_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
+  async function handleReopen(id: string) { try { await reopenRequest({ data: { request_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   const statusLabels: Record<string, string> = { pending: "بانتظار", searching: "بحث", accepted: "مقبول", in_progress: "قيد التنفيذ", completed: "مكتمل", cancelled: "ملغي" };
   return (
     <div>
@@ -372,15 +391,15 @@ function RequestsSection() {
 
 function ChatSection() {
   const [tab, setTab] = useState("chats");
-  const [chats, setChats] = useState<any[]>([]);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [chats, setChats] = useState<AdminChat[]>([]);
+  const [messages, setMessages] = useState<AdminMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const listChats = useServerFn(adminListChats);
   const listMessages = useServerFn(adminListMessages);
   const deleteMessage = useServerFn(adminDeleteMessage);
-  const load = useCallback(async () => { setLoading(true); try { if (tab === "chats") setChats(await listChats({ data: {} })); else setMessages(await listMessages({ data: {} })); } catch (e) {} finally { setLoading(false); } }, [tab]);
+  const load = useCallback(async () => { setLoading(true); try { if (tab === "chats") setChats(await listChats({ data: {} })); else setMessages(await listMessages({ data: {} }) as unknown as AdminMessage[]); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [tab, listChats, listMessages]);
   useEffect(() => { load(); }, [load]);
-  async function handleDelete(id: string) { try { await deleteMessage({ data: { message_id: id } }); load(); } catch (e) {} }
+  async function handleDelete(id: string) { try { await deleteMessage({ data: { message_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة الدردشة</h2>
@@ -392,33 +411,33 @@ function ChatSection() {
 
 function FriendsSection() {
   const [tab, setTab] = useState("friends");
-  const [friends, setFriends] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
+  const [friends, setFriends] = useState<AdminFriend[]>([]);
+  const [requests, setRequests] = useState<AdminFriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const listFriends = useServerFn(adminListFriends);
   const listFriendRequests = useServerFn(adminListFriendRequests);
   const deleteFriendship = useServerFn(adminDeleteFriendship);
   const deleteRequest = useServerFn(adminDeleteFriendRequest);
-  const load = useCallback(async () => { setLoading(true); try { if (tab === "friends") setFriends(await listFriends({ data: {} })); else setRequests(await listFriendRequests({ data: {} })); } catch (e) {} finally { setLoading(false); } }, [tab]);
+  const load = useCallback(async () => { setLoading(true); try { if (tab === "friends") setFriends(await listFriends({ data: {} })); else setRequests(await listFriendRequests({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [tab, listFriends, listFriendRequests]);
   useEffect(() => { load(); }, [load]);
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة الأصدقاء</h2>
       <div className="flex gap-1 mb-4 glass rounded-2xl p-1">{["friends", "requests"].map((t) => (<button key={t} onClick={() => setTab(t)} className={`flex-1 py-2 rounded-xl text-xs font-bold ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{t === "friends" ? "الصداقات" : "طلبات الصداقة"}</button>))}</div>
-      {loading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : tab === "friends" ? (friends.length === 0 ? <EmptyState text="لا توجد صداقات" /> : <div className="space-y-2">{friends.map((f) => (<div key={f.id} className="glass rounded-2xl p-3 flex items-center justify-between"><div className="text-sm"><div className="font-bold">{f.user?.full_name ?? "—"} ↔ {f.friend?.full_name ?? "—"}</div><div className="text-[10px] text-muted-foreground">{new Date(f.created_at).toLocaleDateString("ar-IQ")}</div></div><button onClick={async () => { try { await deleteFriendship({ data: { user1_id: f.user_id, user2_id: f.friend_id } }); load(); } catch (e) {} }} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-bold">حذف</button></div>))}</div>) : (requests.length === 0 ? <EmptyState text="لا توجد طلبات" /> : <div className="space-y-2">{requests.map((r) => (<div key={r.id} className="glass rounded-2xl p-3 flex items-center justify-between"><div className="text-sm"><div className="font-bold">{r.sender?.full_name ?? "—"} → {r.receiver?.full_name ?? "—"}</div><div className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString("ar-IQ")}</div></div><button onClick={async () => { try { await deleteRequest({ data: { request_id: r.id } }); load(); } catch (e) {} }} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-bold">حذف</button></div>))}</div>)}
+      {loading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : tab === "friends" ? (friends.length === 0 ? <EmptyState text="لا توجد صداقات" /> : <div className="space-y-2">{friends.map((f) => (<div key={f.id} className="glass rounded-2xl p-3 flex items-center justify-between"><div className="text-sm"><div className="font-bold">{f.user?.full_name ?? "—"} ↔ {f.friend?.full_name ?? "—"}</div><div className="text-[10px] text-muted-foreground">{new Date(f.created_at).toLocaleDateString("ar-IQ")}</div></div><button onClick={async () => { try { await deleteFriendship({ data: { user1_id: f.user_id, user2_id: f.friend_id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-bold">حذف</button></div>))}</div>) : (requests.length === 0 ? <EmptyState text="لا توجد طلبات" /> : <div className="space-y-2">{requests.map((r) => (<div key={r.id} className="glass rounded-2xl p-3 flex items-center justify-between"><div className="text-sm"><div className="font-bold">{r.sender?.full_name ?? "—"} → {r.receiver?.full_name ?? "—"}</div><div className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString("ar-IQ")}</div></div><button onClick={async () => { try { await deleteRequest({ data: { request_id: r.id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-bold">حذف</button></div>))}</div>)}
     </div>
   );
 }
 
 function ReportsSection() {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<AdminReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const listReports = useServerFn(adminListReports);
   const resolveReport = useServerFn(adminResolveReport);
-  const load = useCallback(async () => { setLoading(true); try { setReports(await listReports({ data: { status: statusFilter } })); } catch (e) {} finally { setLoading(false); } }, [statusFilter]);
+  const load = useCallback(async () => { setLoading(true); try { setReports(await listReports({ data: { status: statusFilter } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [statusFilter, listReports]);
   useEffect(() => { load(); }, [load]);
-  async function handleResolve(id: string, status: string, note?: string) { try { await resolveReport({ data: { report_id: id, status: status as any, note } }); load(); } catch (e) {} }
+  async function handleResolve(id: string, status: string, note?: string) { try { await resolveReport({ data: { report_id: id, status: status as "resolved" | "closed" | "dismissed", note } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة البلاغات</h2>
@@ -450,17 +469,17 @@ function SubscriptionsSection() {
 }
 
 function CouponsSection() {
-  const [coupons, setCoupons] = useState<any[]>([]);
+  const [coupons, setCoupons] = useState<AdminCoupon[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<any | null>(null);
+  const [editing, setEditing] = useState<AdminCoupon | null>(null);
   const [showModal, setShowModal] = useState(false);
   const listCoupons = useServerFn(adminListCoupons);
   const saveCoupon = useServerFn(adminSaveCoupon);
   const deleteCoupon = useServerFn(adminDeleteCoupon);
-  const load = useCallback(async () => { setLoading(true); try { setCoupons(await listCoupons()); } catch (e) {} finally { setLoading(false); } }, []);
+  const load = useCallback(async () => { setLoading(true); try { setCoupons(await listCoupons() as unknown as AdminCoupon[]); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [listCoupons]);
   useEffect(() => { load(); }, [load]);
-  async function handleSave(data: any) { try { await saveCoupon({ data }); setShowModal(false); load(); } catch (e) {} }
-  async function handleDelete(id: string) { try { await deleteCoupon({ data: { coupon_id: id } }); load(); } catch (e) {} }
+  async function handleSave(data: CouponInput) { try { await saveCoupon({ data }); setShowModal(false); load(); } catch (error) { console.error("[admin] action failed", error); } }
+  async function handleDelete(id: string) { try { await deleteCoupon({ data: { coupon_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة الكوبونات</h2>
@@ -479,7 +498,7 @@ function CouponsSection() {
   );
 }
 
-function CouponModal({ coupon, onSave, onClose }: any) {
+function CouponModal({ coupon, onSave, onClose }: { coupon: AdminCoupon | null; onSave: (data: CouponInput) => void; onClose: () => void }) {
   const [form, setForm] = useState({ id: coupon?.id, code: coupon?.code ?? "", type: coupon?.type ?? "percentage", value: coupon?.value ?? 10, max_uses: coupon?.max_uses ?? 1000, expires_at: coupon?.expires_at ?? null, active: coupon?.active ?? true, min_amount: coupon?.min_amount ?? 0 });
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4">
@@ -487,7 +506,7 @@ function CouponModal({ coupon, onSave, onClose }: any) {
         <h3 className="font-black mb-4">{coupon ? "تعديل كوبون" : "إضافة كوبون"}</h3>
         <div className="space-y-3">
           <div><div className="text-[11px] font-bold text-muted-foreground mb-1">الكود</div><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} className="w-full glass rounded-xl px-4 py-2.5 text-sm font-mono" /></div>
-          <div className="grid grid-cols-2 gap-3"><div><div className="text-[11px] font-bold text-muted-foreground mb-1">النوع</div><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full glass rounded-xl px-4 py-2.5 text-sm"><option value="percentage">نسبة مئوية</option><option value="fixed">مبلغ ثابت</option></select></div><div><div className="text-[11px] font-bold text-muted-foreground mb-1">القيمة</div><input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: Number(e.target.value) })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div></div>
+          <div className="grid grid-cols-2 gap-3"><div><div className="text-[11px] font-bold text-muted-foreground mb-1">النوع</div><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value as "percentage" | "fixed" })} className="w-full glass rounded-xl px-4 py-2.5 text-sm"><option value="percentage">نسبة مئوية</option><option value="fixed">مبلغ ثابت</option></select></div><div><div className="text-[11px] font-bold text-muted-foreground mb-1">القيمة</div><input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: Number(e.target.value) })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div></div>
           <div className="grid grid-cols-2 gap-3"><div><div className="text-[11px] font-bold text-muted-foreground mb-1">الحد الأقصى للاستخدام</div><input type="number" value={form.max_uses} onChange={(e) => setForm({ ...form, max_uses: Number(e.target.value) })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div><div><div className="text-[11px] font-bold text-muted-foreground mb-1">الحد الأدنى للمبلغ</div><input type="number" value={form.min_amount} onChange={(e) => setForm({ ...form, min_amount: Number(e.target.value) })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div></div>
           <div><div className="text-[11px] font-bold text-muted-foreground mb-1">تاريخ الانتهاء (اختياري)</div><input type="datetime-local" onChange={(e) => setForm({ ...form, expires_at: e.target.value ? new Date(e.target.value).toISOString() : null })} className="w-full glass rounded-xl px-4 py-2.5 text-sm" /></div>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> مفعّل</label>
@@ -499,14 +518,14 @@ function CouponModal({ coupon, onSave, onClose }: any) {
 }
 
 function WalletSection() {
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<AdminTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [adjustModal, setAdjustModal] = useState(false);
   const listTx = useServerFn(adminListTransactions);
   const adjustWallet = useServerFn(adminAdjustWallet);
-  const load = useCallback(async () => { setLoading(true); try { setTransactions(await listTx({ data: {} })); } catch (e) {} finally { setLoading(false); } }, []);
+  const load = useCallback(async () => { setLoading(true); try { setTransactions(await listTx({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [listTx]);
   useEffect(() => { load(); }, [load]);
-  async function handleAdjust(userId: string, amount: number, type: string, note: string) { try { await adjustWallet({ data: { user_id: userId, amount, type, note } }); setAdjustModal(false); load(); } catch (e) {} }
+  async function handleAdjust(userId: string, amount: number, type: string, note: string) { try { await adjustWallet({ data: { user_id: userId, amount, type, note } }); setAdjustModal(false); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة المحفظة</h2>
@@ -521,10 +540,10 @@ function WalletSection() {
   );
 }
 
-function WalletAdjustModal({ onConfirm, onClose }: any) {
+function WalletAdjustModal({ onConfirm, onClose }: { onConfirm: (userId: string, amount: number, type: "credit" | "debit", note: string) => void; onClose: () => void }) {
   const [userId, setUserId] = useState("");
   const [amount, setAmount] = useState(0);
-  const [type, setType] = useState("credit");
+  const [type, setType] = useState<"credit" | "debit">("credit");
   const [note, setNote] = useState("");
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4">
@@ -532,7 +551,7 @@ function WalletAdjustModal({ onConfirm, onClose }: any) {
         <h3 className="font-black mb-4">تعديل رصيد</h3>
         <div className="space-y-3">
           <input value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="معرف المستخدم (UUID)" className="w-full glass rounded-xl px-4 py-2.5 text-sm" />
-          <div className="grid grid-cols-2 gap-3"><input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="المبلغ" className="glass rounded-xl px-4 py-2.5 text-sm" /><select value={type} onChange={(e) => setType(e.target.value)} className="glass rounded-xl px-4 py-2.5 text-sm"><option value="credit">إضافة (Credit)</option><option value="debit">خصم (Debit)</option></select></div>
+          <div className="grid grid-cols-2 gap-3"><input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} placeholder="المبلغ" className="glass rounded-xl px-4 py-2.5 text-sm" /><select value={type} onChange={(e) => setType(e.target.value as "credit" | "debit")} className="glass rounded-xl px-4 py-2.5 text-sm"><option value="credit">إضافة (Credit)</option><option value="debit">خصم (Debit)</option></select></div>
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ملاحظة" className="w-full glass rounded-xl px-4 py-2.5 text-sm" />
           <div className="flex gap-2"><button onClick={() => onConfirm(userId, amount, type, note)} disabled={!userId || amount === 0} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50">تنفيذ</button><button onClick={onClose} className="px-4 py-2.5 rounded-xl glass text-sm font-bold">إلغاء</button></div>
         </div>
@@ -542,12 +561,12 @@ function WalletAdjustModal({ onConfirm, onClose }: any) {
 }
 
 function MapSection() {
-  const [locations, setLocations] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
+  const [locations, setLocations] = useState<AdminLocation[]>([]);
+  const [requests, setRequests] = useState<AdminRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const getLocations = useServerFn(adminGetLiveLocations);
   const getRequests = useServerFn(adminGetLiveRequests);
-  useEffect(() => { (async () => { try { const [l, r] = await Promise.all([getLocations(), getRequests()]); setLocations(l); setRequests(r); } catch (e) {} finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { const [l, r] = await Promise.all([getLocations(), getRequests()]); setLocations(l); setRequests(r); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [getLocations, getRequests]);
   if (loading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   return (
     <div>
@@ -569,7 +588,7 @@ function NotificationsSection() {
   const [sending, setSending] = useState(false);
   const [sentCount, setSentCount] = useState<number | null>(null);
   const broadcast = useServerFn(adminBroadcastNotification);
-  async function handleSend() { setSending(true); try { const r = await broadcast({ data: { target, title, body, user_id: target === "single" ? userId : undefined } }); setSentCount(r.sent); setTitle(""); setBody(""); setUserId(""); } catch (e) {} finally { setSending(false); } }
+  async function handleSend() { setSending(true); try { const r = await broadcast({ data: { target, title, body, user_id: target === "single" ? userId : undefined } }); setSentCount(r.sent); setTitle(""); setBody(""); setUserId(""); } catch (error) { console.error("[admin] action failed", error); } finally { setSending(false); } }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">الإشعارات</h2>
@@ -586,18 +605,18 @@ function NotificationsSection() {
 }
 
 function RolesSection() {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleModal, setRoleModal] = useState<any | null>(null);
+  const [roleModal, setRoleModal] = useState<AdminUser | null>(null);
   const listUsers = useServerFn(adminListUsers);
   const searchUsers = useServerFn(adminSearchUsers);
   const grantRole = useServerFn(adminGrantRole);
   const revokeRole = useServerFn(adminRevokeRole);
-  const load = useCallback(async () => { setLoading(true); try { if (searchQuery.trim()) setUsers(await searchUsers({ data: { query: searchQuery.trim() } })); else { const d = await listUsers({ data: { page: 1, limit: 50 } }); setUsers(d.users); } } catch (e) {} finally { setLoading(false); } }, [searchQuery]);
+  const load = useCallback(async () => { setLoading(true); try { if (searchQuery.trim()) setUsers(await searchUsers({ data: { query: searchQuery.trim() } }) as unknown as AdminUser[]); else { const d = await listUsers({ data: { page: 1, limit: 50 } }); setUsers(d.users as unknown as AdminUser[]); } } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [searchQuery, listUsers, searchUsers]);
   useEffect(() => { load(); }, [load]);
-  async function handleGrant(userId: string, role: string) { try { await grantRole({ data: { target_user_id: userId, role } }); setRoleModal(null); load(); } catch (e) {} }
-  async function handleRevoke(userId: string, role: string) { try { await revokeRole({ data: { target_user_id: userId, role } }); load(); } catch (e) {} }
+  async function handleGrant(userId: string, role: string) { try { await grantRole({ data: { target_user_id: userId, role } }); setRoleModal(null); load(); } catch (error) { console.error("[admin] action failed", error); } }
+  async function handleRevoke(userId: string, role: string) { try { await revokeRole({ data: { target_user_id: userId, role } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة الصلاحيات</h2>
@@ -608,10 +627,11 @@ function RolesSection() {
   );
 }
 
-function RoleModal({ user, onGrant, onRevoke, onClose }: any) {
+function RoleModal({ user, onGrant, onRevoke, onClose }: { user: AdminUser; onGrant: (userId: string, role: string) => void; onRevoke: (userId: string, role: string) => void; onClose: () => void }) {
   const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { (async () => { try { const { supabase } = await import("@/integrations/supabase/client"); const { data } = await (supabase as any).from("user_roles").select("role").eq("user_id", user.id); setRoles((data ?? []).map((r: any) => r.role)); } catch (e) {} finally { setLoading(false); } })(); }, [user.id]);
+  const getUserRoles = useServerFn(adminGetUserRoles);
+  useEffect(() => { (async () => { try { setRoles(await getUserRoles({ data: { user_id: user.id } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [user.id, getUserRoles]);
   const staffRoles = ["admin", "support", "finance", "moderator"];
   return (
     <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4">
@@ -626,10 +646,10 @@ function RoleModal({ user, onGrant, onRevoke, onClose }: any) {
 }
 
 function AuditSection() {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AdminAuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const listLogs = useServerFn(adminListAuditLogs);
-  useEffect(() => { (async () => { try { setLogs(await listLogs({ data: {} })); } catch (e) {} finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { setLogs(await listLogs({ data: {} }) as unknown as AdminAuditLog[]); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [listLogs]);
   const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى" };
   return (
     <div>

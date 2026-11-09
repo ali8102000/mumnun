@@ -1,7 +1,8 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth, type AppRole } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { MobileShell } from "@/components/mobile-shell";
 import {
   Car, Wrench, Power, Bell, Sun, Moon, Zap, ShieldCheck,
@@ -13,6 +14,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { acceptServiceRequest } from "@/lib/dispatch.functions";
 import { useTheme } from "@/lib/use-theme";
 import { playClick } from "@/lib/click-sound";
+import { getCurrentLocation, locationError } from "@/lib/location";
 
 export const Route = createFileRoute("/home")({ ssr: false,
   head: () => ({ meta: [
@@ -128,7 +130,7 @@ function CustomerHome() {
 
       <div className="grid grid-cols-3 gap-3">
         <QuickTile
-          to="/request/new" type="taxi"
+          type="taxi"
           title="طلب سيارة" subtitle="خلال دقائق"
           icon={<Car className="h-7 w-7" />}
           gradient="from-amber-500 to-orange-500"
@@ -136,7 +138,7 @@ function CustomerHome() {
           delay={0.05}
         />
         <QuickTile
-          to="/request/new" type="service"
+          type="service"
           title="طلب فني" subtitle="١٦ خدمة"
           icon={<Wrench className="h-6 w-6" />}
           gradient="from-emerald-500 to-teal-400"
@@ -174,15 +176,15 @@ function CustomerHome() {
 }
 
 function QuickTile({
-  to, type, title, subtitle, icon, gradient, span = 1, delay = 0,
+  type, title, subtitle, icon, gradient, span = 1, delay = 0,
 }: {
-  to: string; type: "taxi" | "service"; title: string; subtitle: string;
+  type: "taxi" | "service"; title: string; subtitle: string;
   icon: React.ReactNode; gradient: string; span?: 1 | 2; delay?: number;
 }) {
   return (
     <Link
-      to={to as any}
-      search={{ type } as any}
+      to="/request/new"
+      search={{ type }}
       onClick={() => playClick("pop")}
       className={`glass rounded-3xl p-4 btn-press shadow-card tap-highlight-none animate-pop-in relative overflow-hidden group ${
         span === 2 ? "col-span-2 min-h-[132px]" : "min-h-[132px]"
@@ -232,51 +234,136 @@ function FeatureRow({
   );
 }
 
+type ProviderRequest = Pick<Database["public"]["Tables"]["service_requests"]["Row"], "id" | "pickup_text" | "dest_text" | "notes" | "created_at" | "service_id" | "type" | "price_estimate" | "customer_price" | "pricing_mode" | "work_hours" | "work_description">;
+type ProviderProfile = { available: boolean; is_verified: boolean; verification_status: string; completed_jobs?: number; completed_rides?: number };
+
 function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const { session } = useAuth();
+  const userId = session?.user.id;
   const navigate = useNavigate();
   const acceptFn = useServerFn(acceptServiceRequest);
   const [available, setAvailable] = useState(false);
-  const [requests, setRequests] = useState<any[]>([]);
+  const [verified, setVerified] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState('pending');
+  const [requests, setRequests] = useState<ProviderRequest[]>([]);
   const [stats, setStats] = useState({ jobs: 0 });
   const table = type === "taxi" ? "driver_profiles" : "worker_profiles";
+
+  const loadRequests = useCallback(async () => {
+    if (!session) return;
+    const { data } = await supabase.from("service_requests")
+      .select("id, pickup_text, dest_text, notes, created_at, service_id, type, price_estimate, customer_price, pricing_mode, work_hours, work_description")
+      .in("status", ["pending", "searching"])
+      .eq("type", type)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setRequests(data ?? []);
+  }, [session, type]);
 
   useEffect(() => {
     if (!session) return;
     supabase.from(table).select("*").eq("user_id", session.user.id).maybeSingle().then(({ data }) => {
       if (data) {
-        setAvailable(data.available);
-        const d: any = data;
+        const d = data as ProviderProfile;
+        setAvailable(Boolean(d.available));
+        setVerified(Boolean(d.is_verified));
+        setVerificationStatus(d.verification_status ?? "pending");
         setStats({ jobs: d.completed_jobs ?? d.completed_rides ?? 0 });
       }
     });
 
-    async function loadRequests() {
-      const { data } = await supabase.from("service_requests")
-        .select("id, pickup_text, dest_text, notes, created_at, service_id, type, price_estimate, customer_price, pricing_mode, work_hours, work_description")
-        .in("status", ["pending", "searching"]).eq("type", type)
-        .order("created_at", { ascending: false }).limit(20);
-      setRequests(data ?? []);
-    }
-    loadRequests();
-
+    void loadRequests();
     const channel = supabase.channel("provider-requests")
-      .on("postgres_changes", { event: "*", schema: "public", table: "service_requests" }, () => loadRequests())
+      .on("postgres_changes", { event: "*", schema: "public", table: "service_requests" }, () => { void loadRequests(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [session, type, table]);
+  }, [session, type, table, loadRequests]);
 
   async function toggleAvail() {
     playClick("toggle");
-    const prev = available;
-    const next = !prev;
-    setAvailable(next);
-    const { error } = await supabase.from(table).update({ available: next }).eq("user_id", session!.user.id);
-    if (error) {
-      setAvailable(prev);
-      toast.error("تعذّر تحديث الحالة");
+    if (!session) return;
+    if (!verified) {
+      toast.error("حسابك بانتظار توثيق الإدارة قبل استقبال الطلبات");
+      return;
     }
+
+    const next = !available;
+    let coords: { lat: number; lng: number } | null = null;
+    if (next) {
+      try {
+        if (!navigator.geolocation) throw new Error("location_unavailable");
+        coords = await getCurrentLocation(navigator.geolocation);
+      } catch (error) {
+        toast.error(error instanceof Error && error.message === "location_unavailable"
+          ? "المتصفح لا يدعم تحديد الموقع"
+          : locationError(error as GeolocationPositionError));
+        return;
+      }
+    }
+
+    const { error } = await supabase.from(table).update({ available: next }).eq("user_id", session.user.id);
+    if (error) {
+      toast.error(error.message.includes("provider_not_verified") ? "يجب توثيق الحساب أولاً" : "تعذّر تحديث الحالة");
+      return;
+    }
+    if (next && coords) {
+      const { error: presenceError } = await supabase.from("provider_locations").upsert({
+        user_id: session.user.id,
+        role: type === "taxi" ? "driver" : "worker",
+        lat: coords.lat,
+        lng: coords.lng,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+      if (presenceError) {
+        await supabase.from(table).update({ available: false }).eq("user_id", session.user.id);
+        setAvailable(false);
+        toast.error("تعذّر نشر موقعك؛ لم يتم تفعيل استقبال الطلبات");
+        return;
+      }
+    }
+    setAvailable(next);
+    void loadRequests();
   }
+
+  useEffect(() => {
+    if (!userId || !available || !verified || !navigator.geolocation) return;
+    let warned = false;
+    let loadedOnce = false;
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        void supabase.from("provider_locations").upsert({
+          user_id: userId,
+          role: type === "taxi" ? "driver" : "worker",
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          heading: position.coords.heading,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" }).then(async ({ error }: { error: { message: string } | null }) => {
+          if (error && !warned) {
+            warned = true;
+            await supabase.from(type === "taxi" ? "driver_profiles" : "worker_profiles")
+              .update({ available: false }).eq("user_id", userId);
+            setAvailable(false);
+            toast.error("توقف تحديث موقعك؛ أوقفنا استقبال الطلبات لحمايتك");
+          } else if (!error && !loadedOnce) {
+            loadedOnce = true;
+            void loadRequests();
+          }
+        });
+      },
+      () => {
+        if (!warned) {
+          warned = true;
+          void supabase.from(type === "taxi" ? "driver_profiles" : "worker_profiles")
+            .update({ available: false }).eq("user_id", userId);
+          setAvailable(false);
+          toast.error("فُقد اتصال الموقع؛ أوقفنا استقبال الطلبات مؤقتاً");
+        }
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [available, verified, userId, type, loadRequests]);
 
   async function accept(id: string) {
     playClick("pop");
@@ -284,8 +371,8 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       await acceptFn({ data: { requestId: id } });
       toast.success("تم قبول الطلب");
       navigate({ to: `/request/$id`, params: { id } });
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذّر قبول الطلب");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذّر قبول الطلب");
     }
   }
 
@@ -299,12 +386,13 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
         {available && <div className="absolute inset-0 shine opacity-30 mix-blend-overlay" />}
         <div className="relative flex items-center justify-between">
           <div>
-            <div className={`text-xs ${available ? "text-white/80" : "text-muted-foreground"}`}>حالة التوفر</div>
-            <div className="font-black text-lg mt-0.5">{available ? "متاح للعمل" : "غير متاح"}</div>
+            <div className={`text-xs ${available ? "text-white/80" : "text-muted-foreground"}`}>{verified ? "حالة التوفر" : "حالة التوثيق"}</div>
+            <div className="font-black text-lg mt-0.5">{!verified ? (verificationStatus === "rejected" ? "مرفوض" : verificationStatus === "suspended" ? "معلّق" : "بانتظار التوثيق") : available ? "متاح للعمل" : "غير متاح"}</div>
           </div>
           <button
             onClick={toggleAvail}
-            className={`h-14 w-14 rounded-2xl grid place-items-center btn-press transition ${
+            disabled={!verified}
+            className={`h-14 w-14 rounded-2xl grid place-items-center btn-press transition disabled:opacity-40 ${
               available ? "bg-white/25 backdrop-blur" : "bg-surface-2"
             }`}
           >
@@ -339,7 +427,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
                 {r.work_description && <div className="text-xs mt-1 line-clamp-2">🛠️ {r.work_description}</div>}
                 {(r.customer_price || r.price_estimate) && (
                   <div className="text-sm font-black text-primary mt-1">
-                    💰 {(r.customer_price ?? r.price_estimate).toLocaleString()} د.ع
+                    💰 {(r.customer_price ?? r.price_estimate ?? 0).toLocaleString()} د.ع
                     {r.pricing_mode === "hourly" && r.work_hours ? ` · ${r.work_hours} ساعة` : r.pricing_mode === "fixed" ? " · إنجاز تام" : ""}
                   </div>
                 )}
