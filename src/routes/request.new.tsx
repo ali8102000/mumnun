@@ -116,11 +116,11 @@ function NewRequest() {
     setRouteKm(approxRoadKm(haversineKm(pickupCoords, destCoords)));
     const t = setTimeout(() => {
       lookupMapPlace({ data: { action: "route", from: pickupCoords, to: destCoords } })
-        .then((r: any) => { if (!stale && r?.distanceKm > 0) setRouteKm(r.distanceKm); })
+        .then((result) => { if (!stale && "distanceKm" in result && result.distanceKm > 0) setRouteKm(result.distanceKm); })
         .catch(() => {});
     }, 400);
     return () => { stale = true; clearTimeout(t); };
-  }, [pickupCoords?.lat, pickupCoords?.lng, destCoords?.lat, destCoords?.lng]);
+  }, [pickupCoords, destCoords]);
   const [busy, setBusy] = useState(false);
 
   const nearby = useNearbyProviders({
