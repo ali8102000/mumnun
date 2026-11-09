@@ -239,6 +239,7 @@ type ProviderProfile = { available: boolean; is_verified: boolean; verification_
 
 function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const { session } = useAuth();
+  const userId = session?.user.id;
   const navigate = useNavigate();
   const acceptFn = useServerFn(acceptServiceRequest);
   const [available, setAvailable] = useState(false);
@@ -325,7 +326,6 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
   }
 
   useEffect(() => {
-    const userId = session?.user.id;
     if (!userId || !available || !verified || !navigator.geolocation) return;
     let warned = false;
     let loadedOnce = false;
@@ -357,7 +357,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [available, verified, session?.user.id, type, loadRequests]);
+  }, [available, verified, userId, type, loadRequests]);
 
   async function accept(id: string) {
     playClick("pop");
