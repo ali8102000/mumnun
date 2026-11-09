@@ -11,13 +11,7 @@ import { toast } from "sonner";
 type Offer = Pick<Tables<"request_offers">, "id" | "request_id" | "distance_km" | "expires_at" | "status">;
 type RideRequest = Pick<Tables<"service_requests">, "pickup_text" | "dest_text" | "price_estimate">;
 
-type LegacyOffer = {
-  id: string;
-  request_id: string;
-  distance_km: number | null;
-  expires_at: string;
-  status: string;
-};
+
 
 export function DriverOfferPopup() {
   const { session, roles } = useAuth();
@@ -48,7 +42,7 @@ export function DriverOfferPopup() {
           table: "request_offers",
           filter: `provider_id=eq.${uid}`,
         },
-        async (payload: any) => {
+        async (payload) => {
           const o = payload.new as Offer;
           if (o.status !== "pending") return;
           if (offerRef.current) return;
@@ -93,7 +87,7 @@ export function DriverOfferPopup() {
     if (!offer) return;
     try {
       const Ctx =
-        (window as any).AudioContext || (window as any).webkitAudioContext;
+        window.AudioContext ?? (Reflect.get(window, "webkitAudioContext") as typeof AudioContext | undefined);
       if (Ctx && !audioCtxRef.current) audioCtxRef.current = new Ctx();
       if (audioCtxRef.current?.state === "suspended") {
         audioCtxRef.current.resume().catch((error: unknown) => { console.warn("[driver-offer] audio resume failed", error); });
@@ -136,8 +130,8 @@ export function DriverOfferPopup() {
       }
       setOffer(null);
       setRequest(null);
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذّر تنفيذ العملية");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "تعذّر تنفيذ العملية");
       setOffer(null);
       setRequest(null);
     } finally {
