@@ -9,11 +9,6 @@ export default function ResetPassword() {
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => { if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {} });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
   async function submit() {
     if (password.length < 6) { Alert.alert('خطأ', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
     if (password !== confirm) { Alert.alert('خطأ', 'كلمتا المرور غير متطابقتين'); return; }
