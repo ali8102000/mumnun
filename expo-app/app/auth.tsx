@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { router } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { authProxy, supabase } from '@/lib/supabase';
@@ -39,7 +40,7 @@ export default function AuthScreen() {
         const normalized = normalizePhone(phone);
         const realEmail = email.trim().toLowerCase();
         const authEmail = realEmail || phoneToEmail(normalized);
-        const result = await authProxy<{ session: any }>('/signup', { email: authEmail, password, phone: normalized, full_name: name.trim() });
+        const result = await authProxy<{ session: Session | null }>('/signup', { email: authEmail, password, phone: normalized, full_name: name.trim() });
         if (!result.session) { Alert.alert('تم التسجيل', 'تحقق من بريدك الإلكتروني ثم سجل الدخول'); setMode('login'); return; }
         const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
@@ -69,14 +70,14 @@ export default function AuthScreen() {
             authEmail = `phone${digits}@mamnoon.app`;
           }
         }
-        const result = await authProxy<{ session: any }>('/login', { email: authEmail, password });
+        const result = await authProxy<{ session: Session | null }>('/login', { email: authEmail, password });
         const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
         await refresh();
         router.replace('/');
       }
-    } catch (err: any) {
-      const msg = err?.message || 'حدث خطأ';
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'حدث خطأ';
       if (/Failed to fetch|NetworkError/i.test(msg)) {
         Alert.alert('خطأ', 'تعذّر الاتصال بالخادم. تحقق من اتصال الإنترنت');
       } else if (/already registered|User already/i.test(msg)) {
