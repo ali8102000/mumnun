@@ -122,7 +122,7 @@ export function MapPicker({
         });
         mapRef.current = map;
         // Don't report the default city centre as the user's location.
-        if (!value) suppressIdleRef.current = true;
+        if (!valueRef.current) suppressIdleRef.current = true;
         geocoderRef.current = new g.maps.Geocoder();
 
         const marker = new g.maps.Marker({
@@ -193,7 +193,7 @@ export function MapPicker({
       clearTimeout(slow);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [reverseFallback]);
+  }, [reverseFallback, report]);
 
   useEffect(() => {
     if (!readyRef.current || !mapRef.current || !value) return;
