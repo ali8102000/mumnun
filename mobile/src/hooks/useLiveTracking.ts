@@ -6,6 +6,13 @@ import { supabase } from "@/lib/supabase";
 const BACKGROUND_TASK = "background-location-task";
 
 type Coords = { lat: number; lng: number; heading?: number | null };
+type BackgroundTaskData = { locations?: Location.LocationObject[] };
+type TrackingGlobal = typeof globalThis & {
+  __MUMNUN_TRACKING_REQUEST_ID?: string | null;
+  __MUMNUN_TRACKING_USER_ID?: string | null;
+  __MUMNUN_TRACKING_ROLE?: "customer" | "provider" | null;
+};
+const trackingGlobal = globalThis as TrackingGlobal;
 
 const MIN_DISTANCE_M = 15;
 const MAX_INTERVAL_MS = 4000;
@@ -22,12 +29,12 @@ function distanceMeters(a: Coords, b: Coords): number {
 
 TaskManager.defineTask(BACKGROUND_TASK, async ({ data, error }) => {
   if (error) return;
-  const locations = (data as any)?.locations;
+  const locations = (data as BackgroundTaskData | undefined)?.locations;
   if (!locations || locations.length === 0) return;
   const loc = locations[0];
-  const requestId = (globalThis as any).__MUMNUN_TRACKING_REQUEST_ID;
-  const userId = (globalThis as any).__MUMNUN_TRACKING_USER_ID;
-  const role = (globalThis as any).__MUMNUN_TRACKING_ROLE;
+  const requestId = trackingGlobal.__MUMNUN_TRACKING_REQUEST_ID;
+  const userId = trackingGlobal.__MUMNUN_TRACKING_USER_ID;
+  const role = trackingGlobal.__MUMNUN_TRACKING_ROLE;
   if (!requestId || !userId) return;
 
   await supabase.from("live_locations").upsert({
@@ -127,7 +134,7 @@ export function useLiveTracking(opts: {
     if (!active || !requestId || !otherUserId) return;
     const ch = supabase
       .channel(`live-${requestId}-${Math.random().toString(36).slice(2, 8)}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_locations", filter: `request_id=eq.${requestId}` }, (payload: any) => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_locations", filter: `request_id=eq.${requestId}` }, (payload) => {
         const row = payload.new;
         if (row.user_id === otherUserId) {
           setOther({ lat: row.lat, lng: row.lng, heading: row.heading });
