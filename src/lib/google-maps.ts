@@ -46,7 +46,8 @@ function coordinates(position: LatLngInput): [number, number] {
   if (LatLngConstructor && position instanceof LatLngConstructor) {
     return [position.lat(), position.lng()];
   }
-  return [position.lat, position.lng];
+  const literal = position as google.maps.LatLngLiteral;
+  return [literal.lat, literal.lng];
 }
 
 let loaderPromise: Promise<GoogleMapsApi> | null = null;
