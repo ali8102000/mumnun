@@ -436,3 +436,33 @@ export const adminGetLiveRequests = createServerFn({ method: "GET" })
     if (error) throw new Error("فشل تحميل الطلبات");
     return requests ?? [];
   });
+
+
+export const adminListMonitoringBlocks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireStaff(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any)
+      .from("user_blocks")
+      .select("*, profiles!user_blocks_user_id_fkey(full_name)")
+      .order("blocked_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error("فشل تحميل قائمة الحظر");
+    return data ?? [];
+  });
+
+export const adminListMonitoringTickets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireStaff(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any)
+      .from("support_tickets")
+      .select("*")
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error("فشل تحميل تذاكر الدعم");
+    return data ?? [];
+  });
