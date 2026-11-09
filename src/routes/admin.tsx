@@ -147,7 +147,7 @@ function OverviewSection() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const getStats = useServerFn(adminGetDashboardStats);
-  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [getStats]);
   if (loading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   if (!stats) return <div className="text-sm text-muted-foreground">تعذّر تحميل البيانات</div>;
   return (
@@ -181,7 +181,7 @@ function StatsSection() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const getStats = useServerFn(adminGetDashboardStats);
-  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, []);
+  useEffect(() => { (async () => { try { setStats(await getStats()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [listCoupons]);
   if (loading) return <Loader2 className="h-6 w-6 animate-spin mx-auto" />;
   if (!stats) return <div className="text-sm text-muted-foreground">تعذّر تحميل البيانات</div>;
   return (
@@ -226,7 +226,7 @@ function UsersSection() {
       if (searchQuery.trim()) { const r = await searchUsers({ data: { query: searchQuery.trim() } }); setUsers(r); setTotal(r.length); }
       else { const d = await listUsers({ data: { page, limit: 50 } }); setUsers(d.users); setTotal(d.total); }
     } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); }
-  }, [page, searchQuery]);
+  }, [page, searchQuery, listUsers, searchUsers]);
   useEffect(() => { load(); }, [load]);
   async function viewUser(userId: string) { try { setSelectedUser(await getUserDetail({ data: { user_id: userId } })); } catch (error) { console.error("[admin] action failed", error); } }
   async function handleBlock(userId: string, reason: string, expiresAt: string | null) { try { await blockUser({ data: { user_id: userId, reason, expires_at: expiresAt ?? undefined } }); setBlockModal(null); load(); } catch (error) { console.error("[admin] action failed", error); } }
@@ -318,7 +318,7 @@ function ProvidersSection() {
   const [loading, setLoading] = useState(true);
   const listProviders = useServerFn(adminListProviders);
   const setStatus = useServerFn(adminSetProviderStatus);
-  const load = useCallback(async () => { setLoading(true); try { setProviders(await listProviders({ data: { type } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [type]);
+  const load = useCallback(async () => { setLoading(true); try { setProviders(await listProviders({ data: { type } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [type, listProviders]);
   useEffect(() => { load(); }, [load]);
   async function handleAction(userId: string, status: string) { try { await setStatus({ data: { user_id: userId, type, status } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
@@ -345,7 +345,7 @@ function RequestsSection() {
   const listRequests = useServerFn(adminListRequests);
   const cancelRequest = useServerFn(adminCancelRequest);
   const reopenRequest = useServerFn(adminReopenRequest);
-  const load = useCallback(async () => { setLoading(true); try { setRequests(await listRequests({ data: { status: statusFilter } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [statusFilter]);
+  const load = useCallback(async () => { setLoading(true); try { setRequests(await listRequests({ data: { status: statusFilter } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [statusFilter, listRequests]);
   useEffect(() => { load(); }, [load]);
   async function handleCancel(id: string) { try { await cancelRequest({ data: { request_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   async function handleReopen(id: string) { try { await reopenRequest({ data: { request_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
@@ -378,7 +378,7 @@ function ChatSection() {
   const listChats = useServerFn(adminListChats);
   const listMessages = useServerFn(adminListMessages);
   const deleteMessage = useServerFn(adminDeleteMessage);
-  const load = useCallback(async () => { setLoading(true); try { if (tab === "chats") setChats(await listChats({ data: {} })); else setMessages(await listMessages({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [tab]);
+  const load = useCallback(async () => { setLoading(true); try { if (tab === "chats") setChats(await listChats({ data: {} })); else setMessages(await listMessages({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [tab, listChats, listMessages]);
   useEffect(() => { load(); }, [load]);
   async function handleDelete(id: string) { try { await deleteMessage({ data: { message_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
@@ -399,7 +399,7 @@ function FriendsSection() {
   const listFriendRequests = useServerFn(adminListFriendRequests);
   const deleteFriendship = useServerFn(adminDeleteFriendship);
   const deleteRequest = useServerFn(adminDeleteFriendRequest);
-  const load = useCallback(async () => { setLoading(true); try { if (tab === "friends") setFriends(await listFriends({ data: {} })); else setRequests(await listFriendRequests({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [tab]);
+  const load = useCallback(async () => { setLoading(true); try { if (tab === "friends") setFriends(await listFriends({ data: {} })); else setRequests(await listFriendRequests({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [tab, listFriends, listFriendRequests]);
   useEffect(() => { load(); }, [load]);
   return (
     <div>
@@ -416,7 +416,7 @@ function ReportsSection() {
   const [statusFilter, setStatusFilter] = useState("all");
   const listReports = useServerFn(adminListReports);
   const resolveReport = useServerFn(adminResolveReport);
-  const load = useCallback(async () => { setLoading(true); try { setReports(await listReports({ data: { status: statusFilter } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [statusFilter]);
+  const load = useCallback(async () => { setLoading(true); try { setReports(await listReports({ data: { status: statusFilter } })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [statusFilter, listReports]);
   useEffect(() => { load(); }, [load]);
   async function handleResolve(id: string, status: string, note?: string) { try { await resolveReport({ data: { report_id: id, status: status as any, note } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
@@ -457,7 +457,7 @@ function CouponsSection() {
   const listCoupons = useServerFn(adminListCoupons);
   const saveCoupon = useServerFn(adminSaveCoupon);
   const deleteCoupon = useServerFn(adminDeleteCoupon);
-  const load = useCallback(async () => { setLoading(true); try { setCoupons(await listCoupons()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, []);
+  const load = useCallback(async () => { setLoading(true); try { setCoupons(await listCoupons()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [listTx]);
   useEffect(() => { load(); }, [load]);
   async function handleSave(data: any) { try { await saveCoupon({ data }); setShowModal(false); load(); } catch (error) { console.error("[admin] action failed", error); } }
   async function handleDelete(id: string) { try { await deleteCoupon({ data: { coupon_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
@@ -594,7 +594,7 @@ function RolesSection() {
   const searchUsers = useServerFn(adminSearchUsers);
   const grantRole = useServerFn(adminGrantRole);
   const revokeRole = useServerFn(adminRevokeRole);
-  const load = useCallback(async () => { setLoading(true); try { if (searchQuery.trim()) setUsers(await searchUsers({ data: { query: searchQuery.trim() } })); else { const d = await listUsers({ data: { page: 1, limit: 50 } }); setUsers(d.users); } } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [searchQuery]);
+  const load = useCallback(async () => { setLoading(true); try { if (searchQuery.trim()) setUsers(await searchUsers({ data: { query: searchQuery.trim() } })); else { const d = await listUsers({ data: { page: 1, limit: 50 } }); setUsers(d.users); } } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [searchQuery, listUsers, searchUsers]);
   useEffect(() => { load(); }, [load]);
   async function handleGrant(userId: string, role: string) { try { await grantRole({ data: { target_user_id: userId, role } }); setRoleModal(null); load(); } catch (error) { console.error("[admin] action failed", error); } }
   async function handleRevoke(userId: string, role: string) { try { await revokeRole({ data: { target_user_id: userId, role } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
