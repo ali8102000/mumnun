@@ -813,12 +813,12 @@ export type Database = {
       }
       find_nearby_provider_pins: {
         Args: {
-          _category?: string
+          _category?: string | null
           _lat: number
           _limit?: number
           _lng: number
           _radius_km?: number
-          _service_id?: string
+          _service_id?: string | null
           _type: string
         }
         Returns: {
