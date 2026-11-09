@@ -457,7 +457,7 @@ function CouponsSection() {
   const listCoupons = useServerFn(adminListCoupons);
   const saveCoupon = useServerFn(adminSaveCoupon);
   const deleteCoupon = useServerFn(adminDeleteCoupon);
-  const load = useCallback(async () => { setLoading(true); try { setCoupons(await listCoupons()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [listTx]);
+  const load = useCallback(async () => { setLoading(true); try { setCoupons(await listCoupons()); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [listCoupons]);
   useEffect(() => { load(); }, [load]);
   async function handleSave(data: any) { try { await saveCoupon({ data }); setShowModal(false); load(); } catch (error) { console.error("[admin] action failed", error); } }
   async function handleDelete(id: string) { try { await deleteCoupon({ data: { coupon_id: id } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
@@ -504,7 +504,7 @@ function WalletSection() {
   const [adjustModal, setAdjustModal] = useState(false);
   const listTx = useServerFn(adminListTransactions);
   const adjustWallet = useServerFn(adminAdjustWallet);
-  const load = useCallback(async () => { setLoading(true); try { setTransactions(await listTx({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, []);
+  const load = useCallback(async () => { setLoading(true); try { setTransactions(await listTx({ data: {} })); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } }, [listTx]);
   useEffect(() => { load(); }, [load]);
   async function handleAdjust(userId: string, amount: number, type: string, note: string) { try { await adjustWallet({ data: { user_id: userId, amount, type, note } }); setAdjustModal(false); load(); } catch (error) { console.error("[admin] action failed", error); } }
   return (
