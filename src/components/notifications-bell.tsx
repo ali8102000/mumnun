@@ -47,8 +47,12 @@ export function NotificationsBell() {
               "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
             )
               .play()
-              .catch(() => {});
-          } catch {}
+              .catch((error: unknown) => {
+                console.warn("[notifications] sound playback failed:", error);
+              });
+          } catch (error: unknown) {
+            console.warn("[notifications] sound initialization failed:", error);
+          }
         },
       )
       .subscribe();
