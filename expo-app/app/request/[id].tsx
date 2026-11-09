@@ -26,6 +26,10 @@ export default function RequestDetail() {
   const isProvider = request?.provider_id === user?.id;
   const isCustomer = request?.customer_id === user?.id;
   const isActive = request?.status === 'in_progress' || request?.status === 'accepted';
+  const currentUserId = user?.id;
+  const currentRequestType = request?.type;
+  const currentProviderId = request?.provider_id;
+  const currentCustomerId = request?.customer_id;
 
   const loadRequest = useCallback(async () => {
     const { data } = await supabase.from('service_requests').select('*, customer:profiles!service_requests_customer_id_fkey(full_name, phone), provider:profiles!service_requests_provider_id_fkey(full_name, phone)').eq('id', id).maybeSingle();
@@ -83,13 +87,13 @@ export default function RequestDetail() {
   }, [chatId, loadMessages]);
 
   useEffect(() => {
-    if (!isActive || !user || !request || request.type !== 'taxi') return;
+    if (!isActive || !currentUserId || currentRequestType !== 'taxi') return;
     let mounted = true;
     let subscription: Location.LocationSubscription | null = null;
     const role = isCustomer ? 'customer' : 'provider';
 
     async function publishLocation(location: Location.LocationObject) {
-      if (!mounted || !user) return;
+      if (!mounted || !currentUserId) return;
       const coords = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
@@ -97,7 +101,7 @@ export default function RequestDetail() {
       setMyLocation(coords);
       const { error } = await supabase.from('live_locations').upsert({
         request_id: id,
-        user_id: user.id,
+        user_id: currentUserId,
         role,
         lat: coords.latitude,
         lng: coords.longitude,
@@ -130,14 +134,14 @@ export default function RequestDetail() {
       mounted = false;
       subscription?.remove();
     };
-  }, [id, isActive, isCustomer, request?.type, user?.id]);
+  }, [id, isActive, isCustomer, currentRequestType, currentUserId]);
 
   useEffect(() => {
-    if (!isActive || !user || !request || request.type !== 'taxi') {
+    if (!isActive || !currentUserId || currentRequestType !== 'taxi') {
       setOtherLocation(null);
       return;
     }
-    const otherId = isCustomer ? request.provider_id : request.customer_id;
+    const otherId = isCustomer ? currentProviderId : currentCustomerId;
     if (!otherId) return;
 
     supabase.from('live_locations')
@@ -164,7 +168,7 @@ export default function RequestDetail() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [id, isActive, isCustomer, request?.type, request?.provider_id, request?.customer_id, user?.id]);
+  }, [id, isActive, isCustomer, currentRequestType, currentProviderId, currentCustomerId, currentUserId]);
 
   async function sendMessage(text?: string) {
     const msg = (text || newMsg).trim();
