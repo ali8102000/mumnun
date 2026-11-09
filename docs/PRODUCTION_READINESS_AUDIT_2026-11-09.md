@@ -1,64 +1,77 @@
 # Mamnoon production-readiness audit
 Date: 2026-11-09
 Repository: ali8102000/mumnun
-Audit branch: mamnoon-production-hardening-2026-11-09
-Base: main
+Development branch: mamnoon-production-hardening-2026-11-09
+Backup branch: mamnoon-backup-main-2026-11-09
+Base branch: main (unchanged)
 
-## Work performed
-- Created backup branch: mamnoon-backup-main-2026-11-09
-- Created isolated audit/fix branch: mamnoon-production-hardening-2026-11-09
-- Removed hard-coded Supabase URL, Supabase anonymous key, and Google Maps key from mobile/app.json.
-- Changed mobile/src/lib/config.ts to read the Supabase URL and Google Maps key from Expo public environment variables.
-- Added mobile/.env.example with variable names only.
-- No database migrations, live Supabase project settings, main-branch files, or user data were changed.
+## Confirmed project structure
+- The repository contains a web application at the root (React, TypeScript, TanStack Start).
+- The native Expo Router application is in expo-app/ and has route screens and image assets.
+- mobile/ is a separate, incomplete/older native experiment and must not be mistaken for the primary Expo app.
+- Supabase project_id in supabase/config.toml and the previous Expo client URL both identify zvfdymcalzqhvwnipuup. The earlier concern about a project mismatch came from comparing the partial mobile/ experiment; it is not evidence of a mismatch in expo-app/.
 
-## Confirmed blockers and risks
+## Changes committed to this branch
+- Removed hard-coded Google Maps key and Supabase client values from expo-app/app.json.
+- Added expo-app/app.config.ts to inject Google Maps and Supabase public client configuration from build environment variables.
+- Updated expo-app/src/lib/supabase.ts to require EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY; no service-role key is accepted by the client.
+- Added expo-app/.env.example.
+- Removed hard-coded Google Maps key from mobile/app.json and moved mobile config reads to environment variables; added mobile/.env.example.
+- Added GitHub Actions workflow .github/workflows/ci.yml for web lint/typecheck/build and Expo config/typecheck.
+- Added migration 20261109000100 to remove permissive authenticated write policies for notifications, chats, request offers, driver wallets, and transactions. Server service_role and owner-controlled SECURITY DEFINER operations remain the intended write paths.
+- Added migration 20261109000101 to prevent users from directly self-assigning, updating, or deleting provider/admin roles. Direct self-assignment is limited to the customer role; driver/worker roles use grant_provider_role_safe after provider profile creation. Anonymous execution of has_role is revoked.
+- Updated Expo role selection so driver/worker roles go through onboarding instead of being written directly to user_roles.
+- Updated Expo provider availability to use the actual database column available and reload its value from the database.
+- Updated web dispatch/retry to use the authenticated dispatch_request database function instead of privileged direct inserts with a seven-day expiry.
+- Updated web ride start/completion/cancellation to use the guarded transition_service_request RPC.
+- Added migration 20261109000102 to dispatch in expanding radii of 2, 5, then 10 km, creating 45-second offers under a locked request row.
 
-### P0/P1: credential exposure
-The previous mobile/app.json contained a Google Maps API key and a Supabase anon/publishable key in source control. The Supabase anon key is designed for client use but must be protected by RLS; the Google Maps key must be restricted by Android package/SHA-1 and enabled APIs. Treat the exposed Google Maps key as compromised and rotate/restrict it in Google Cloud. Do not put a Supabase service-role key in the app.
+## Critical remaining blockers
 
-### P1: mobile app source is incomplete
-The tracked mobile tree contains imports/references that are not present in the repository tree:
-- mobile/App.tsx imports ./src/theme/fonts, but that module is absent.
-- mobile/src/lib/auth.tsx imports ./supabase and ./types, but those modules are absent at the referenced paths.
-- mobile/app.json references assets/adaptive-icon-bg.png and assets/splash.png, while the mobile/assets directory is absent.
-- mobile/app.json references ./google-services.json, which is absent.
-- Navigation/screens import paths require a full dependency/import audit before a build can be trusted.
+### P0: exposed Google Maps credential
+The Google Maps API key was previously committed in the repository. It has been removed from the edited source files, but it must be rotated/restricted in Google Cloud because removal from current source does not invalidate historical Git objects or prior builds. Restrict the replacement key by Android package name and signing SHA-1 and only the required Maps APIs. Set it as EXPO_PUBLIC_GOOGLE_MAPS_API_KEY in the EAS environment.
 
-These are static repository findings; no local Metro/TypeScript/Gradle build was executed in this audit.
+### P1: Supabase migrations are not deployed
+The three new SQL migrations are committed but have NOT been applied to the live Supabase project. They must be reviewed and applied to the intended project before relying on these security changes. A repository commit is not proof of a live database change.
 
-### P1: project configuration mismatch
-The mobile app configuration has embedded Supabase URL/key values that identify a different Supabase project than supabase/config.toml (project_id = zvfdymcalzqhvwnipuup). The correct production project must be confirmed by the owner before configuring EAS secrets or changing backend connections. No Supabase project setting was changed.
+### P1: Expo taxi request lacks coordinates and map workflow
+expo-app/app/request/new.tsx currently collects pickup/destination as text. It does not populate pickup_lat/pickup_lng or destination coordinates. The dispatch database function rejects a taxi request without pickup coordinates. The form also imports fare helpers but does not calculate/set the displayed price. The Expo project does not currently include react-native-maps in expo-app/package.json. Therefore GPS/map selection, route distance/ETA, and fare confirmation are not production-ready.
 
-### P1: dispatch offer expiry
-src/lib/dispatch.functions.ts creates offers with a seven-day expiry despite the mobile config declaring a 45-second offer expiry. The server/database should be the authority and must use an atomic accept/expire flow. This needs database function and integration-test review before changing it.
+### P1: incomplete dispatch lifecycle
+The database dispatch RPC now has progressive radius logic in a new migration, but it is not deployed or integration-tested. There is no verified scheduler/worker in this audit that retries after offer expiry, sends push notifications, or guarantees provider location freshness. The current offer creation alone does not prove a complete dispatch loop.
 
-### P1: backend secrets and CORS
-supabase/functions/auth-proxy/index.ts and subscription-cron/index.ts use service-role credentials server-side, which is the correct location, but the auth-proxy defaults Access-Control-Allow-Origin to '*'. Restrict production origins and review endpoint rate limits, authentication, phone lookup abuse, and service-role RPC permissions. Do not expose service-role credentials to clients.
+### P1: role approval and provider verification
+Provider roles are now gated through the provider-profile RPC, but the current schema/flow still needs a formal admin verification/approval state before untrusted drivers or workers can receive live jobs. Vehicle/identity document review and audit workflow are not verified.
 
-### P2: fare estimates
-src/lib/taxi-fares.ts estimates road distance using a fixed multiplier (1.35). It is an estimate, not a verified route distance. Production fares should use trusted route distance/duration and server-side pricing rules; never trust client-submitted totals.
+### P1: auth-proxy CORS and abuse protection
+supabase/functions/auth-proxy/index.ts defaults Access-Control-Allow-Origin to '*'. Production origin allowlisting, per-phone/IP rate limits, anti-enumeration controls, and monitoring must be implemented/configured before public launch.
 
-### P2: testing and release
-Root package scripts expose lint, build, and Playwright E2E, but no evidence was gathered here that they pass. The repository does not provide a verified successful Android AAB build in this audit. EAS project ID, Google services file, push credentials, signing, privacy policy, store listing, and live service credentials remain to be confirmed.
+### P1: public app key and service-side controls
+Supabase anon/publishable keys are client-visible by design, but every exposed table/RPC must be protected by correct RLS and grants. Do not place SUPABASE_SERVICE_ROLE_KEY in Expo, web client bundles, or any EXPO_PUBLIC variable.
+
+### P2: live location reliability
+The older mobile/ tracking hook has background-task cleanup and shared global state concerns; the main expo-app does not yet provide a verified live location tracking implementation in the inspected route set. Real-device foreground/background tracking, permission denial, GPS loss, stale data, and battery use remain untested.
+
+### P2: pricing and finance
+The native fare display is not currently calculated. The web fare helper uses approximate straight-line-to-road distance assumptions; production pricing must be server-authoritative and based on a trusted route result. Wallet/commission/refund ledger integrity needs integration tests after the new RLS restrictions.
+
+### P2: Android build and store readiness
+No successful EAS Android AAB build was run during this work. EAS project association, EAS environment variables, signing credentials, push credentials, privacy policy, terms, store listing, and release testing remain to be completed.
+
+## CI
+A GitHub Actions workflow was added. Its run was queued at the time of the last status check; no successful lint, TypeScript, web build, Expo typecheck, or E2E result is claimed until the run finishes and logs are reviewed.
 
 ## Not verified
-- Current production RLS coverage across every table.
-- Actual database function definitions and race-condition behavior.
-- Real-time tracking under background restrictions and weak connectivity.
-- Push notification delivery on physical Android devices.
-- Full taxi and home-service flows against a production-like backend.
-- Load/abuse testing, billing controls, disaster recovery, and restore drills.
-- Web lint/build/E2E and Android EAS AAB build.
-
-## Required next steps
-1. Confirm the authoritative Supabase project ID and rotate/restrict the exposed Google Maps key.
-2. Restore or implement the missing mobile modules/assets and verify imports.
-3. Configure EAS environment variables and required private credentials outside Git.
-4. Review all RLS policies and RPC grants against role-based test accounts.
-5. Make dispatch/accept/expire transactional and add concurrency tests.
-6. Run web lint/build/E2E and EAS Android production build; record actual logs.
-7. Complete privacy, terms, operational coverage, support, and recovery checks before public launch.
+- Full RLS coverage and grants across all tables and views.
+- All SECURITY DEFINER functions, search_path, and EXECUTE grants.
+- Phone lookup anti-enumeration and auth-proxy rate limiting.
+- Real user registration/login/password recovery against the intended Supabase project.
+- Taxi acceptance race conditions under concurrent driver sessions.
+- Home-service offer/accept/complete lifecycle.
+- Realtime chat and push delivery on physical devices.
+- GPS and route services in Iraq.
+- Load tests, cost limits, backup restoration, and incident response.
+- Successful web E2E and Android EAS AAB build.
 
 ## Release decision
-NOT READY FOR PRODUCTION. No 10/10 claim is made. This audit branch contains limited, reversible configuration hardening only; the full commercial-readiness scope requires source completion, backend verification, credentials, physical-device tests, and successful CI/EAS builds.
+NOT READY FOR PRODUCTION. No 10/10 rating is claimed. The changes are isolated to the development branch; main remains unchanged. The database migrations require review and deployment, and the GPS/map/dispatch workflow, verification, notifications, pricing, real-device tests, CI logs, and EAS build are still release blockers.
