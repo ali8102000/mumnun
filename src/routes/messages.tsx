@@ -1,9 +1,10 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
 import { MessageCircle } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/messages")({ ssr: false,
   head: () => ({ meta: [
@@ -17,7 +18,8 @@ export const Route = createFileRoute("/messages")({ ssr: false,
 
 function MessagesPage() {
   const { session, loading } = useAuth();
-  const [chats, setChats] = useState<any[]>([]);
+  type ChatListItem = Pick<Tables<"chats">, "id" | "request_id" | "customer_id" | "provider_id" | "created_at"> & { other: Pick<Tables<"profiles">, "id" | "full_name" | "phone"> | undefined };
+  const [chats, setChats] = useState<ChatListItem[]>([]);
 
   useEffect(() => {
     if (!session) return;
