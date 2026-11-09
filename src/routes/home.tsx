@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth, type AppRole } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { MobileShell } from "@/components/mobile-shell";
@@ -244,30 +244,35 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const [stats, setStats] = useState({ jobs: 0 });
   const table = type === "taxi" ? "driver_profiles" : "worker_profiles";
 
+  const loadRequests = useCallback(async () => {
+    if (!session) return;
+    const { data } = await supabase.from("service_requests")
+      .select("id, pickup_text, dest_text, notes, created_at, service_id, type, price_estimate, customer_price, pricing_mode, work_hours, work_description")
+      .in("status", ["pending", "searching"])
+      .eq("type", type)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setRequests(data ?? []);
+  }, [session, type]);
+
   useEffect(() => {
     if (!session) return;
     supabase.from(table).select("*").eq("user_id", session.user.id).maybeSingle().then(({ data }) => {
       if (data) {
         setAvailable(data.available);
+        setVerified(Boolean(data.is_verified));
+        setVerificationStatus(data.verification_status ?? "pending");
         const d: any = data;
         setStats({ jobs: d.completed_jobs ?? d.completed_rides ?? 0 });
       }
     });
 
-    async function loadRequests() {
-      const { data } = await supabase.from("service_requests")
-        .select("id, pickup_text, dest_text, notes, created_at, service_id, type, price_estimate, customer_price, pricing_mode, work_hours, work_description")
-        .in("status", ["pending", "searching"]).eq("type", type)
-        .order("created_at", { ascending: false }).limit(20);
-      setRequests(data ?? []);
-    }
-    loadRequests();
-
+    void loadRequests();
     const channel = supabase.channel("provider-requests")
-      .on("postgres_changes", { event: "*", schema: "public", table: "service_requests" }, () => loadRequests())
+      .on("postgres_changes", { event: "*", schema: "public", table: "service_requests" }, () => { void loadRequests(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [session, type, table]);
+  }, [session, type, table, loadRequests]);
 
   async function toggleAvail() {
     playClick("toggle");
@@ -296,8 +301,6 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       toast.error(error.message.includes("provider_not_verified") ? "يجب توثيق الحساب أولاً" : "تعذّر تحديث الحالة");
       return;
     }
-    setAvailable(next);
-
     if (next && coords) {
       const { error: presenceError } = await (supabase as any).from("provider_locations").upsert({
         user_id: session.user.id,
@@ -310,13 +313,17 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
         await supabase.from(table).update({ available: false }).eq("user_id", session.user.id);
         setAvailable(false);
         toast.error("تعذّر نشر موقعك؛ لم يتم تفعيل استقبال الطلبات");
+        return;
       }
     }
+    setAvailable(next);
+    void loadRequests();
   }
 
   useEffect(() => {
     if (!session || !available || !verified || !navigator.geolocation) return;
     let warned = false;
+    let loadedOnce = false;
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         void (supabase as any).from("provider_locations").upsert({
@@ -326,10 +333,13 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
           lng: position.coords.longitude,
           heading: position.coords.heading,
           updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id" }).then(({ error }: { error: { message: string } | null }) => {
+        }, { onConflict: "user_id" }).then(({ error }: { error: { message: string } } | null) => {
           if (error && !warned) {
             warned = true;
             toast.error("توقف تحديث موقعك؛ تحقق من اتصال الإنترنت والموقع");
+          } else if (!error && !loadedOnce) {
+            loadedOnce = true;
+            void loadRequests();
           }
         });
       },
@@ -342,7 +352,7 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [available, verified, session?.user.id, type]);
+  }, [available, verified, session?.user.id, type, loadRequests]);
 
   async function accept(id: string) {
     playClick("pop");
