@@ -28,6 +28,8 @@
 - `20261109000100_lock_down_system_write_policies.sql`
 - `20261109000101_restrict_self_service_role_changes.sql`
 - `20261109000102_progressive_taxi_dispatch.sql`
+- `20261109000103_secure_active_request_locations.sql`
+- `20261109000104_secure_chat_and_ratings.sql`
 
 راجعها أولاً على بيئة تطوير منفصلة، ثم اربط Supabase CLI بالمشروع الصحيح وتحقق أن Project Ref هو `zvfdymcalzqhvwnipuup` قبل تشغيل `supabase db push`.
 لا تطبقها على الإنتاج قبل اختبار تسجيل الدخول والأدوار والطلبات والمحافظات المالية على بيئة staging.
