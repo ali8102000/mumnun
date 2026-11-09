@@ -127,6 +127,12 @@ BEGIN
   VALUES (_request_id, v_customer, auth.uid())
   ON CONFLICT DO NOTHING;
 
+  UPDATE public.request_offers
+  SET status = 'accepted', responded_at = now()
+  WHERE request_id = _request_id
+    AND provider_id = auth.uid()
+    AND status = 'pending';
+
   DELETE FROM public.request_offers
   WHERE request_id = _request_id AND provider_id <> auth.uid();
 
