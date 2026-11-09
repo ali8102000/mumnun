@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Alert } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import * as Location from 'expo-location';
 
 export default function HomeScreen() {
   const { user, profile, roles } = useAuth();
@@ -46,6 +47,63 @@ export default function HomeScreen() {
       });
   }, [activeRole, user]);
 
+  useEffect(() => {
+    if (!user || !verified || !available || (activeRole !== 'driver' && activeRole !== 'worker')) return;
+    let mounted = true;
+    let subscription: Location.LocationSubscription | null = null;
+
+    async function publishPresence(location: Location.LocationObject) {
+      if (!mounted || !user) return;
+      const { error } = await supabase.from('provider_locations').upsert({
+        user_id: user.id,
+        role: activeRole,
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+        heading: location.coords.heading,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' });
+      if (error && mounted) {
+        Alert.alert('تعذر مشاركة الموقع', 'تم إيقاف التوفر حتى لا تستقبل طلبات دون موقع صحيح.');
+        const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
+        await supabase.from(table).update({ available: false }).eq('user_id', user.id);
+        setAvailable(false);
+      }
+    }
+
+    async function startPresence() {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        if (mounted) {
+          Alert.alert('إذن الموقع مطلوب', 'فعّل الموقع حتى تظهر للسائقين والزبائن القريبين.');
+          setAvailable(false);
+          const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
+          await supabase.from(table).update({ available: false }).eq('user_id', user.id);
+        }
+        return;
+      }
+      const first = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      await publishPresence(first);
+      if (!mounted) return;
+      subscription = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 },
+        (location) => { void publishPresence(location); },
+      );
+    }
+
+    void startPresence().catch(async () => {
+      if (!mounted || !user) return;
+      Alert.alert('تعذر تحديد الموقع', 'تم إيقاف التوفر؛ تحقق من GPS وحاول مرة أخرى.');
+      const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
+      await supabase.from(table).update({ available: false }).eq('user_id', user.id);
+      setAvailable(false);
+    });
+
+    return () => {
+      mounted = false;
+      subscription?.remove();
+    };
+  }, [activeRole, available, verified, user?.id]);
+
   async function toggleAvailable() {
     if (!user || (activeRole !== 'driver' && activeRole !== 'worker')) return;
     if (!verified) {
@@ -53,6 +111,13 @@ export default function HomeScreen() {
       return;
     }
     const next = !available;
+    if (next) {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('إذن الموقع مطلوب', 'اسمح بمشاركة موقعك قبل استقبال الطلبات.');
+        return;
+      }
+    }
     const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
     const { error } = await supabase.from(table).update({ available: next }).eq('user_id', user.id);
     if (error) {
