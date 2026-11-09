@@ -56,9 +56,9 @@ function LiveMonitoring() {
         activeWorkers: dashboard.activeWorkers,
         activeRequests: dashboard.activeRequests,
       });
-      setReports(pendingReports);
-      setBlocks(currentBlocks);
-      setTickets(openTickets);
+      setReports(pendingReports as unknown as MonitoringReport[]);
+      setBlocks(currentBlocks as unknown as MonitoringBlock[]);
+      setTickets(openTickets as unknown as MonitoringTicket[]);
     } catch (error) {
       console.error("[admin-monitoring]", error);
       toast.error("تعذر تحديث بيانات المراقبة");
