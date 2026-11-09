@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { router } from 'expo-router';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { supabase } from '@/lib/supabase';
@@ -23,7 +23,7 @@ export default function ResetPassword() {
       if (error) throw error;
       Alert.alert('تم', 'تم تغيير كلمة المرور بنجاح');
       router.replace('/');
-    } catch (err: any) { Alert.alert('خطأ', err?.message || 'حدث خطأ'); } finally { setBusy(false); }
+    } catch (error: unknown) { Alert.alert('خطأ', error instanceof Error ? error.message : 'حدث خطأ'); } finally { setBusy(false); }
   }
 
   return (
