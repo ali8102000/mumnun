@@ -4,12 +4,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } 
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
+type HistoryRequest = { id: string; type: string; status: string; created_at: string; estimated_price: number | null };
+
 const STATUS_LABELS: Record<string, string> = { searching: 'بحث', pending: 'بانتظار', accepted: 'مقبول', in_progress: 'قيد التنفيذ', completed: 'مكتمل', cancelled: 'ملغي' };
 const STATUS_COLORS: Record<string, string> = { searching: '#f59e0b', pending: '#f59e0b', accepted: '#2563eb', in_progress: '#2563eb', completed: '#16a34a', cancelled: '#dc2626' };
 
 export default function HistoryScreen() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests, setRequests] = useState<HistoryRequest[]>([]);
   const [tab, setTab] = useState<'all' | 'active' | 'done'>('all');
   const [refreshing, setRefreshing] = useState(false);
 
