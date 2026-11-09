@@ -13,6 +13,10 @@ ALTER TABLE public.worker_profiles
   ADD COLUMN IF NOT EXISTS verified_at timestamptz,
   ADD COLUMN IF NOT EXISTS verified_by uuid REFERENCES auth.users(id);
 
+-- Existing providers start unverified and must not keep receiving new requests.
+UPDATE public.driver_profiles SET available = false WHERE NOT is_verified;
+UPDATE public.worker_profiles SET available = false WHERE NOT is_verified;
+
 CREATE OR REPLACE FUNCTION public.guard_provider_verification_fields()
 RETURNS trigger
 LANGUAGE plpgsql
