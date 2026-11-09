@@ -14,6 +14,7 @@ export default defineConfig({
   },
   vite: {
     build: {
+      // Keep the browser entry small; split framework and UI dependencies into cacheable vendor chunks.
       rollupOptions: {
         output: {
           manualChunks(id) {
