@@ -25,7 +25,8 @@ export const createTaxiRequest = createServerFn({ method: "POST" })
     );
     const fare = taxiFare(data.vehicleCategory, route.distanceKm);
 
-    const { data: request, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: request, error } = await supabaseAdmin
       .from("service_requests")
       .insert({
         customer_id: context.userId,
