@@ -9,7 +9,11 @@ function getCtx(): AudioContext | null {
     if (!AC) return null;
     ctx = new AC();
   }
-  if (ctx.state === "suspended") {\n    void ctx.resume().catch((error: unknown) => {\n      console.warn("[click-sound] audio resume failed", error);\n    });\n  }
+  if (ctx.state === "suspended") {
+    void ctx.resume().catch((error: unknown) => {
+      console.warn("[click-sound] audio resume failed", error);
+    });
+  }
   return ctx;
 }
 
