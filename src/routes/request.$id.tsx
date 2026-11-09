@@ -1,5 +1,5 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,7 +65,7 @@ function RequestDetail() {
   });
 
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
     try {
       const { data: r } = await supabase.from("service_requests").select("*").eq("id", id).maybeSingle();
       if (!r) { setLoading(false); return; }
@@ -94,9 +94,9 @@ function RequestDetail() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id, session, getRepFn]);
 
-  useEffect(() => { if (session) loadAll(); }, [session, id]);
+  useEffect(() => { if (session) void loadAll(); }, [session, loadAll]);
 
 
   useEffect(() => {
@@ -115,7 +115,7 @@ function RequestDetail() {
         () => loadAll())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [req?.id]);
+  }, [req?.id, id, loadAll]);
 
   useEffect(() => {
     if (!req || myRole !== "customer") return;
@@ -124,7 +124,7 @@ function RequestDetail() {
       retryFn({ data: { requestId: req.id } }).catch(() => {});
     }, 30_000);
     return () => clearInterval(t);
-  }, [req?.id, req?.status, myRole]);
+  }, [req?.id, req?.status, myRole, retryFn]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
