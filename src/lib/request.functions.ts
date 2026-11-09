@@ -26,15 +26,11 @@ export const createTaxiRequest = createServerFn({ method: "POST" })
     if (roleError || !isCustomer) throw new Error("هذا الحساب غير مهيأ لطلب الرحلات.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const cutoff = new Date(Date.now() - 60_000).toISOString();
-    const { count, error: rateLimitError } = await supabaseAdmin
-      .from("service_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("customer_id", context.userId)
-      .eq("type", "taxi")
-      .gte("created_at", cutoff);
+    const { data: allowed, error: rateLimitError } = await supabaseAdmin.rpc("consume_taxi_request_slot", {
+      _user_id: context.userId,
+    });
     if (rateLimitError) throw new Error("تعذر التحقق من عدد الطلبات؛ حاول مرة أخرى.");
-    if ((count ?? 0) >= 3) throw new Error("وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً.");
+    if (!allowed) throw new Error("وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً.");
 
     const route = await getTrustedDrivingRoute(
       { lat: data.pickupLat, lng: data.pickupLng },
