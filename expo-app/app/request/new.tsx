@@ -219,7 +219,9 @@ export default function NewRequest() {
         const { error: dispatchError } = await supabase.rpc('dispatch_request', {
           _request_id: requestId,
         });
-        if (dispatchError) throw dispatchError;
+        if (dispatchError) {
+          Alert.alert('تم إنشاء الطلب', 'تعذر توزيع الطلب على السائقين الآن. افتح تفاصيل الطلب وحاول إعادة المحاولة لاحقاً.');
+        }
       } else {
         const { data: serviceRow, error: serviceError } = await supabase
           .from('services')
