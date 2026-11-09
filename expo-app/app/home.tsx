@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { router } from 'expo-router';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Alert } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
@@ -24,11 +24,32 @@ export default function HomeScreen() {
     return () => { supabase.removeChannel(sub); };
   }, [loadIncoming]);
 
+  useEffect(() => {
+    if (!user || (activeRole !== 'driver' && activeRole !== 'worker')) {
+      setAvailable(false);
+      return;
+    }
+    const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
+    supabase.from(table).select('available').eq('user_id', user.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          Alert.alert('تعذر تحميل الحالة', 'حاول تحديث الصفحة');
+          return;
+        }
+        setAvailable(Boolean(data?.available));
+      });
+  }, [activeRole, user]);
+
   async function toggleAvailable() {
+    if (!user || (activeRole !== 'driver' && activeRole !== 'worker')) return;
     const next = !available;
+    const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
+    const { error } = await supabase.from(table).update({ available: next }).eq('user_id', user.id);
+    if (error) {
+      Alert.alert('تعذر تحديث التوفر', error.message);
+      return;
+    }
     setAvailable(next);
-    if (activeRole === 'driver') await supabase.from('driver_profiles').update({ is_available: next }).eq('user_id', user?.id);
-    else if (activeRole === 'worker') await supabase.from('worker_profiles').update({ is_available: next }).eq('user_id', user?.id);
   }
 
   const onRefresh = async () => { setRefreshing(true); await loadIncoming(); setRefreshing(false); };
