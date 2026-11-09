@@ -19,6 +19,12 @@ export const createTaxiRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => taxiRequestInput.parse(data))
   .handler(async ({ data, context }) => {
+    const { data: isCustomer, error: roleError } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "customer",
+    });
+    if (roleError || !isCustomer) throw new Error("هذا الحساب غير مهيأ لطلب الرحلات.");
+
     const route = await getTrustedDrivingRoute(
       { lat: data.pickupLat, lng: data.pickupLng },
       { lat: data.destinationLat, lng: data.destinationLng },
