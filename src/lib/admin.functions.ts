@@ -466,3 +466,18 @@ export const adminListMonitoringTickets = createServerFn({ method: "GET" })
     if (error) throw new Error("فشل تحميل تذاكر الدعم");
     return data ?? [];
   });
+
+
+export const adminGetUserRoles = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ user_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: roles, error } = await (supabaseAdmin as any)
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user_id);
+    if (error) throw new Error("فشل تحميل صلاحيات المستخدم");
+    return (roles ?? []).map((row: { role: string }) => row.role);
+  });
