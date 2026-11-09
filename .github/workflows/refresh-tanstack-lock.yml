@@ -6,6 +6,7 @@ on:
       - mamnoon-production-hardening-2026-11-09
     paths:
       - .github/workflows/refresh-tanstack-lock.yml
+      - src/lib/api/example.functions.ts
 
 permissions:
   contents: write
