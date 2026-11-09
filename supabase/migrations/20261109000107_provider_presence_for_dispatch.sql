@@ -186,7 +186,9 @@ AS $$
     round(pl.lng, 2) AS lng,
     NULL::numeric AS heading
   FROM public.provider_locations pl
-  WHERE pl.updated_at > now() - interval '90 seconds'
+  WHERE auth.uid() IS NOT NULL
+    AND public.has_role(auth.uid(), 'customer'::public.app_role)
+    AND pl.updated_at > now() - interval '90 seconds'
     AND (
       (_type = 'taxi' AND pl.role = 'driver' AND EXISTS (
         SELECT 1 FROM public.driver_profiles dp
