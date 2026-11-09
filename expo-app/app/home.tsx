@@ -8,6 +8,8 @@ export default function HomeScreen() {
   const { user, profile, roles } = useAuth();
   const [activeRole, setActiveRole] = useState<string>(roles[0] || 'customer');
   const [available, setAvailable] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState('pending');
   const [incoming, setIncoming] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const isWorker = activeRole === 'worker' || activeRole === 'driver';
@@ -27,21 +29,29 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!user || (activeRole !== 'driver' && activeRole !== 'worker')) {
       setAvailable(false);
+      setVerified(false);
+      setVerificationStatus('pending');
       return;
     }
     const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
-    supabase.from(table).select('available').eq('user_id', user.id).maybeSingle()
+    supabase.from(table).select('available, is_verified, verification_status').eq('user_id', user.id).maybeSingle()
       .then(({ data, error }) => {
         if (error) {
           Alert.alert('تعذر تحميل الحالة', 'حاول تحديث الصفحة');
           return;
         }
         setAvailable(Boolean(data?.available));
+        setVerified(Boolean(data?.is_verified));
+        setVerificationStatus(data?.verification_status ?? 'pending');
       });
   }, [activeRole, user]);
 
   async function toggleAvailable() {
     if (!user || (activeRole !== 'driver' && activeRole !== 'worker')) return;
+    if (!verified) {
+      Alert.alert('الحساب بانتظار التوثيق', 'لن تستقبل طلبات حتى تراجع الإدارة بياناتك وتفعّل حسابك.');
+      return;
+    }
     const next = !available;
     const table = activeRole === 'driver' ? 'driver_profiles' : 'worker_profiles';
     const { error } = await supabase.from(table).update({ available: next }).eq('user_id', user.id);
@@ -71,7 +81,7 @@ export default function HomeScreen() {
         ))}
       </View>
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 100 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        {activeRole === 'customer' ? <CustomerHome /> : <ProviderHome available={available} toggleAvailable={toggleAvailable} incoming={incoming} />}
+        {activeRole === 'customer' ? <CustomerHome /> : <ProviderHome available={available} verified={verified} verificationStatus={verificationStatus} toggleAvailable={toggleAvailable} incoming={incoming} />}
       </ScrollView>
       <View style={styles.bottomTabs}>
         <TabBtn label="الرئيسية" icon="🏠" active onPress={() => {}} />
@@ -119,13 +129,13 @@ function CustomerHome() {
   );
 }
 
-function ProviderHome({ available, toggleAvailable, incoming }: { available: boolean; toggleAvailable: () => void; incoming: any[] }) {
+function ProviderHome({ available, verified, verificationStatus, toggleAvailable, incoming }: { available: boolean; verified: boolean; verificationStatus: string; toggleAvailable: () => void; incoming: any[] }) {
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
-      <TouchableOpacity style={[styles.availCard, available && styles.availCardActive]} onPress={toggleAvailable} activeOpacity={0.85}>
+      <TouchableOpacity style={[styles.availCard, available && styles.availCardActive, !verified && { opacity: 0.65 }]} onPress={toggleAvailable} activeOpacity={0.85} disabled={!verified}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.availTitle, available && { color: '#fff' }]}>{available ? 'متاح للعمل' : 'غير متاح'}</Text>
-          <Text style={[styles.availDesc, available && { color: 'rgba(255,255,255,0.8)' }]}>{available ? 'ستصلك الطلبات الجديدة' : 'اضغط لتفعيل الاستقبال'}</Text>
+          <Text style={[styles.availDesc, available && { color: 'rgba(255,255,255,0.8)' }]}>{!verified ? (verificationStatus === 'rejected' ? 'تم رفض التوثيق — راجع الإدارة' : verificationStatus === 'suspended' ? 'تم تعليق الحساب — راجع الإدارة' : 'بانتظار مراجعة الإدارة') : available ? 'ستصلك الطلبات الجديدة' : 'اضغط لتفعيل الاستقبال'}</Text>
         </View>
         <View style={[styles.availDot, available && styles.availDotActive]} />
       </TouchableOpacity>
