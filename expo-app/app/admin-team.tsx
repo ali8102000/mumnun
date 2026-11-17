@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
-type TeamRole = 'developer' | 'support' | 'finance' | 'operations' | 'monitoring';
+type TeamRole = 'developer';
 type TeamMember = {
   user_id: string;
   rank: string;
@@ -58,7 +58,7 @@ export default function AdminTeamScreen() {
     if (!email.trim()) { Alert.alert('تنبيه', 'اكتب البريد الإلكتروني أولاً'); return; }
     setBusy(true);
     try {
-      const data = await invoke({ action: 'invite', email: email.trim(), role });
+      const data = await invokeTeam({ action: 'invite', email: email.trim(), role });
       Alert.alert('تم', data?.invitation_sent ? 'تم إرسال الدعوة وإضافة العضو للفريق' : 'تمت إضافة الحساب الموجود للفريق');
       setEmail('');
       await load();
@@ -72,7 +72,7 @@ export default function AdminTeamScreen() {
     if (!nextRole) return;
     setBusy(true);
     try {
-      await invoke({ action: 'update', user_id: member.user_id, role: nextRole });
+      await invokeTeam({ action: 'update', user_id: member.user_id, role: nextRole });
       Alert.alert('تم', 'تم تحديث صلاحية العضو');
       await load();
     } catch (error) {
@@ -85,20 +85,14 @@ export default function AdminTeamScreen() {
       { text: 'إلغاء', style: 'cancel' },
       { text: 'إيقاف', style: 'destructive', onPress: () => { void (async () => {
         setBusy(true);
-        try { await invoke({ action: 'deactivate', user_id: member.user_id }); await load(); }
+        try { await invokeTeam({ action: 'deactivate', user_id: member.user_id }); await load(); }
         catch (error) { Alert.alert('تعذر الإيقاف', error instanceof Error ? error.message : 'حاول مرة أخرى'); }
         finally { setBusy(false); }
       })(); } },
     ]);
   }
 
-  const roleFor = (member: TeamMember): TeamRole => {
-    if (member.display_title === 'Developer') return 'developer';
-    if (member.department === 'customer_service') return 'support';
-    if (member.department === 'finance') return 'finance';
-    if (member.department === 'monitoring') return 'monitoring';
-    return 'operations';
-  };
+  const roleFor = (_member: TeamMember): TeamRole => 'developer';
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /></View>;
   if (!authorized) return <View style={styles.center}><Text style={styles.denied}>هذه الصفحة لصاحب المشروع فقط</Text><Pressable style={styles.backButton} onPress={() => router.back()}><Text style={styles.backText}>رجوع</Text></Pressable></View>;
@@ -151,6 +145,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 22 },
   backCircle: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' },
+  backButton: { marginTop: 16, backgroundColor: '#dbeafe', borderRadius: 12, paddingHorizontal: 18, paddingVertical: 10 },
   backText: { color: '#1e293b', fontSize: 22, fontWeight: '800' },
   title: { color: '#0f172a', fontSize: 25, fontWeight: '900', textAlign: 'right' },
   subtitle: { color: '#64748b', fontSize: 12, textAlign: 'right', marginTop: 3 },
