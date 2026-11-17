@@ -128,7 +128,7 @@ export default function AdminTeamScreen() {
             <>
               <View style={styles.roleRow}>{ROLES.map((item) => <Pressable key={item.value} onPress={() => setDrafts((prev) => ({ ...prev, [member.user_id]: item.value }))} style={[styles.roleChip, (drafts[member.user_id] ?? roleFor(member)) === item.value && styles.roleChipActive]}><Text style={[styles.roleText, (drafts[member.user_id] ?? roleFor(member)) === item.value && styles.roleTextActive]}>{item.label}</Text></Pressable>)}</View>
               <View style={styles.actions}>
-                <Pressable disabled={busy || !member.active} onPress={() => saveRole(member)} style={[styles.smallPrimary, (busy || !member.active) && styles.disabled]}><Text style={styles.primaryText}>حفظ الصلاحية</Text></Pressable>
+                <Pressable disabled={busy} onPress={() => saveRole(member)} style={[styles.smallPrimary, busy && styles.disabled]}><Text style={styles.primaryText}>{member.active ? "حفظ الصلاحية" : "إعادة تفعيل"}</Text></Pressable>
                 {member.active && <Pressable disabled={busy} onPress={() => confirmDeactivate(member)} style={styles.dangerButton}><Text style={styles.dangerText}>إيقاف العضو</Text></Pressable>}
               </View>
             </>
