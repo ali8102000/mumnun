@@ -406,7 +406,7 @@ function DeleteAccountModal({ user, onConfirm, onClose }: {
         <h3 className="font-black text-red-600 mb-2">حذف حساب نهائياً</h3>
         <p className="text-sm font-bold mb-2">{user.full_name ?? "بدون اسم"}</p>
         <p className="text-xs text-muted-foreground mb-3">رقم الهاتف: {user.phone}</p>
-        <p className="text-xs text-red-600 mb-3">تحذير: الحذف نهائي. نرفض الحذف إذا كان للحساب طلبات أو معاملات أو سجلات مالية/إدارية. إذا كان الحساب مالكاً لملفات تخزين تمنع الحذف فستظهر رسالة خطأ. السجلات المحمية تبقى محفوظة.</p>
+        <p className="text-xs text-red-600 mb-3">تحذير: الحذف نهائي. نرفض الحذف إذا كان للحساب طلبات أو معاملات أو سجلات مالية/إدارية. قد تُحذف بيانات مرتبطة مثل المحادثات والإشعارات والتقييمات. إذا كان الحساب مالكاً لملفات تخزين تمنع الحذف فستظهر رسالة خطأ. التوكن الصادر مسبقاً قد يبقى صالحاً حتى انتهاء مدته.</p>
         <label className="block text-xs font-bold mb-1">اكتب رقم الهاتف نفسه للتأكيد</label>
         <input value={confirmation} onChange={(e) => setConfirmation(e.target.value)} placeholder={user.phone} className="w-full glass rounded-xl px-4 py-2.5 text-sm mb-3" />
         <div className="flex gap-2">
