@@ -333,14 +333,44 @@ export const adminDeleteUser = createServerFn({ method: "POST" })
     if (profileError || !profile?.phone || profile.phone !== data.confirmation_phone.trim()) {
       throw new Error("رقم التأكيد غير مطابق أو الحساب غير موجود");
     }
-    // Auth deletion cascades to the linked profile; do not issue a second profile delete.
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
-    if (error) throw new Error("تعذر حذف الحساب؛ قد تكون له ملفات مملوكة في التخزين");
+    // Profiles are not FK-linked to auth.users in this project. Preserve financial
+    // and service history by refusing hard deletion when related records exist.
+    const blockers = await Promise.all([
+      supabaseAdmin.from("service_requests").select("id", { count: "exact", head: true })
+        .or(`customer_id.eq.${data.user_id},provider_id.eq.${data.user_id}`),
+      supabaseAdmin.from("transactions").select("id", { count: "exact", head: true }).eq("user_id", data.user_id),
+      supabaseAdmin.from("payment_transactions").select("id", { count: "exact", head: true }).eq("user_id", data.user_id),
+      supabaseAdmin.from("subscription_payments").select("id", { count: "exact", head: true }).eq("user_id", data.user_id),
+      supabaseAdmin.from("coupon_redemptions").select("id", { count: "exact", head: true }).eq("user_id", data.user_id),
+      supabaseAdmin.from("coupon_subsidy_ledger").select("id", { count: "exact", head: true })
+        .eq("customer_id", data.user_id),
+      supabaseAdmin.from("provider_change_requests").select("id", { count: "exact", head: true })
+        .eq("reviewed_by", data.user_id),
+      supabaseAdmin.from("user_subscriptions").select("id", { count: "exact", head: true })
+        .eq("granted_by", data.user_id),
+    ]);
+    if (blockers.some((result: { error: unknown }) => result.error)) {
+      throw new Error("تعذر فحص ارتباطات الحساب قبل الحذف");
+    }
+    if (blockers.some((result: { count: number | null }) => (result.count ?? 0) > 0)) {
+      throw new Error("لا يمكن حذف حساب مرتبط بطلبات أو معاملات أو سجلات مالية/إدارية. استخدم الحظر الدائم بدلاً منه.");
+    }
+
+    const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
+    if (authDeleteError) throw new Error("تعذر حذف حساب الدخول؛ قد تكون له ملفات مملوكة في التخزين");
+    const { error: profileDeleteError } = await supabaseAdmin.from("profiles").delete().eq("id", data.user_id);
+    if (profileDeleteError) {
+      const auditLogged = await recordAccountAction(
+        supabaseAdmin, context.userId, "auth_user_deleted_profile_cleanup_failed", data.user_id,
+        { reason: "profile_cleanup_failed" },
+      );
+      return { ok: false, auth_deleted: true, profile_deleted: false, audit_logged: auditLogged };
+    }
     const auditLogged = await recordAccountAction(
       supabaseAdmin, context.userId, "delete_auth_user", data.user_id,
-      { phone_confirmation_used: true },
+      { phone_confirmation_used: true, profile_deleted: true },
     );
-    return { ok: true, audit_logged: auditLogged };
+    return { ok: true, auth_deleted: true, profile_deleted: true, audit_logged: auditLogged };
   });
 
 export const adminGetUserDetail = createServerFn({ method: "POST" })
