@@ -6,6 +6,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const easProjectId = process.env.EAS_PROJECT_ID;
   const isProduction = process.env.APP_ENV === 'production';
+  const expectedProductionSupabaseUrl = 'https://enteiolvirenbhkyskgb.supabase.co';
 
   // Fail closed: never produce a store build that silently ships without its
   // backend, native Maps key, or EAS project association.
@@ -20,8 +21,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       `Production build is missing required Expo environment variables: ${missingProductionConfig.join(', ')}`,
     );
   }
-  if (isProduction && supabaseUrl && !supabaseUrl.startsWith('https://')) {
-    throw new Error('EXPO_PUBLIC_SUPABASE_URL must use HTTPS in production.');
+  if (
+    isProduction &&
+    supabaseUrl &&
+    supabaseUrl.replace(/\\/+$/, '') !== expectedProductionSupabaseUrl
+  ) {
+    throw new Error(
+      `Production EXPO_PUBLIC_SUPABASE_URL must point to ${expectedProductionSupabaseUrl} (project ref enteiolvirenbhkyskgb).`,
+    );
   }
   if (isProduction && easProjectId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(easProjectId)) {
     throw new Error('EAS_PROJECT_ID must be a valid Expo project UUID.');
