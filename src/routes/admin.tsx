@@ -16,6 +16,7 @@ import {
   adminSaveCoupon, adminSearchUsers, adminSetProviderStatus, adminUnbanUser, adminUnblockUser,
 } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({ ssr: false,
   head: () => ({ meta: [
@@ -48,7 +49,7 @@ type AdminUserDetail = { profile: AdminProfile | null; roles: AdminRole[]; block
 type BlockTarget = { id: string; name: string | null };
 type DashboardStats = { totalUsers: number; totalDrivers: number; totalWorkers: number; totalRequests: number; activeRequests: number; completedRequests: number; cancelledRequests: number; activeDrivers: number; activeWorkers: number; dailyRevenue: number; monthlyRevenue: number; yearlyRevenue: number };
 
-type Section = "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles";
+type Section = "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles" | "team";
 
 const NAV_ITEMS: { key: Section; label: string; icon: LucideIcon; roles: string[] }[] = [
   { key: "overview", label: "نظرة عامة", icon: LayoutDashboard, roles: ["super_admin", "admin", "support", "finance", "moderator"] },
@@ -65,6 +66,7 @@ const NAV_ITEMS: { key: Section; label: string; icon: LucideIcon; roles: string[
   { key: "map", label: "الخريطة المباشرة", icon: Map, roles: ["super_admin", "admin", "support"] },
   { key: "notifications", label: "الإشعارات", icon: Bell, roles: ["super_admin", "admin", "support", "finance", "moderator"] },
   { key: "roles", label: "الصلاحيات", icon: Settings, roles: ["super_admin"] },
+  { key: "team", label: "فريق العمل", icon: Users, roles: ["super_admin"] },
   { key: "audit", label: "سجل العمليات", icon: ScrollText, roles: ["super_admin", "admin"] },
 ];
 
@@ -104,6 +106,9 @@ function AdminPage() {
       </div>
     </div>
   );
+
+  const isDeveloperOnly = staffRoles.includes("developer") && !staffRoles.some((role) => ["super_admin", "admin", "support", "finance", "moderator"].includes(role));
+  if (isDeveloperOnly) return <div className="min-h-screen grid place-items-center px-5"><div className="glass rounded-2xl p-6 text-center max-w-sm"><ShieldCheck className="h-10 w-10 text-primary mx-auto mb-3" /><div className="font-black">صلاحية المطور</div><p className="text-sm text-muted-foreground mt-2">هذا الحساب مخصص للعمل التقني ولا يملك صلاحية الاطلاع على بيانات الإدارة أو المستخدمين.</p></div></div>;
 
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.some((r) => staffRoles.includes(r)));
 
@@ -155,6 +160,7 @@ function AdminPage() {
           {section === "map" && <MapSection />}
           {section === "notifications" && <NotificationsSection />}
           {section === "roles" && <RolesSection />}
+          {section === "team" && <TeamSection />}
           {section === "audit" && <AuditSection />}
         </div>
       </main>
@@ -689,6 +695,119 @@ function NotificationsSection() {
         <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="نص الإشعار" className="w-full glass rounded-xl px-4 py-2.5 text-sm" rows={3} />
         <button onClick={handleSend} disabled={sending || !title || !body} className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm disabled:opacity-50">{sending ? "جاري الإرسال..." : "إرسال"}</button>
       </div>
+    </div>
+  );
+}
+
+type TeamMember = {
+  user_id: string;
+  rank: string;
+  department: string;
+  display_title: string | null;
+  active: boolean;
+  created_at: string;
+  is_owner?: boolean;
+  profile?: { full_name?: string | null; email?: string | null; phone?: string | null } | null;
+};
+
+const TEAM_ROLE_OPTIONS = [
+  { value: "developer", label: "Developer — مطور" },
+  { value: "support", label: "الدعم الفني" },
+  { value: "finance", label: "المحاسبة" },
+  { value: "operations", label: "العمليات" },
+  { value: "monitoring", label: "المراقبة" },
+];
+
+function TeamSection() {
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("developer");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase.functions.invoke("team-management", { body: { action: "list" } });
+    if (error) window.alert("تعذر تحميل فريق العمل: " + error.message);
+    else setMembers((data?.members ?? []) as TeamMember[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  async function invite() {
+    if (!email.trim()) return;
+    setBusy(true);
+    const { data, error } = await supabase.functions.invoke("team-management", { body: { action: "invite", email: email.trim(), role } });
+    setBusy(false);
+    if (error || !data?.ok) { window.alert(data?.error ?? error?.message ?? "تعذر إضافة العضو"); return; }
+    window.alert(data.invitation_sent ? "تم إرسال دعوة البريد وإضافة العضو للفريق" : "تمت إضافة الحساب الموجود إلى الفريق");
+    setEmail("");
+    await load();
+  }
+
+  async function updateRole(userId: string) {
+    const nextRole = drafts[userId];
+    if (!nextRole) return;
+    setBusy(true);
+    const { data, error } = await supabase.functions.invoke("team-management", { body: { action: "update", user_id: userId, role: nextRole } });
+    setBusy(false);
+    if (error || !data?.ok) { window.alert(data?.error ?? error?.message ?? "تعذر تحديث الصلاحية"); return; }
+    await load();
+  }
+
+  async function deactivate(userId: string) {
+    if (!window.confirm("تأكيد إيقاف صلاحية هذا العضو؟ لن يتم حذف حسابه أو بياناته.")) return;
+    setBusy(true);
+    const { data, error } = await supabase.functions.invoke("team-management", { body: { action: "deactivate", user_id: userId } });
+    setBusy(false);
+    if (error || !data?.ok) { window.alert(data?.error ?? error?.message ?? "تعذر إيقاف العضو"); return; }
+    await load();
+  }
+
+  const roleFor = (member: TeamMember) => {
+    if (member.display_title === "Developer") return "developer";
+    if (member.department === "customer_service") return "support";
+    if (member.department === "finance") return "finance";
+    if (member.department === "monitoring") return "monitoring";
+    return "operations";
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div><h2 className="text-xl font-black">إدارة فريق العمل</h2><p className="text-xs text-muted-foreground mt-1">إضافة أعضاء وتحديد نطاق عملهم وإيقاف صلاحياتهم دون حذف حساباتهم</p></div>
+        <span className="text-xs rounded-full px-3 py-1 bg-primary/10 text-primary font-bold">{members.filter((m) => m.active && !m.is_owner).length} أعضاء نشطون</span>
+      </div>
+      <div className="glass rounded-2xl p-4 mb-5">
+        <h3 className="font-black text-sm mb-3">دعوة عضو جديد</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_190px_auto] gap-2">
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="البريد الإلكتروني للعضو" className="glass rounded-xl px-3 py-2.5 text-sm outline-none min-w-0" />
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="glass rounded-xl px-3 py-2.5 text-sm outline-none">{TEAM_ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+          <button disabled={busy || !email.trim()} onClick={invite} className="rounded-xl px-4 py-2.5 bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50">{busy ? "جارٍ التنفيذ..." : "إرسال الدعوة"}</button>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">المطور لا يستطيع فتح بيانات لوحة الإدارة أو إدارة المستخدمين. ولا يحصل هذا الإجراء على صلاحية حذف المشروع أو تغيير إعدادات الدفع.</p>
+      </div>
+      {loading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : members.length === 0 ? <EmptyState text="لا يوجد أعضاء في الفريق بعد" /> : (
+        <div className="space-y-2">
+          {members.map((member) => (
+            <div key={member.user_id} className="glass rounded-2xl p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <div className="min-w-0"><div className="font-bold text-sm truncate">{member.profile?.full_name || member.display_title || "عضو فريق"}</div><div className="text-[11px] text-muted-foreground break-all">{member.profile?.email || member.profile?.phone || member.user_id.slice(0, 8)}</div></div>
+                <span className={`text-[10px] font-bold rounded-full px-2.5 py-1 ${member.is_owner ? "bg-amber-500/15 text-amber-700" : member.active ? "bg-emerald-500/10 text-emerald-700" : "bg-muted text-muted-foreground"}`}>{member.is_owner ? "مالك المشروع" : member.active ? "نشط" : "موقوف"}</span>
+              </div>
+              {!member.is_owner && (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <select value={drafts[member.user_id] ?? roleFor(member)} onChange={(e) => setDrafts((prev) => ({ ...prev, [member.user_id]: e.target.value }))} className="glass rounded-lg px-2 py-2 text-xs flex-1 min-w-[150px]">{TEAM_ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+                  <button disabled={busy || !member.active} onClick={() => updateRole(member.user_id)} className="rounded-lg px-3 py-2 bg-primary/10 text-primary text-xs font-bold disabled:opacity-40">حفظ الصلاحية</button>
+                  {member.active && <button disabled={busy} onClick={() => deactivate(member.user_id)} className="rounded-lg px-3 py-2 bg-red-500/10 text-red-600 text-xs font-bold disabled:opacity-40">إيقاف</button>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
