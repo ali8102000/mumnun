@@ -65,16 +65,19 @@ Deno.serve(async (req: Request) => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       const ids = (assignments ?? []).map((row) => row.user_id);
-      const [{ data: profiles, error: profileError }, { data: authUsers, error: authUsersError }] = await Promise.all([
+      const [{ data: profiles, error: profileError }, authResults] = await Promise.all([
         ids.length
           ? admin.from("profiles").select("id, full_name, email, phone, avatar_url").in("id", ids)
           : Promise.resolve({ data: [], error: null }),
-        admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+        Promise.all(ids.map((id) => admin.auth.admin.getUserById(id))),
       ]);
       if (profileError) throw profileError;
-      if (authUsersError) throw authUsersError;
+      const authMap = new Map<string, NonNullable<(typeof authResults)[number]["data"]["user"]>>();
+      for (const result of authResults) {
+        if (result.error) throw result.error;
+        if (result.data.user) authMap.set(result.data.user.id, result.data.user);
+      }
       const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
-      const authMap = new Map((authUsers.users ?? []).map((authUser) => [authUser.id, authUser]));
       return json({
         members: (assignments ?? []).map((row) => {
           const profile = profileMap.get(row.user_id) ?? null;
@@ -95,22 +98,19 @@ Deno.serve(async (req: Request) => {
     if (action === "invite") {
       const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
       const role = body?.role;
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 || !isTeamRole(role)) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !isTeamRole(role)) {
         return json({ error: "يرجى إدخال بريد صحيح وصلاحية متاحة" }, 400);
       }
       if (email === OWNER_EMAIL) return json({ error: "حساب المالك لا يمكن تغييره" }, 400);
 
-      const { data: existingProfile, error: profileLookupError } = await admin
-        .from("profiles").select("id, email").ilike("email", email).maybeSingle();
-      if (profileLookupError) throw profileLookupError;
-
-      let targetUserId = existingProfile?.id as string | undefined;
-      let invitationSent = false;
-      if (!targetUserId) {
-        const { data: authUsers, error: authUsersError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      let targetUserId: string | undefined;
+      for (let page = 1; page <= 1000; page += 1) {
+        const { data: authUsers, error: authUsersError } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
         if (authUsersError) throw authUsersError;
         targetUserId = authUsers.users.find((candidate) => candidate.email?.toLowerCase() === email)?.id;
+        if (targetUserId || authUsers.users.length < 1000) break;
       }
+      let invitationSent = false;
       if (targetUserId) {
         const { data: existingAssignment, error: assignmentError } = await admin.from("staff_assignments")
           .select("display_title").eq("user_id", targetUserId).maybeSingle();
