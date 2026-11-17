@@ -105,6 +105,12 @@ Deno.serve(async (req: Request) => {
       if (profileLookupError) throw profileLookupError;
 
       let targetUserId = existingProfile?.id as string | undefined;
+      let invitationSent = false;
+      if (!targetUserId) {
+        const { data: authUsers, error: authUsersError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (authUsersError) throw authUsersError;
+        targetUserId = authUsers.users.find((candidate) => candidate.email?.toLowerCase() === email)?.id;
+      }
       if (targetUserId) {
         const { data: existingAssignment, error: assignmentError } = await admin.from("staff_assignments")
           .select("display_title").eq("user_id", targetUserId).maybeSingle();
@@ -117,9 +123,7 @@ Deno.serve(async (req: Request) => {
           .in("role", ["admin", "support", "finance", "moderator", "super_admin"]).limit(1).maybeSingle();
         if (existingRoleError) throw existingRoleError;
         if (existingPrivilegedRole) return json({ error: "هذا الحساب يملك صلاحية إدارية مسبقاً؛ لا يمكن تحويله إلى Developer من هنا" }, 403);
-      }
-      let invitationSent = false;
-      if (!targetUserId) {
+      } else {
         const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email);
         if (inviteError || !inviteData.user) {
           return json({ error: inviteError?.message ?? "تعذر إرسال الدعوة. قد يكون الحساب مسجلاً مسبقاً." }, 400);
