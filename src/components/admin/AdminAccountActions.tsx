@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { adminCreateUserInvite, adminUpdateUserContact } from "@/lib/admin.functions";
+import { adminCreateUserInvite, adminUpdateUserContact, adminRequirePasswordChange } from "@/lib/admin.functions";
 
 type Props = { userId: string; email?: string | null; phone?: string | null; canManage: boolean };
 
@@ -10,7 +10,16 @@ export function AdminAccountActions({ userId, email, phone, canManage }: Props) 
   const [nextPhone, setNextPhone] = useState(phone ?? "");
   const [busy, setBusy] = useState(false);
   const updateContact = useServerFn(adminUpdateUserContact);
+  const requirePasswordChange = useServerFn(adminRequirePasswordChange);
   if (!canManage) return null;
+  async function forcePasswordChange() {
+    setBusy(true);
+    try {
+      const result = await requirePasswordChange({ data: { user_id: userId, required: true } });
+      window.alert(result.audit_logged ? "سيُطلب من المستخدم تغيير كلمة المرور عند دخوله القادم." : "تم تفعيل الطلب لكن تعذر تسجيل العملية في سجل الإدارة.");
+    } catch (error) { window.alert(error instanceof Error ? error.message : "تعذر تفعيل تغيير كلمة المرور"); }
+    finally { setBusy(false); }
+  }
   async function save() {
     const emailChanged = nextEmail.trim() !== (email ?? "");
     const phoneChanged = nextPhone.trim() !== (phone ?? "");
@@ -30,7 +39,7 @@ export function AdminAccountActions({ userId, email, phone, canManage }: Props) 
     finally { setBusy(false); }
   }
   return <>
-    <button onClick={() => setOpen(true)} className="text-xs px-3 py-1.5 rounded-lg bg-sky-100 text-sky-800 font-bold">تعديل بيانات الدخول</button>
+    <div className="flex flex-wrap gap-2"><button onClick={() => setOpen(true)} className="text-xs px-3 py-1.5 rounded-lg bg-sky-100 text-sky-800 font-bold">تعديل بيانات الدخول</button><button disabled={busy} onClick={forcePasswordChange} className="text-xs px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 font-bold disabled:opacity-50">إجبار تغيير كلمة المرور</button></div>
     {open && <div className="fixed inset-0 z-[60] bg-black/50 grid place-items-center p-4">
       <div className="glass rounded-2xl p-5 w-full max-w-md space-y-3">
         <div className="font-black">تعديل البريد ورقم الهاتف</div>
