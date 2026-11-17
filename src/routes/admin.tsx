@@ -7,13 +7,13 @@ import {
   Map, ChevronLeft, Settings, AlertCircle, type LucideIcon,
 } from "lucide-react";
 import {
-  adminAdjustWallet, adminBlockUser, adminBroadcastNotification, adminCancelRequest,
+  adminAdjustWallet, adminBanUser, adminBlockUser, adminBroadcastNotification, adminCancelRequest, adminDeleteUser,
   adminDeleteCoupon, adminDeleteFriendRequest, adminDeleteFriendship, adminDeleteMessage,
   adminGetDashboardStats, adminGetLiveLocations, adminGetLiveRequests, adminGetUserDetail, adminGetUserRoles,
   adminGrantRole, adminListAuditLogs, adminListChats, adminListCoupons, adminListFriendRequests, getStaffRoles,
   adminListFriends, adminListMessages, adminListProviders, adminListReports, adminListRequests,
   adminListTransactions, adminListUsers, adminReopenRequest, adminResolveReport, adminRevokeRole,
-  adminSaveCoupon, adminSearchUsers, adminSetProviderStatus, adminUnblockUser,
+  adminSaveCoupon, adminSearchUsers, adminSetProviderStatus, adminUnbanUser, adminUnblockUser,
 } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 
@@ -42,7 +42,7 @@ type AdminChat = { id: string; created_at: string; updated_at?: string; particip
 type AdminFriend = { id: string; user_id: string; friend_id: string; created_at: string; user?: AdminProfile | null; friend?: AdminProfile | null };
 type AdminFriendRequest = { id: string; status: string; created_at: string; sender?: AdminProfile | null; receiver?: AdminProfile | null };
 type AdminMessage = { id: string; content: string; body?: string | null; created_at: string; sender?: AdminProfile | null; chat?: { id: string } | null };
-type AdminAuditLog = { id: string; action: string; created_at: string; user_id: string; admin?: AdminProfile | null; metadata?: Record<string, unknown> | null };
+type AdminAuditLog = { id: string; action: string; created_at: string; user_id: string; admin?: AdminProfile | null; details?: Record<string, unknown> | null };
 type AdminLocation = { user_id: string; latitude?: number | null; longitude?: number | null; lat?: number; lng?: number; profile?: AdminProfile | null };
 type AdminUserDetail = { profile: AdminProfile | null; roles: AdminRole[]; block: AdminBlock | null; driverProfile: AdminProvider | null; workerProfile: AdminProvider | null; transactions: AdminTransaction[]; requests: AdminRequest[] };
 type BlockTarget = { id: string; name: string | null };
@@ -143,7 +143,7 @@ function AdminPage() {
         <div className="p-4 lg:p-8 max-w-5xl mx-auto">
           {section === "overview" && <OverviewSection />}
           {section === "stats" && <StatsSection />}
-          {section === "users" && <UsersSection />}
+          {section === "users" && <UsersSection canManageAccounts={staffRoles.includes("super_admin")} />}
           {section === "providers" && <ProvidersSection />}
           {section === "requests" && <RequestsSection />}
           {section === "chat" && <ChatSection />}
@@ -226,7 +226,7 @@ function StatsSection() {
   );
 }
 
-function UsersSection() {
+function UsersSection({ canManageAccounts }: { canManageAccounts: boolean }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -234,10 +234,15 @@ function UsersSection() {
   const [total, setTotal] = useState(0);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
   const [blockModal, setBlockModal] = useState<BlockTarget | null>(null);
+  const [banModal, setBanModal] = useState<BlockTarget | null>(null);
+  const [deleteModal, setDeleteModal] = useState<AdminUser | null>(null);
   const listUsers = useServerFn(adminListUsers);
   const searchUsers = useServerFn(adminSearchUsers);
   const blockUser = useServerFn(adminBlockUser);
   const unblockUser = useServerFn(adminUnblockUser);
+  const banAuthUser = useServerFn(adminBanUser);
+  const unbanAuthUser = useServerFn(adminUnbanUser);
+  const deleteAuthUser = useServerFn(adminDeleteUser);
   const getUserDetail = useServerFn(adminGetUserDetail);
   const load = useCallback(async () => {
     setLoading(true);
@@ -250,6 +255,31 @@ function UsersSection() {
   async function viewUser(userId: string) { try { setSelectedUser(await getUserDetail({ data: { user_id: userId } }) as unknown as AdminUserDetail); } catch (error) { console.error("[admin] action failed", error); } }
   async function handleBlock(userId: string, reason: string, expiresAt: string | null) { try { await blockUser({ data: { user_id: userId, reason, expires_at: expiresAt ?? undefined } }); setBlockModal(null); load(); } catch (error) { console.error("[admin] action failed", error); } }
   async function handleUnblock(userId: string) { try { await unblockUser({ data: { user_id: userId } }); load(); } catch (error) { console.error("[admin] action failed", error); } }
+  async function handleAuthBan(userId: string, duration: string, reason: string) {
+    try {
+      const result = await banAuthUser({ data: { user_id: userId, duration: duration as "1h" | "24h" | "7d" | "30d" | "permanent", reason } });
+      setBanModal(null);
+      if (!result.audit_logged) window.alert("تم الحظر لكن تعذّر تسجيل العملية في سجل الإدارة. راجع السجل.");
+      load();
+    } catch (error) { window.alert(error instanceof Error ? error.message : "تعذّر حظر الحساب"); }
+  }
+  async function handleAuthUnban(userId: string) {
+    if (!window.confirm("تأكيد رفع حظر تسجيل الدخول عن هذا الحساب؟")) return;
+    try {
+      const result = await unbanAuthUser({ data: { user_id: userId } });
+      if (!result.audit_logged) window.alert("تم رفع الحظر لكن تعذّر تسجيل العملية في سجل الإدارة.");
+      load();
+    } catch (error) { window.alert(error instanceof Error ? error.message : "تعذّر رفع الحظر"); }
+  }
+  async function handleDeleteAccount(userId: string, phone: string) {
+    try {
+      const result = await deleteAuthUser({ data: { user_id: userId, confirmation_phone: phone } });
+      setDeleteModal(null);
+      if (!result.ok) window.alert("تم حذف تسجيل الدخول لكن تعذّر إكمال تنظيف بيانات الحساب. يلزم تدخل إداري لإكمال العملية.");
+      else if (!result.audit_logged) window.alert("تم حذف الحساب لكن تعذّر تسجيل العملية في سجل الإدارة.");
+      load();
+    } catch (error) { window.alert(error instanceof Error ? error.message : "تعذّر حذف الحساب"); }
+  }
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة المستخدمين</h2>
@@ -265,9 +295,14 @@ function UsersSection() {
                 <div className="h-10 w-10 rounded-full bg-surface-2 grid place-items-center text-sm font-black shrink-0">{(u.full_name || u.phone || "?").charAt(0)}</div>
                 <div className="min-w-0"><div className="font-bold text-sm truncate">{u.full_name || "بدون اسم"}</div><div className="text-[10px] text-muted-foreground truncate">{u.phone}</div></div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center justify-end gap-2 max-w-full">
                 {u.blocked ? <button onClick={() => handleUnblock(u.id)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-bold">رفع الحظر</button> : <button onClick={() => setBlockModal({ id: u.id, name: u.full_name })} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-bold">حظر</button>}
                 <button onClick={() => viewUser(u.id)} className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-bold">تفاصيل</button>
+                {canManageAccounts && <>
+                  <button onClick={() => setBanModal({ id: u.id, name: u.full_name })} className="text-xs px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 font-bold">حظر دخول</button>
+                  <button onClick={() => handleAuthUnban(u.id)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-bold">رفع حظر الدخول</button>
+                  <button onClick={() => setDeleteModal(u)} className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold">حذف نهائي</button>
+                </>}
               </div>
             </div>
           ))}
@@ -282,6 +317,8 @@ function UsersSection() {
       )}
       {selectedUser && <UserDetailModal user={selectedUser} onClose={() => setSelectedUser(null)} />}
       {blockModal && <BlockModal target={blockModal} onConfirm={handleBlock} onClose={() => setBlockModal(null)} />}
+      {banModal && <AuthBanModal target={banModal} onConfirm={handleAuthBan} onClose={() => setBanModal(null)} />}
+      {deleteModal && <DeleteAccountModal user={deleteModal} onConfirm={handleDeleteAccount} onClose={() => setDeleteModal(null)} />}
     </div>
   );
 }
@@ -323,6 +360,58 @@ function BlockModal({ target, onConfirm, onClose }: { target: BlockTarget; onCon
           </select>
           <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="السبب..." className="w-full glass rounded-xl px-4 py-2.5 text-sm" rows={2} />
           <div className="flex gap-2"><button onClick={() => onConfirm(target.id, reason, getExpiry())} className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-bold">تأكيد الحظر</button><button onClick={onClose} className="px-4 py-2.5 rounded-xl glass text-sm font-bold">إلغاء</button></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function AuthBanModal({ target, onConfirm, onClose }: {
+  target: BlockTarget;
+  onConfirm: (id: string, duration: string, reason: string) => void;
+  onClose: () => void;
+}) {
+  const [duration, setDuration] = useState("24h");
+  const [reason, setReason] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4">
+      <div className="glass rounded-3xl p-5 w-full max-w-md">
+        <h3 className="font-black mb-2">حظر تسجيل الدخول</h3>
+        <p className="text-xs text-muted-foreground mb-3">{target.name ?? "مستخدم"}</p>
+        <p className="text-xs text-amber-700 mb-3">هذا الإجراء يمنع تسجيل الدخول وتجديد الجلسة. التوكن الصادر مسبقاً قد يبقى صالحاً إلى انتهاء مدته.</p>
+        <select value={duration} onChange={(e) => setDuration(e.target.value)} className="w-full glass rounded-xl px-4 py-2.5 text-sm mb-3">
+          <option value="1h">ساعة واحدة</option><option value="24h">٢٤ ساعة</option><option value="7d">٧ أيام</option><option value="30d">٣٠ يوماً</option><option value="permanent">دائم (١٠٠ سنة)</option>
+        </select>
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="سبب الحظر (إلزامي)" className="w-full glass rounded-xl px-4 py-2.5 text-sm mb-3" rows={2} />
+        <div className="flex gap-2">
+          <button disabled={reason.trim().length < 2} onClick={() => onConfirm(target.id, duration, reason.trim())} className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold disabled:opacity-50">تأكيد الحظر</button>
+          <button onClick={onClose} className="px-4 py-2.5 rounded-xl glass text-sm font-bold">إلغاء</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteAccountModal({ user, onConfirm, onClose }: {
+  user: AdminUser;
+  onConfirm: (id: string, phone: string) => void;
+  onClose: () => void;
+}) {
+  const [confirmation, setConfirmation] = useState("");
+  const matches = confirmation.trim() === user.phone;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4">
+      <div className="glass rounded-3xl p-5 w-full max-w-md">
+        <h3 className="font-black text-red-600 mb-2">حذف حساب نهائياً</h3>
+        <p className="text-sm font-bold mb-2">{user.full_name ?? "بدون اسم"}</p>
+        <p className="text-xs text-muted-foreground mb-3">رقم الهاتف: {user.phone}</p>
+        <p className="text-xs text-red-600 mb-3">تحذير: الحذف نهائي. نرفض الحذف إذا كان للحساب طلبات أو معاملات أو سجلات مالية/إدارية. قد تُحذف بيانات مرتبطة مثل المحادثات والإشعارات والتقييمات. إذا كان الحساب مالكاً لملفات تخزين تمنع الحذف فستظهر رسالة خطأ. التوكن الصادر مسبقاً قد يبقى صالحاً حتى انتهاء مدته.</p>
+        <label className="block text-xs font-bold mb-1">اكتب رقم الهاتف نفسه للتأكيد</label>
+        <input value={confirmation} onChange={(e) => setConfirmation(e.target.value)} placeholder={user.phone} className="w-full glass rounded-xl px-4 py-2.5 text-sm mb-3" />
+        <div className="flex gap-2">
+          <button disabled={!matches} onClick={() => onConfirm(user.id, confirmation.trim())} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold disabled:opacity-50">حذف نهائي</button>
+          <button onClick={onClose} className="px-4 py-2.5 rounded-xl glass text-sm font-bold">إلغاء</button>
         </div>
       </div>
     </div>
@@ -650,12 +739,12 @@ function AuditSection() {
   const [loading, setLoading] = useState(true);
   const listLogs = useServerFn(adminListAuditLogs);
   useEffect(() => { (async () => { try { setLogs(await listLogs({ data: {} }) as unknown as AdminAuditLog[]); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [listLogs]);
-  const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى" };
+  const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى", auth_ban_user: "حظر تسجيل الدخول", auth_unban_user: "رفع حظر تسجيل الدخول", delete_auth_user: "حذف حساب نهائياً", auth_user_deleted_profile_cleanup_failed: "حذف دخول مع تعثر تنظيف الملف الشخصي", auth_user_deleted_role_cleanup_failed: "حذف دخول مع تعثر تنظيف الصلاحيات" };
   return (
     <div>
       <h2 className="text-xl font-black mb-4">سجل العمليات</h2>
       {loading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : logs.length === 0 ? <EmptyState text="لا توجد عمليات مسجلة" /> : (
-        <div className="space-y-2">{logs.map((l) => (<div key={l.id} className="glass rounded-2xl p-3 text-sm"><div className="flex justify-between mb-1"><span className="font-bold">{actionLabels[l.action] ?? l.action}</span><span className="text-[10px] text-muted-foreground">{new Date(l.created_at).toLocaleString("ar-IQ")}</span></div><div className="text-[10px] text-muted-foreground">بواسطة: {l.admin?.full_name ?? l.user_id?.slice(0, 8) ?? "—"}</div>{l.metadata && <div className="text-[10px] text-muted-foreground mt-1">{Object.entries(l.metadata).map(([k, v]) => `${k}: ${v}`).join(" · ")}</div>}</div>))}</div>
+        <div className="space-y-2">{logs.map((l) => (<div key={l.id} className="glass rounded-2xl p-3 text-sm"><div className="flex justify-between mb-1"><span className="font-bold">{actionLabels[l.action] ?? l.action}</span><span className="text-[10px] text-muted-foreground">{new Date(l.created_at).toLocaleString("ar-IQ")}</span></div><div className="text-[10px] text-muted-foreground">بواسطة: {l.admin?.full_name ?? l.user_id?.slice(0, 8) ?? "—"}</div>{l.details && <div className="text-[10px] text-muted-foreground mt-1">{Object.entries(l.details).map(([k, v]) => `${k}: ${v}`).join(" · ")}</div>}</div>))}</div>
       )}
     </div>
   );

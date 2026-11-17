@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-import type { Json } from "@/integrations/supabase/types";
+import type { Json, Database } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 type AdminContext = { supabase: unknown; userId: string };
 type AdminProfileRow = {
@@ -238,6 +239,161 @@ export const adminUnblockUser = createServerFn({ method: "POST" })
     const { error } = await adminRpc(supabase).rpc("admin_unblock_user", { p_user_id: data.user_id });
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+
+async function assertProtectedAccountTarget(supabaseAdmin: SupabaseClient<Database>, actorId: string, targetId: string) {
+  if (actorId === targetId) throw new Error("لا يمكن تنفيذ العملية على حسابك");
+  const adminDb = supabaseAdmin as unknown as SupabaseClient;
+  const [roles, assignments, target] = await Promise.all([
+    adminDb.from("user_roles").select("role").eq("user_id", targetId),
+    adminDb.from("staff_assignments").select("user_id").eq("user_id", targetId),
+    supabaseAdmin.auth.admin.getUserById(targetId),
+  ]);
+  if (roles.error || assignments.error || target.error || !target.data?.user) {
+    throw new Error("تعذر التحقق من الحساب المستهدف");
+  }
+  const protectedRoles = new Set(["super_admin", "admin", "support", "finance", "moderator"]);
+  const hasProtectedRole = (roles.data ?? []).some((entry: { role: string }) => protectedRoles.has(entry.role));
+  if (hasProtectedRole || (assignments.data ?? []).length > 0) {
+    throw new Error("لا يمكن حظر أو حذف حساب من حسابات الإدارة أو الإشراف");
+  }
+}
+
+async function recordAccountAction(
+  supabaseAdmin: SupabaseClient<Database>,
+  actorId: string,
+  action: string,
+  targetId: string,
+  details: Record<string, unknown>,
+) {
+  const adminDb = supabaseAdmin as unknown as SupabaseClient;
+  const { error } = await adminDb.from("audit_logs").insert({
+    user_id: actorId,
+    action,
+    target_type: "user",
+    target_id: targetId,
+    details,
+  });
+  return !error;
+}
+
+export const adminBanUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({
+    user_id: z.string().uuid(),
+    duration: z.enum(["1h", "24h", "7d", "30d", "permanent"]),
+    reason: z.string().trim().min(2).max(500),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertProtectedAccountTarget(supabaseAdmin, context.userId, data.user_id);
+    const durations: Record<typeof data.duration, string> = {
+      "1h": "1h",
+      "24h": "24h",
+      "7d": "168h",
+      "30d": "720h",
+      permanent: "876000h",
+    };
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
+      ban_duration: durations[data.duration],
+    });
+    if (error) throw new Error("تعذر حظر الحساب");
+    const auditLogged = await recordAccountAction(
+      supabaseAdmin, context.userId, "auth_ban_user", data.user_id,
+      { duration: data.duration, reason: data.reason },
+    );
+    return { ok: true, audit_logged: auditLogged };
+  });
+
+export const adminUnbanUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({ user_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertProtectedAccountTarget(supabaseAdmin, context.userId, data.user_id);
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, {
+      ban_duration: "none",
+    });
+    if (error) throw new Error("تعذر رفع حظر تسجيل الدخول");
+    const auditLogged = await recordAccountAction(
+      supabaseAdmin, context.userId, "auth_unban_user", data.user_id, {},
+    );
+    return { ok: true, audit_logged: auditLogged };
+  });
+
+export const adminDeleteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({ user_id: z.string().uuid(), confirmation_phone: z.string().min(5).max(30) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SupabaseClient;
+    await assertProtectedAccountTarget(supabaseAdmin, context.userId, data.user_id);
+    const { data: profile, error: profileError } = await adminDb
+      .from("profiles").select("phone").eq("id", data.user_id).maybeSingle();
+    if (profileError || !profile?.phone || profile.phone !== data.confirmation_phone.trim()) {
+      throw new Error("رقم التأكيد غير مطابق أو الحساب غير موجود");
+    }
+    // Profiles are not FK-linked to auth.users in this project. Preserve financial
+    // and service history by refusing hard deletion when related records exist.
+    const blockers = await Promise.all([
+      adminDb.from("service_requests").select("id", { count: "exact", head: true })
+        .or(`customer_id.eq.${data.user_id},provider_id.eq.${data.user_id}`),
+      adminDb.from("transactions").select("id", { count: "exact", head: true }).eq("user_id", data.user_id),
+      adminDb.from("payment_transactions").select("id", { count: "exact", head: true }).eq("user_id", data.user_id),
+      adminDb.from("subscription_payments").select("id", { count: "exact", head: true }).eq("user_id", data.user_id),
+      adminDb.from("coupon_redemptions").select("id", { count: "exact", head: true }).eq("user_id", data.user_id),
+      adminDb.from("coupon_subsidy_ledger").select("id", { count: "exact", head: true })
+        .eq("customer_id", data.user_id),
+      adminDb.from("provider_change_requests").select("id", { count: "exact", head: true })
+        .eq("reviewed_by", data.user_id),
+      adminDb.from("user_subscriptions").select("id", { count: "exact", head: true })
+        .eq("granted_by", data.user_id),
+      adminDb.from("user_subscriptions").select("id", { count: "exact", head: true })
+        .eq("user_id", data.user_id),
+      adminDb.from("driver_wallets").select("user_id", { count: "exact", head: true })
+        .eq("user_id", data.user_id),
+      adminDb.from("trip_location_points").select("id", { count: "exact", head: true })
+        .eq("user_id", data.user_id),
+      adminDb.from("coupon_assignments").select("id", { count: "exact", head: true })
+        .eq("user_id", data.user_id),
+    ]);
+    if (blockers.some((result: { error: unknown }) => result.error)) {
+      throw new Error("تعذر فحص ارتباطات الحساب قبل الحذف");
+    }
+    if (blockers.some((result: { count: number | null }) => (result.count ?? 0) > 0)) {
+      throw new Error("لا يمكن حذف حساب مرتبط بطلبات أو معاملات أو سجلات مالية/إدارية. استخدم الحظر الدائم بدلاً منه.");
+    }
+
+    const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
+    if (authDeleteError) throw new Error("تعذر حذف حساب الدخول؛ قد تكون له ملفات مملوكة في التخزين");
+    const [rolesCleanup, assignmentsCleanup] = await Promise.all([
+      adminDb.from("user_roles").delete().eq("user_id", data.user_id),
+      adminDb.from("staff_assignments").delete().eq("user_id", data.user_id),
+    ]);
+    if (rolesCleanup.error || assignmentsCleanup.error) {
+      const auditLogged = await recordAccountAction(
+        supabaseAdmin, context.userId, "auth_user_deleted_role_cleanup_failed", data.user_id,
+        { reason: "role_cleanup_failed" },
+      );
+      return { ok: false, auth_deleted: true, profile_deleted: false, audit_logged: auditLogged };
+    }
+    const { error: profileDeleteError } = await adminDb.from("profiles").delete().eq("id", data.user_id);
+    if (profileDeleteError) {
+      const auditLogged = await recordAccountAction(
+        supabaseAdmin, context.userId, "auth_user_deleted_profile_cleanup_failed", data.user_id,
+        { reason: "profile_cleanup_failed" },
+      );
+      return { ok: false, auth_deleted: true, profile_deleted: false, audit_logged: auditLogged };
+    }
+    const auditLogged = await recordAccountAction(
+      supabaseAdmin, context.userId, "delete_auth_user", data.user_id,
+      { phone_confirmation_used: true, profile_deleted: true },
+    );
+    return { ok: true, auth_deleted: true, profile_deleted: true, audit_logged: auditLogged };
   });
 
 export const adminGetUserDetail = createServerFn({ method: "POST" })
