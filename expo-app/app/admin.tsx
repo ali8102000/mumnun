@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -28,8 +28,11 @@ export default function AdminScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const { data: adminCheck } = await supabase.rpc('has_role', { _user_id: user?.id, _role: 'admin' });
-    if (!adminCheck) { Alert.alert('خطأ', 'ليس لديك صلاحية للوصول'); router.back(); return; }
+    const [adminCheck, ownerCheck] = await Promise.all([
+      supabase.rpc('has_role', { _user_id: user?.id, _role: 'admin' }),
+      supabase.rpc('is_super_admin', { p_user_id: user?.id }),
+    ]);
+    if (!adminCheck.data && !ownerCheck.data) { Alert.alert('خطأ', 'ليس لديك صلاحية للوصول'); router.back(); return; }
     const [reqs, users, drivers, pricingRules, recentReqs] = await Promise.all([
       supabase.from('service_requests').select('id', { count: 'exact', head: true }),
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
@@ -49,6 +52,7 @@ export default function AdminScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <Text style={styles.title}>لوحة التحكم</Text>
+      {user?.email?.toLowerCase() === 'a7md0555666@gmail.com' && <Pressable style={styles.teamButton} onPress={() => router.push('/admin-team' as never)}><Text style={styles.teamButtonText}>👥 إدارة فريق العمل والصلاحيات</Text></Pressable>}
       <View style={styles.statsGrid}><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalRequests}</Text><Text style={styles.statLabel}>إجمالي الطلبات</Text></View><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalUsers}</Text><Text style={styles.statLabel}>المستخدمين</Text></View><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalDrivers}</Text><Text style={styles.statLabel}>السائقين</Text></View></View>
       <Text style={styles.sectionTitle}>قواعد التسعير</Text>
       {pricing.map((p) => (<View key={p.id} style={styles.pricingCard}><Text style={styles.pricingCategory}>{p.category}</Text><Text style={styles.pricingValues}>{p.base_fare?.toLocaleString('en')} + {p.per_km?.toLocaleString('en')}/كم</Text></View>))}
@@ -60,6 +64,7 @@ export default function AdminScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb', paddingHorizontal: 20, paddingTop: 50 }, center: { flex: 1, justifyContent: 'center', alignItems: 'center' }, title: { fontSize: 28, fontWeight: '900', color: '#1e293b', marginBottom: 20 },
+  teamButton: { backgroundColor: '#1d4ed8', borderRadius: 14, padding: 15, marginBottom: 20, alignItems: 'center' }, teamButtonText: { color: '#fff', fontSize: 14, fontWeight: '800' },
   statsGrid: { flexDirection: 'row', gap: 10, marginBottom: 24 }, statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 16, padding: 16, alignItems: 'center' }, statValue: { fontSize: 28, fontWeight: '900', color: '#2563eb' }, statLabel: { fontSize: 12, color: '#64748b', marginTop: 4, textAlign: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1e293b', marginBottom: 12 }, pricingCard: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 8 }, pricingCategory: { fontSize: 14, fontWeight: '700', color: '#1e293b' }, pricingValues: { fontSize: 14, color: '#64748b' },
   reqCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 8 }, reqType: { fontSize: 18 }, reqCustomer: { fontSize: 14, fontWeight: '700', color: '#1e293b', marginTop: 2 }, reqDate: { fontSize: 12, color: '#94a3b8', marginTop: 2 }, reqStatus: { fontSize: 12, fontWeight: '700', color: '#64748b' },
