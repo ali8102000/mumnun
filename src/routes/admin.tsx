@@ -110,7 +110,8 @@ function AdminPage() {
   const isDeveloperOnly = staffRoles.includes("developer") && !staffRoles.some((role) => ["super_admin", "admin", "support", "finance", "moderator"].includes(role));
   if (isDeveloperOnly) return <div className="min-h-screen grid place-items-center px-5"><div className="glass rounded-2xl p-6 text-center max-w-sm"><ShieldCheck className="h-10 w-10 text-primary mx-auto mb-3" /><div className="font-black">صلاحية المطور</div><p className="text-sm text-muted-foreground mt-2">هذا الحساب مخصص للعمل التقني ولا يملك صلاحية الاطلاع على بيانات الإدارة أو المستخدمين.</p></div></div>;
 
-  const visibleItems = NAV_ITEMS.filter((item) => item.roles.some((r) => staffRoles.includes(r)));
+  const isProjectOwner = session.user.email?.toLowerCase() === "a7md0555666@gmail.com";
+  const visibleItems = NAV_ITEMS.filter((item) => item.roles.some((r) => staffRoles.includes(r)) && (item.key !== "team" || isProjectOwner));
 
   return (
     <div className="min-h-screen bg-background flex">
