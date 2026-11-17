@@ -96,8 +96,10 @@ export function useLiveTracking(opts: {
           }
         },
       )
-      .subscribe((status) => {
-        if (status === "CHANNEL_ERROR") console.warn("[live-tracking] channel error");
+      .subscribe((status, error) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("[realtime] live-location subscription:", status, error?.message);
+        }
       });
 
     void supabase
