@@ -50,10 +50,9 @@ Deno.serve(async (req: Request) => {
     const searchData = await searchResponse.json();
     if (!searchResponse.ok) return json({ error: searchData?.error ?? "تعذر البحث في خدمات ممنون." }, searchResponse.status);
 
-    const chatEndpoint = Deno.env.get("AI_CHAT_API_URL");
-    const chatKey = Deno.env.get("AI_CHAT_API_KEY");
-    const chatModel = Deno.env.get("AI_CHAT_MODEL");
-    if (!chatEndpoint || !chatKey || !chatModel) {
+    const chatKey = Deno.env.get("GEMINI_API_KEY");
+    const chatModel = Deno.env.get("AI_CHAT_MODEL") ?? "gemini-3.1-flash-lite";
+    if (!chatKey) {
       return json({
         answer: "أكدر أساعدك بالعثور على الخدمة المناسبة. هاي أقرب الخدمات الموجودة حالياً بممنون. الأسعار والتوفر النهائي نتحقق منهن من داخل الطلب، وما أريد أعطيك سعر غير مؤكد.",
         sources: searchData.results ?? [],
@@ -64,19 +63,13 @@ Deno.serve(async (req: Request) => {
     const context = (searchData.results ?? []).map((item: Record<string, unknown>) =>
       `الخدمة: ${item.name_ar} | الاسم: ${item.name_en} | الرمز: ${item.slug}`
     ).join("\n");
-    const response = await fetch(chatEndpoint, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${chatModel}:generateContent`, {
       method: "POST",
-      headers: { "Authorization": `Bearer ${chatKey}`, "Content-Type": "application/json" },
+      headers: { "x-goog-api-key": chatKey, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: chatModel,
-        temperature: 0.1,
-        messages: [
-          {
-            role: "system",
-            content: "أنت مساعد ممنون العراقي. أجب بالعربية العراقية الواضحة وباختصار. اعتمد حصراً على سياق الخدمات المرفق. لا تخترع أسعاراً أو مزودين أو مواعيد أو تغطية جغرافية. إذا لم توجد المعلومة في السياق فقل إنها غير متاحة حالياً ووجّه المستخدم لفتح الطلب أو التواصل مع الدعم. لا تكشف أي بيانات خاصة.",
-          },
-          { role: "user", content: `سياق قاعدة بيانات ممنون:\n${context || "لا توجد خدمات مطابقة."}\n\nسؤال المستخدم: ${question}` },
-        ],
+        systemInstruction: { parts: [{ text: "أنت مساعد ممنون العراقي. أجب بالعربية العراقية الواضحة وباختصار. اعتمد حصراً على سياق الخدمات المرفق. لا تخترع أسعاراً أو مزودين أو مواعيد أو تغطية جغرافية. إذا لم توجد المعلومة في السياق فقل إنها غير متاحة حالياً ووجّه المستخدم لفتح الطلب أو التواصل مع الدعم. لا تكشف أي بيانات خاصة." }] },
+        contents: [{ role: "user", parts: [{ text: `سياق قاعدة بيانات ممنون:\n${context || "لا توجد خدمات مطابقة."}\n\nسؤال المستخدم: ${question}` }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 512 },
       }),
     });
     if (!response.ok) {
@@ -84,7 +77,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: "المساعد الذكي غير متاح حالياً. جرّب البحث بالخدمات." }, 502);
     }
     const completion = await response.json();
-    const answer = completion?.choices?.[0]?.message?.content;
+    const answer = completion?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text ?? "").join("");
     if (typeof answer !== "string" || !answer.trim()) return json({ error: "ما قدر المساعد يكوّن إجابة موثوقة." }, 502);
 
     return json({ answer: answer.trim(), sources: searchData.results ?? [], mode: "grounded-ai" });
