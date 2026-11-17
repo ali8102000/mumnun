@@ -21,7 +21,7 @@ async function createEmbedding(input: string, prefix: "query" | "passage") {
   const model = Deno.env.get("EMBEDDINGS_MODEL") ?? "gemini-embedding-001";
   if (!apiKey) throw new Error("EMBEDDINGS_NOT_CONFIGURED");
 
-  const modelId = model.replace(/^models\\//, "");
+  const modelId = model.startsWith("models/") ? model.slice(7) : model;
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:embedContent`, {
     method: "POST",
     headers: {
