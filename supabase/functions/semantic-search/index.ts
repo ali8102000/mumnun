@@ -17,22 +17,21 @@ function json(data: unknown, status = 200) {
 }
 
 async function createEmbedding(input: string, prefix: "query" | "passage") {
-  const endpoint = Deno.env.get("EMBEDDINGS_API_URL");
-  const apiKey = Deno.env.get("EMBEDDINGS_API_KEY");
-  const model = Deno.env.get("EMBEDDINGS_MODEL") ?? "intfloat/multilingual-e5-small";
-  if (!endpoint || !apiKey) throw new Error("EMBEDDINGS_NOT_CONFIGURED");
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  const model = Deno.env.get("EMBEDDINGS_MODEL") ?? "gemini-embedding-001";
+  if (!apiKey) throw new Error("EMBEDDINGS_NOT_CONFIGURED");
 
-  const response = await fetch(endpoint, {
+  const modelId = model.replace(/^models\\//, "");
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:embedContent`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
+      "x-goog-api-key": apiKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model,
-      input: `${prefix}: ${input}`,
-      dimensions: 384,
-      encoding_format: "float",
+      content: { parts: [{ text: input }] },
+      taskType: prefix === "query" ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT",
+      outputDimensionality: 768,
     }),
   });
   if (!response.ok) {
@@ -40,8 +39,8 @@ async function createEmbedding(input: string, prefix: "query" | "passage") {
     throw new Error("EMBEDDING_PROVIDER_FAILED");
   }
   const payload = await response.json();
-  const vector = payload?.data?.[0]?.embedding ?? payload?.embedding;
-  if (!Array.isArray(vector) || vector.length !== 384 || vector.some((n: unknown) => typeof n !== "number" || !Number.isFinite(n))) {
+  const vector = payload?.embedding?.values;
+  if (!Array.isArray(vector) || vector.length !== 768 || vector.some((n: unknown) => typeof n !== "number" || !Number.isFinite(n))) {
     throw new Error("INVALID_EMBEDDING_VECTOR");
   }
   return vector as number[];
@@ -70,14 +69,13 @@ Deno.serve(async (req: Request) => {
     const query = typeof body?.query === "string" ? body.query.trim() : "";
     if (query.length < 2 || query.length > 180) return json({ error: "اكتب عبارة بحث من حرفين إلى 180 حرفاً." }, 400);
 
-    const embeddingEndpoint = Deno.env.get("EMBEDDINGS_API_URL");
-    const embeddingKey = Deno.env.get("EMBEDDINGS_API_KEY");
-    if (!embeddingEndpoint || !embeddingKey) {
+    const embeddingKey = Deno.env.get("GEMINI_API_KEY");
+    if (!embeddingKey) {
       return json({ error: "البحث الدلالي ينتظر ربط مزوّد تضمين متعدد اللغات. البحث العادي يبقى متاحاً." }, 503);
     }
 
     const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-    const model = Deno.env.get("EMBEDDINGS_MODEL") ?? "intfloat/multilingual-e5-small";
+    const model = Deno.env.get("EMBEDDINGS_MODEL") ?? "gemini-embedding-001";
     const { data: services, error: servicesError } = await admin
       .from("services")
       .select("id, slug, name_ar, name_en, icon")
