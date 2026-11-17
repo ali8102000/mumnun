@@ -122,14 +122,18 @@ type AdminRpcClient = {
 const adminQueries = (client: unknown): AdminQueryClient => client as AdminQueryClient;
 const adminRpc = (client: unknown): AdminRpcClient => client as AdminRpcClient;
 
+async function isDeveloperStaff(supabase: unknown, userId: string) {
+  const assignment = await adminQueries(supabase).from("staff_assignments")
+    .select("display_title").eq("user_id", userId).maybeSingle();
+  if (assignment.error) throw new Error("تعذر التحقق من صلاحيات فريق العمل");
+  return assignment.data?.display_title === "Developer";
+}
+
 async function requireStaff(context: AdminContext) {
   const { supabase, userId } = context;
   const { data } = await adminRpc(supabase).rpc("has_staff_role", { p_user_id: userId });
   if (!data) throw new Error("غير مصرّح: للمشرفين فقط");
-  const assignment = await adminQueries(supabase).from("staff_assignments")
-    .select("display_title").eq("user_id", userId).maybeSingle();
-  if (assignment.error) throw new Error("تعذر التحقق من صلاحيات فريق العمل");
-  if (assignment.data?.display_title === "Developer") {
+  if (await isDeveloperStaff(supabase, userId)) {
     throw new Error("صلاحية المطور لا تسمح بالدخول إلى بيانات لوحة الإدارة");
   }
 }
@@ -138,12 +142,18 @@ async function requireAdmin(context: AdminContext) {
   const { supabase, userId } = context;
   const { data } = await adminRpc(supabase).rpc("has_admin_access", { p_user_id: userId });
   if (!data) throw new Error("غير مصرّح: للمديرين فقط");
+  if (await isDeveloperStaff(supabase, userId)) {
+    throw new Error("صلاحية المطور لا تسمح بتنفيذ عمليات الإدارة");
+  }
 }
 
 async function requireSuperAdmin(context: AdminContext) {
   const { supabase, userId } = context;
   const { data } = await adminRpc(supabase).rpc("is_super_admin", { p_user_id: userId });
   if (!data) throw new Error("غير مصرّح: للمدير الأعلى فقط");
+  if (await isDeveloperStaff(supabase, userId)) {
+    throw new Error("صلاحية المطور لا تسمح بتنفيذ عمليات الإدارة العليا");
+  }
 }
 
 export const checkSuperAdminExists = createServerFn({ method: "GET" })
@@ -170,6 +180,9 @@ export const adminGrantRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireSuperAdmin(context);
     const { supabase } = context;
+    if (await isDeveloperStaff(supabase, data.target_user_id)) {
+      throw new Error("يجب إيقاف عضوية Developer قبل منحه صلاحية إدارية أخرى");
+    }
     const { error } = await adminRpc(supabase).rpc("admin_grant_role", { p_target_user: data.target_user_id, p_role: data.role });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -194,11 +207,8 @@ export const getStaffRoles = createServerFn({ method: "GET" })
     const targetId = data?.user_id ?? context.userId;
     const { data: roles, error } = await adminRpc(supabase).rpc("get_staff_roles", { p_user_id: targetId });
     if (error) throw new Error(error.message);
-    const result = Array.isArray(roles) ? roles.filter((role): role is string => typeof role === "string") : [];
-    const assignment = await adminQueries(supabase).from("staff_assignments")
-      .select("display_title").eq("user_id", targetId).maybeSingle();
-    if (assignment.data?.display_title === "Developer" && !result.includes("developer")) result.push("developer");
-    return result;
+    if (await isDeveloperStaff(supabase, targetId)) return ["developer"];
+    return Array.isArray(roles) ? roles.filter((role): role is string => typeof role === "string") : [];
   });
 
 export const adminSearchUsers = createServerFn({ method: "POST" })
