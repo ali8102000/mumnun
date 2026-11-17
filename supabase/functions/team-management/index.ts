@@ -68,17 +68,30 @@ Deno.serve(async (req: Request) => {
         .order("created_at", { ascending: false });
       if (error) throw error;
       const ids = (assignments ?? []).map((row) => row.user_id);
-      const { data: profiles, error: profileError } = ids.length
-        ? await admin.from("profiles").select("id, full_name, email, phone, avatar_url").in("id", ids)
-        : { data: [], error: null };
+      const [{ data: profiles, error: profileError }, { data: authUsers, error: authUsersError }] = await Promise.all([
+        ids.length
+          ? admin.from("profiles").select("id, full_name, email, phone, avatar_url").in("id", ids)
+          : Promise.resolve({ data: [], error: null }),
+        admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      ]);
       if (profileError) throw profileError;
+      if (authUsersError) throw authUsersError;
       const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+      const authMap = new Map((authUsers.users ?? []).map((authUser) => [authUser.id, authUser]));
       return json({
-        members: (assignments ?? []).map((row) => ({
-          ...row,
-          profile: profileMap.get(row.user_id) ?? null,
-          is_owner: row.user_id === actor.id,
-        })),
+        members: (assignments ?? []).map((row) => {
+          const profile = profileMap.get(row.user_id) ?? null;
+          const authUser = authMap.get(row.user_id);
+          return {
+            ...row,
+            profile: profile ? { ...profile, email: profile.email ?? authUser?.email ?? null } : {
+              full_name: authUser?.user_metadata?.full_name ?? null,
+              email: authUser?.email ?? null,
+              phone: authUser?.phone ?? null,
+            },
+            is_owner: row.user_id === actor.id,
+          };
+        }),
       });
     }
 
