@@ -1,43 +1,41 @@
 # البحث الدلالي العربي ومساعد ممنون
 
+## المزوّد المعتمد
+تعتمد الميزة على Google Gemini عبر مفتاح واحد محفوظ في أسرار Supabase:
+- GEMINI_API_KEY: مفتاح Gemini API من Google AI Studio.
+- EMBEDDINGS_MODEL (اختياري): الافتراضي gemini-embedding-001.
+- AI_CHAT_MODEL (اختياري): الافتراضي gemini-3.1-flash-lite.
+
+يستخدم البحث نموذج gemini-embedding-001 متعدد اللغات، مع 768 بُعداً ومهمتي RETRIEVAL_DOCUMENT وRETRIEVAL_QUERY. يستخدم المساعد نموذج Gemini Flash-Lite لصياغة جواب عراقي قصير من نتائج كتالوج الخدمات فقط.
+
 ## ما الذي يفهرسه النظام؟
-يفهرس فقط كتالوج `public.services` (أسماء الخدمات وأسماؤها الإنجليزية ورموزها ومرادفات عراقية منتقاة). لا تُضمّن بيانات الزبائن أو أرقام الهواتف أو المواقع أو الطلبات أو المحادثات.
+يفهرس فقط كتالوج public.services (أسماء الخدمات وأسماؤها الإنجليزية ورموزها ومرادفات عراقية منتقاة). لا تُضمّن بيانات الزبائن أو أرقام الهواتف أو المواقع أو الطلبات أو المحادثات.
 
 ## بنية قاعدة البيانات
-- `extensions.vector(384)` عبر pgvector.
-- `public.service_embeddings` جدول خاص، RLS مفعّل ولا يملك `anon` أو `authenticated` صلاحية قراءة مباشرة.
-- `public.match_service_embeddings` RPC محصور بدور `service_role`.
+- extensions.vector(768) عبر pgvector.
+- public.service_embeddings جدول خاص، RLS مفعّل ولا يملك anon أو authenticated صلاحية قراءة مباشرة.
+- public.match_service_embeddings RPC محصور بدور service_role.
 - تُطبّق Migration بعد مراجعة CI فقط، ولا تنفذ تلقائياً من واجهة التطبيق.
 
-## إعداد مزوّد التضمين
-نموذج Supabase المدمج `gte-small` إنكليزي فقط؛ لا تستخدمه للبحث العربي.
-يلزم مزوّد تضمين متعدد اللغات متوافق مع OpenAI Embeddings API، ويُفضّل `intfloat/multilingual-e5-small` مع 384 بُعداً.
+## إعداد المفتاح
+أنشئ مفتاحاً من https://aistudio.google.com/app/apikey، ثم خزّنه في Supabase Edge Function Secrets باسم GEMINI_API_KEY. لا تضعه في GitHub أو في كود الويب أو الأندرويد أو ترسله داخل المحادثة.
 
-أضف أسرار Edge Function التالية في Supabase:
-- `EMBEDDINGS_API_URL`: عنوان endpoint الكامل لإنشاء embeddings.
-- `EMBEDDINGS_API_KEY`: مفتاح المزوّد.
-- `EMBEDDINGS_MODEL`: اسم النموذج الذي يقبله endpoint، مثلاً `intfloat/multilingual-e5-small`.
-
-يجب أن يعيد endpoint استجابة متوافقة مع OpenAI:
-`{ "data": [{ "embedding": [384 numbers] }] }`
-ويجب أن يحافظ على بادئات E5 التي يضيفها الكود: `query:` و`passage:`.
-
-## إعداد مساعد المحادثة
-لصياغة إجابات بلغة طبيعية من نتائج البحث فقط، أضف:
-- `AI_CHAT_API_URL`: عنوان Chat Completions متوافق مع OpenAI.
-- `AI_CHAT_API_KEY`: مفتاح المزوّد.
-- `AI_CHAT_MODEL`: اسم نموذج المحادثة.
-
-إذا لم تتوفر أسرار المحادثة، يعرض endpoint ردّاً احتياطياً مع مصادر الخدمات المسترجعة ولا يخترع أسعاراً أو توفراً.
+توفّر Google طبقة مجانية بحدود استخدام ونماذج محددة؛ الحدود قابلة للتغيير وليست ضماناً لحجم إنتاج غير محدود. راقب الاستخدام من AI Studio. على الطبقة المجانية قد تستخدم Google الطلبات والبيانات لتحسين منتجاتها وفق شروطها؛ لا نرسل سوى أسماء الخدمات العامة ومرادفاتها إلى التضمين، ولا نرسل بيانات المستخدمين أو الطلبات.
 
 ## Edge Functions
-- `semantic-search`: يتطلب JWT صالحاً، ويُنشئ embeddings الناقصة لخدمات الكتالوج عند أول بحث، ثم ينفذ بحث pgvector.
-- `mamnoon-assistant`: يتطلب JWT صالحاً، يستدعي البحث الدلالي، ثم يمرر أسماء الخدمات المسترجعة فقط إلى نموذج المحادثة.
+- semantic-search: يتطلب JWT صالحاً، وينشئ embeddings الناقصة لخدمات الكتالوج عند أول بحث، ثم ينفذ بحث pgvector.
+- mamnoon-assistant: يتطلب JWT صالحاً، يستدعي البحث الدلالي، ثم يمرر أسماء الخدمات المسترجعة فقط إلى Gemini.
+- إذا لم يوجد المفتاح، يعرض المساعد وضعاً احتياطياً من نتائج الخدمات دون اختلاق أسعار أو توفر.
 
 ## خطوات الإطلاق
-1. نجاح CI للويب وExpo وفحص Deno.
-2. ضبط أسرار المزوّدين من لوحة Supabase، دون وضعها في GitHub أو التطبيق.
-3. مراجعة Migration ثم تطبيقها على مشروع Supabase الصحيح `enteiolvirenbhkyskgb`.
-4. نشر الدالتين مع JWT verification.
+1. إنشاء مفتاح Gemini وتخزينه كسِرّ في Supabase.
+2. نجاح CI للويب وExpo وفحص Deno.
+3. مراجعة Migration ثم تطبيقها على مشروع Supabase الصحيح enteiolvirenbhkyskgb بموافقة منفصلة.
+4. نشر الدالتين مع التحقق من JWT.
 5. اختبار عبارات عراقية مثل «الكهرباء تفصل بالبيت» و«المي يتسرب من الحنفية»، والتحقق من ترتيب الخدمات.
-6. مراقبة زمن الاستجابة وتكلفة مزود التضمين، ثم بناء Android وإطلاق الويب.
+6. مراقبة زمن الاستجابة وحدود الاستخدام، ثم بناء Android وإطلاق الويب.
+
+## مراجع Google الرسمية
+- https://ai.google.dev/gemini-api/docs/pricing
+- https://ai.google.dev/gemini-api/docs/embeddings
+- https://ai.google.dev/gemini-api/docs/api-key
