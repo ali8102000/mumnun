@@ -136,7 +136,7 @@ Deno.serve(async (req: Request) => {
       const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
       const fullName = typeof body?.full_name === "string" ? body.full_name.trim() : "";
       const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254
         || fullName.length < 2 || fullName.length > 120 || (phone && (phone.length < 7 || phone.length > 30))) {
         return json({ error: "تحقق من الاسم والبريد ورقم الهاتف" }, 400);
       }
@@ -168,7 +168,7 @@ Deno.serve(async (req: Request) => {
       const phone = body?.phone === undefined ? undefined : (typeof body.phone === "string" ? body.phone.trim() : "");
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)
         || (email === undefined && phone === undefined)
-        || (email !== undefined && (!email || email.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)))
+        || (email !== undefined && (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))
         || (phone !== undefined && (!phone || phone.length < 7 || phone.length > 30))) {
         return json({ error: "بيانات الحساب غير صحيحة" }, 400);
       }
