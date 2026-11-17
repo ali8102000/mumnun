@@ -28,8 +28,11 @@ export default function AdminScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const { data: adminCheck } = await supabase.rpc('has_role', { _user_id: user?.id, _role: 'admin' });
-    if (!adminCheck) { Alert.alert('خطأ', 'ليس لديك صلاحية للوصول'); router.back(); return; }
+    const [adminCheck, ownerCheck] = await Promise.all([
+      supabase.rpc('has_role', { _user_id: user?.id, _role: 'admin' }),
+      supabase.rpc('is_super_admin', { p_user_id: user?.id }),
+    ]);
+    if (!adminCheck.data && !ownerCheck.data) { Alert.alert('خطأ', 'ليس لديك صلاحية للوصول'); router.back(); return; }
     const [reqs, users, drivers, pricingRules, recentReqs] = await Promise.all([
       supabase.from('service_requests').select('id', { count: 'exact', head: true }),
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
