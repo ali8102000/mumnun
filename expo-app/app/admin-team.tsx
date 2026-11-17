@@ -15,6 +15,13 @@ type TeamMember = {
   profile?: { full_name?: string | null; email?: string | null; phone?: string | null } | null;
 };
 
+async function invokeTeam(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke('team-management', { body });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 const ROLES: { value: TeamRole; label: string }[] = [
   { value: 'developer', label: 'مطور' },
   { value: 'support', label: 'دعم' },
@@ -33,13 +40,6 @@ export default function AdminTeamScreen() {
   const [busy, setBusy] = useState(false);
   const [authorized, setAuthorized] = useState(false);
 
-  const invoke = async (body: Record<string, unknown>) => {
-    const { data, error } = await supabase.functions.invoke('team-management', { body });
-    if (error) throw new Error(error.message);
-    if (data?.error) throw new Error(data.error);
-    return data;
-  };
-
   const load = useCallback(async () => {
     if (!user) { setLoading(false); return; }
     if (user.email?.toLowerCase() !== 'a7md0555666@gmail.com') {
@@ -49,7 +49,7 @@ export default function AdminTeamScreen() {
     if (ownerError || !ownerCheck) { setAuthorized(false); setLoading(false); return; }
     setAuthorized(true);
     try {
-      const data = await invoke({ action: 'list' });
+      const data = await invokeTeam({ action: 'list' });
       setMembers((data?.members ?? []) as TeamMember[]);
     } catch (error) {
       Alert.alert('تعذر التحميل', error instanceof Error ? error.message : 'حاول مرة أخرى');
