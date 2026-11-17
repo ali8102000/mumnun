@@ -864,9 +864,10 @@ export const adminCreateUserInvite = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
       data: { full_name: data.full_name, ...(data.phone ? { phone: data.phone } : {}) },
-      app_metadata: { must_change_password: true },
     });
     if (error || !invited.user) throw new Error(error?.message ?? "تعذر إرسال دعوة الحساب");
+    const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(invited.user.id, { app_metadata: { ...(invited.user.app_metadata ?? {}), must_change_password: true } });
+    if (metadataError) throw new Error("تم إنشاء الدعوة لكن تعذر فرض تغيير كلمة المرور؛ يلزم فحص الحساب");
     const adminDb = supabaseAdmin as unknown as SupabaseClient;
     const { error: profileError } = await adminDb.from("profiles").upsert({
       id: invited.user.id,
