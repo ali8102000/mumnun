@@ -712,10 +712,6 @@ type TeamMember = {
 
 const TEAM_ROLE_OPTIONS = [
   { value: "developer", label: "Developer — مطور" },
-  { value: "support", label: "الدعم الفني" },
-  { value: "finance", label: "المحاسبة" },
-  { value: "operations", label: "العمليات" },
-  { value: "monitoring", label: "المراقبة" },
 ];
 
 function TeamSection() {
@@ -787,7 +783,7 @@ function TeamSection() {
           <select value={role} onChange={(e) => setRole(e.target.value)} className="glass rounded-xl px-3 py-2.5 text-sm outline-none">{TEAM_ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
           <button disabled={busy || !email.trim()} onClick={invite} className="rounded-xl px-4 py-2.5 bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50">{busy ? "جارٍ التنفيذ..." : "إرسال الدعوة"}</button>
         </div>
-        <p className="text-[11px] text-muted-foreground mt-2">المطور لا يستطيع فتح بيانات لوحة الإدارة أو إدارة المستخدمين. ولا يحصل هذا الإجراء على صلاحية حذف المشروع أو تغيير إعدادات الدفع.</p>
+        <p className="text-[11px] text-muted-foreground mt-2">المطور لا يستطيع فتح بيانات لوحة الإدارة أو إدارة المستخدمين. هذه الدعوة لا تمنحه صلاحية مستودع GitHub أو إعدادات الدفع الخارجية.</p>
       </div>
       {loading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : members.length === 0 ? <EmptyState text="لا يوجد أعضاء في الفريق بعد" /> : (
         <div className="space-y-2">
