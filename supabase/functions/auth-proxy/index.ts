@@ -58,6 +58,21 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const path = url.pathname.replace("/auth-proxy", "");
 
+    if (path === "/complete-forced-password-change" && req.method === "POST") {
+      const authHeader = req.headers.get("Authorization");
+      const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : "";
+      if (!bearer) return json({ error: "Unauthorized" }, 401);
+      const { data: authData, error: authError } = await supabase.auth.getUser(bearer);
+      if (authError || !authData.user) return json({ error: "Unauthorized" }, 401);
+      const { data: current, error: getError } = await supabase.auth.admin.getUserById(authData.user.id);
+      if (getError || !current.user) return json({ error: "Unable to verify account" }, 400);
+      const metadata = { ...(current.user.app_metadata ?? {}) };
+      delete metadata.must_change_password;
+      const { error: updateError } = await supabase.auth.admin.updateUserById(authData.user.id, { app_metadata: metadata });
+      if (updateError) return json({ error: "Unable to complete password change" }, 400);
+      return json({ ok: true });
+    }
+
     if (path === "/signup" && req.method === "POST") {
       const body = await req.json();
       const email = typeof body?.email === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email) ? body.email : null;
