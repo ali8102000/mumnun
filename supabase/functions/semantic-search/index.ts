@@ -88,6 +88,25 @@ Deno.serve(async (req: Request) => {
     if (indexError) throw indexError;
     const indexedModels = new Map((indexed ?? []).map((row) => [row.service_id, row.model]));
 
+    // Iraqi Arabic synonyms help the multilingual model understand everyday phrasing.
+    const synonyms: Record<string, string> = {
+      electric_setup: "كهرباء البيت تمديدات اسلاك تأسيس كهربائي تماس القاطع يفصل الكهرباء عطل كهرباء بالبيت",
+      electric_street: "اسلاك الشارع كيبل كهرباء ربط كهرباء خارجي تصليح سلك كهرباء",
+      plumbing: "تسرب مي ماء حنفية انبوب بايب مجاري انسداد تصليح سباك",
+      ac_repair: "سبلت مكيف تبريد حار غاز فريون تنظيف المكيف تصليح المكيف",
+      washer_repair: "غسالة ملابس ما تعصر ما تسحب مي تصليح غسالة",
+      fridge_repair: "ثلاجة ما تبرد فريزر تبريد تصليح براد",
+      stove_repair: "طباخ غاز فرن شعلة ما تشتغل تصليح فرن",
+      cleaning: "تنظيف البيت غسل الارضيات تنظيف مطبخ حمام عاملات تنظيف",
+      wood_carpentry: "نجار خشب باب دولاب مطبخ اثاث تصليح خشب",
+      carpentry_form: "نجارة قالب خشب صب كونكريت سقف بناء",
+      blacksmith: "حداد ابواب شبابيك حديد سياج لحام",
+      internet_install: "نصب انترنت راوتر واي فاي ضعف الشبكة تمديد كيبل",
+      security_cameras: "كاميرات مراقبة نصب كامرات تسجيل DVR حماية",
+      phone_repair: "تصليح موبايل شاشة بطارية شحن هاتف",
+      computer_repair: "تصليح حاسبة لابتوب ويندوز كمبيوتر",
+    };
+
     // Keep the small catalog in sync lazily. Only service names and curated synonyms are embedded.
     for (const service of services ?? []) {
       if (indexedModels.get(service.id) === model) continue;
@@ -96,13 +115,14 @@ Deno.serve(async (req: Request) => {
         service.name_en,
         service.slug.replaceAll("_", " "),
         `خدمة ${service.name_ar}`,
+        synonyms[service.slug] ?? "",
       ].filter(Boolean).join(" | ");
       const embedding = await createEmbedding(content, "passage");
       const { error } = await admin.from("service_embeddings").upsert({
         service_id: service.id,
         content,
         model,
-        embedding,
+        embedding: JSON.stringify(embedding),
         updated_at: new Date().toISOString(),
       }, { onConflict: "service_id" });
       if (error) throw error;
@@ -111,7 +131,7 @@ Deno.serve(async (req: Request) => {
     const queryEmbedding = await createEmbedding(query, "query");
     const { data: matches, error: matchError } = await admin.rpc("match_service_embeddings", {
       query_embedding: queryEmbedding,
-      match_threshold: 0.28,
+      match_threshold: 0.42,
       match_count: 12,
     });
     if (matchError) throw matchError;
