@@ -744,8 +744,7 @@ function TeamSection() {
   }
 
   async function updateRole(userId: string) {
-    const nextRole = drafts[userId];
-    if (!nextRole) return;
+    const nextRole = drafts[userId] ?? "developer";
     setBusy(true);
     const { data, error } = await supabase.functions.invoke("team-management", { body: { action: "update", user_id: userId, role: nextRole } });
     setBusy(false);
