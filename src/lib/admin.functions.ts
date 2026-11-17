@@ -821,6 +821,37 @@ export const adminUpdateUserContact = createServerFn({ method: "POST" })
     return { ok: true, audit_logged: auditLogged };
   });
 
+
+export const adminRequirePasswordChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({ user_id: z.string().uuid(), required: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertProtectedAccountTarget(supabaseAdmin, context.userId, data.user_id);
+    const { data: target, error: getError } = await supabaseAdmin.auth.admin.getUserById(data.user_id);
+    if (getError || !target.user) throw new Error("تعذر التحقق من الحساب");
+    const metadata = { ...(target.user.app_metadata ?? {}), must_change_password: data.required };
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, { app_metadata: metadata });
+    if (error) throw new Error("تعذر تحديث حالة تغيير كلمة المرور");
+    const auditLogged = await recordAccountAction(supabaseAdmin, context.userId, data.required ? "password_change_required" : "password_change_requirement_removed", data.user_id, {});
+    return { ok: true, audit_logged: auditLogged };
+  });
+
+export const adminCompleteForcedPasswordChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({}).parse(d ?? {}))
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: current, error: getError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (getError || !current.user) throw new Error("تعذر التحقق من الحساب");
+    const metadata = { ...(current.user.app_metadata ?? {}) };
+    delete metadata.must_change_password;
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, { app_metadata: metadata });
+    if (error) throw new Error("تم تغيير كلمة المرور لكن تعذر إكمال تحديث حالة الحساب");
+    return { ok: true };
+  });
+
 export const adminCreateUserInvite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((d) => z.object({
@@ -833,6 +864,7 @@ export const adminCreateUserInvite = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
       data: { full_name: data.full_name, ...(data.phone ? { phone: data.phone } : {}) },
+      app_metadata: { must_change_password: true },
     });
     if (error || !invited.user) throw new Error(error?.message ?? "تعذر إرسال دعوة الحساب");
     const adminDb = supabaseAdmin as unknown as SupabaseClient;
