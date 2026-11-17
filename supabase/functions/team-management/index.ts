@@ -95,6 +95,12 @@ Deno.serve(async (req: Request) => {
       if (profileLookupError) throw profileLookupError;
 
       let targetUserId = existingProfile?.id as string | undefined;
+      if (targetUserId) {
+        const { data: existingSuperAdmin, error: existingRoleError } = await admin.from("user_roles")
+          .select("role").eq("user_id", targetUserId).eq("role", "super_admin").maybeSingle();
+        if (existingRoleError) throw existingRoleError;
+        if (existingSuperAdmin) return json({ error: "لا يمكن تغيير صلاحية مدير أعلى" }, 403);
+      }
       let invitationSent = false;
       if (!targetUserId) {
         const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email);
@@ -119,11 +125,12 @@ Deno.serve(async (req: Request) => {
       }, { onConflict: "user_id" });
       if (upsertError) throw upsertError;
 
-      const { error: auditError } = await admin.rpc("log_admin_action", {
-        p_action: invitationSent ? "staff_invited" : "staff_assigned",
-        p_target_type: "staff",
-        p_target_id: targetUserId,
-        p_details: { email, role, department: roleConfig.department, invitation_sent: invitationSent },
+      const { error: auditError } = await admin.from("audit_logs").insert({
+        user_id: actor.id,
+        action: invitationSent ? "staff_invited" : "staff_assigned",
+        target_type: "staff",
+        target_id: targetUserId,
+        details: { email, role, department: roleConfig.department, invitation_sent: invitationSent },
       });
       return json({ ok: true, user_id: targetUserId, invitation_sent: invitationSent, audit_logged: !auditError });
     }
@@ -151,9 +158,9 @@ Deno.serve(async (req: Request) => {
         updated_at: new Date().toISOString(),
       }).eq("user_id", targetUserId);
       if (error) throw error;
-      const { error: auditError } = await admin.rpc("log_admin_action", {
-        p_action: "staff_role_updated", p_target_type: "staff", p_target_id: targetUserId,
-        p_details: { role, department: roleConfig.department },
+      const { error: auditError } = await admin.from("audit_logs").insert({
+        user_id: actor.id, action: "staff_role_updated", target_type: "staff", target_id: targetUserId,
+        details: { role, department: roleConfig.department },
       });
       return json({ ok: true, audit_logged: !auditError });
     }
@@ -172,9 +179,9 @@ Deno.serve(async (req: Request) => {
       const { error } = await admin.from("staff_assignments")
         .update({ active: false, updated_at: new Date().toISOString() }).eq("user_id", targetUserId);
       if (error) throw error;
-      const { error: auditError } = await admin.rpc("log_admin_action", {
-        p_action: "staff_deactivated", p_target_type: "staff", p_target_id: targetUserId,
-        p_details: { active: false },
+      const { error: auditError } = await admin.from("audit_logs").insert({
+        user_id: actor.id, action: "staff_deactivated", target_type: "staff", target_id: targetUserId,
+        details: { active: false },
       });
       return json({ ok: true, audit_logged: !auditError });
     }
