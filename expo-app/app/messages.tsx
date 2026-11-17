@@ -18,10 +18,26 @@ export default function MessagesScreen() {
   }, [user?.id]);
 
   useEffect(() => {
-    loadChats();
-    const sub = supabase.channel('chats-list').on('postgres_changes', { event: '*', schema: 'public', table: 'chats' }, () => loadChats()).subscribe();
-    return () => { supabase.removeChannel(sub); };
-  }, [loadChats]);
+    if (!user?.id) {
+      setChats([]);
+      setLoading(false);
+      return;
+    }
+
+    void loadChats();
+    const sub = supabase
+      .channel(`chats-${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chats' }, () => {
+        void loadChats();
+      })
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[realtime] chats subscription:', status, error?.message);
+        }
+      });
+
+    return () => { void supabase.removeChannel(sub); };
+  }, [loadChats, user?.id]);
 
   const onRefresh = async () => { setRefreshing(true); await loadChats(); setRefreshing(false); };
 
