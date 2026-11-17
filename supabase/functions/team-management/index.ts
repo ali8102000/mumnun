@@ -112,10 +112,11 @@ Deno.serve(async (req: Request) => {
         if (existingAssignment && existingAssignment.display_title !== "Developer") {
           return json({ error: "هذا الحساب عضو في فريق إداري آخر ولا يمكن استبدال صلاحياته من هنا" }, 409);
         }
-        const { data: existingSuperAdmin, error: existingRoleError } = await admin.from("user_roles")
-          .select("role").eq("user_id", targetUserId).eq("role", "super_admin").maybeSingle();
+        const { data: existingPrivilegedRole, error: existingRoleError } = await admin.from("user_roles")
+          .select("role").eq("user_id", targetUserId)
+          .in("role", ["admin", "support", "finance", "moderator", "super_admin"]).limit(1).maybeSingle();
         if (existingRoleError) throw existingRoleError;
-        if (existingSuperAdmin) return json({ error: "لا يمكن تغيير صلاحية مدير أعلى" }, 403);
+        if (existingPrivilegedRole) return json({ error: "هذا الحساب يملك صلاحية إدارية مسبقاً؛ لا يمكن تحويله إلى Developer من هنا" }, 403);
       }
       let invitationSent = false;
       if (!targetUserId) {
@@ -165,9 +166,10 @@ Deno.serve(async (req: Request) => {
       if (assignmentError) throw assignmentError;
       if (existingAssignment?.display_title !== "Developer") return json({ error: "يمكن تعديل أعضاء فريق المطورين فقط" }, 403);
       const { data: targetRoles, error: rolesError } = await admin.from("user_roles")
-        .select("role").eq("user_id", targetUserId).eq("role", "super_admin");
+        .select("role").eq("user_id", targetUserId)
+        .in("role", ["admin", "support", "finance", "moderator", "super_admin"]).limit(1).maybeSingle();
       if (rolesError) throw rolesError;
-      if ((targetRoles ?? []).length) return json({ error: "لا يمكن تعديل حساب مدير أعلى" }, 403);
+      if (targetRoles) return json({ error: "لا يمكن تعديل حساب يملك صلاحية إدارية" }, 403);
 
       const roleConfig = ROLE_MAP[role];
       const { error } = await admin.from("staff_assignments").update({
@@ -197,9 +199,10 @@ Deno.serve(async (req: Request) => {
       if (assignmentError) throw assignmentError;
       if (existingAssignment?.display_title !== "Developer") return json({ error: "يمكن إيقاف أعضاء فريق المطورين فقط" }, 403);
       const { data: targetRoles, error: rolesError } = await admin.from("user_roles")
-        .select("role").eq("user_id", targetUserId).eq("role", "super_admin");
+        .select("role").eq("user_id", targetUserId)
+        .in("role", ["admin", "support", "finance", "moderator", "super_admin"]).limit(1).maybeSingle();
       if (rolesError) throw rolesError;
-      if ((targetRoles ?? []).length) return json({ error: "لا يمكن إيقاف حساب مدير أعلى" }, 403);
+      if (targetRoles) return json({ error: "لا يمكن إيقاف حساب يملك صلاحية إدارية" }, 403);
       const { error } = await admin.from("staff_assignments")
         .update({ active: false, updated_at: new Date().toISOString() }).eq("user_id", targetUserId);
       if (error) throw error;
