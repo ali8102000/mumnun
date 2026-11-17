@@ -6,7 +6,7 @@ create table if not exists public.service_embeddings (
   service_id uuid primary key references public.services(id) on delete cascade,
   content text not null,
   model text not null,
-  embedding extensions.vector(384) not null,
+  embedding extensions.vector(768) not null,
   updated_at timestamptz not null default now()
 );
 
@@ -19,7 +19,7 @@ create index if not exists service_embeddings_embedding_hnsw_idx
   using hnsw (embedding vector_cosine_ops);
 
 create or replace function public.match_service_embeddings(
-  query_embedding extensions.vector(384),
+  query_embedding extensions.vector(768),
   match_threshold double precision default 0.25,
   match_count integer default 10
 )
