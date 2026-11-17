@@ -46,7 +46,7 @@ jobs:
       - name: Validate production Expo configuration with all required variables
         env:
           APP_ENV: production
-          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_URL: https://enteiolvirenbhkyskgb.supabase.co
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
           EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ci-maps-placeholder
           EAS_PROJECT_ID: 00000000-0000-4000-8000-000000000000
@@ -54,7 +54,7 @@ jobs:
       - name: Ensure production config rejects a missing Maps key
         env:
           APP_ENV: production
-          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_URL: https://enteiolvirenbhkyskgb.supabase.co
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-public-placeholder
           EAS_PROJECT_ID: 00000000-0000-4000-8000-000000000000
         run: |
