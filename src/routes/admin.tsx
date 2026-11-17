@@ -796,7 +796,7 @@ function TeamSection() {
               {!member.is_owner && (
                 <div className="flex flex-wrap gap-2 items-center">
                   <select value={drafts[member.user_id] ?? roleFor(member)} onChange={(e) => setDrafts((prev) => ({ ...prev, [member.user_id]: e.target.value }))} className="glass rounded-lg px-2 py-2 text-xs flex-1 min-w-[150px]">{TEAM_ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
-                  <button disabled={busy || !member.active} onClick={() => updateRole(member.user_id)} className="rounded-lg px-3 py-2 bg-primary/10 text-primary text-xs font-bold disabled:opacity-40">حفظ الصلاحية</button>
+                  <button disabled={busy} onClick={() => updateRole(member.user_id)} className="rounded-lg px-3 py-2 bg-primary/10 text-primary text-xs font-bold disabled:opacity-40">{member.active ? "حفظ الصلاحية" : "إعادة تفعيل"}</button>
                   {member.active && <button disabled={busy} onClick={() => deactivate(member.user_id)} className="rounded-lg px-3 py-2 bg-red-500/10 text-red-600 text-xs font-bold disabled:opacity-40">إيقاف</button>}
                 </div>
               )}
