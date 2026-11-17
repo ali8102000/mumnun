@@ -23,6 +23,7 @@ type Ticket = {
   category: string;
   status: string;
   created_at: string;
+  needs_staff?: boolean;
 };
 
 type TicketMessage = {
@@ -31,6 +32,7 @@ type TicketMessage = {
   sender_id: string;
   message: string;
   is_staff: boolean;
+  is_ai?: boolean;
   created_at: string;
 };
 type QueryResult<T> = { data: T | null; error: { message: string } | null };
@@ -129,6 +131,17 @@ function SupportCenter() {
         .select()
         .maybeSingle();
       if (error) throw error;
+      if (data) {
+        const { data: firstMessage, error: messageError } = await supportDb
+          .from("support_ticket_messages")
+          .insert({ ticket_id: data.id, sender_id: session!.user.id, message: newDesc, is_staff: false })
+          .select()
+          .maybeSingle();
+        if (!messageError && firstMessage) {
+          const { error: aiError } = await supabase.functions.invoke("support-assistant", { body: { message_id: firstMessage.id } });
+          if (aiError) toast.message("تم فتح التذكرة، وسيتمكن فريق الدعم من متابعتها.");
+        }
+      }
       toast.success("تم إنشاء التذكرة");
       setShowNew(false);
       setNewSubject("");
@@ -146,16 +159,22 @@ function SupportCenter() {
     if (!reply.trim() || !selected) return;
     setBusy(true);
     try {
-      const { error } = await supportDb
+      const { data, error } = await supportDb
         .from("support_ticket_messages")
         .insert({
           ticket_id: selected.id,
           sender_id: session!.user.id,
           message: reply,
           is_staff: false,
-        });
+        })
+        .select()
+        .maybeSingle();
       if (error) throw error;
       setReply("");
+      if (data) {
+        const { error: aiError } = await supabase.functions.invoke("support-assistant", { body: { message_id: data.id } });
+        if (aiError) toast.message("وصلت رسالتك، لكن الرد الآلي غير متاح حالياً.");
+      }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "حدث خطأ غير متوقع");
     } finally {
@@ -181,16 +200,16 @@ function SupportCenter() {
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-2 inline-block ${
               selected.status === "open" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
             }`}>
-              {selected.status === "open" ? "مفتوحة" : "مغلقة"}
+              {selected.status === "waiting_staff" ? "بانتظار فريق الدعم" : selected.status === "open" ? "مفتوحة" : "مغلقة"}
             </span>
           </div>
 
           <div className="space-y-2 mb-4 max-h-96 overflow-y-auto">
             {messages.map((m) => (
-              <div key={m.id} className={`flex ${m.sender_id === session.user.id ? "justify-end" : "justify-start"}`}>
+              <div key={m.id} className={`flex ${m.is_ai || m.is_staff ? "justify-start" : "justify-end"}`}>
                 <div className={`glass rounded-2xl px-3 py-2 max-w-[80%] text-sm ${m.is_staff ? "border-2 border-primary/20" : ""}`}>
                   <div>{m.message}</div>
-                  {m.is_staff && <div className="text-[9px] text-primary font-bold mt-0.5">فريق الدعم</div>}
+                  {m.is_ai ? <div className="text-[9px] text-primary font-bold mt-0.5">مساعد ممنون الذكي</div> : m.is_staff ? <div className="text-[9px] text-primary font-bold mt-0.5">فريق الدعم</div> : null}
                 </div>
               </div>
             ))}
@@ -273,10 +292,10 @@ function SupportCenter() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                       t.status === "open" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
                     }`}>
-                      {t.status === "open" ? "مفتوحة" : "مغلقة"}
+                      {t.status === "waiting_staff" ? "بانتظار فريق الدعم" : t.status === "open" ? "مفتوحة" : "مغلقة"}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">{t.category}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{t.category}{t.needs_staff ? " · تحتاج متابعة موظف" : " · ردود تلقائية متاحة"}</div>
                 </button>
               ))}
             </div>

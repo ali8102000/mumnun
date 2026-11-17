@@ -95,6 +95,7 @@ interface AdminQuery<T> extends PromiseLike<AdminQueryResult<T>> {
 type AdminQueryClient = { from(table: string): AdminQuery<AdminRow[]> };
 type AdminRpcArgs = {
   has_staff_role: { p_user_id: string };
+  has_chat_moderation_access: { p_user_id: string };
   has_admin_access: { p_user_id: string };
   is_super_admin: { p_user_id: string };
   bootstrap_first_super_admin: { p_user_id: string };
@@ -761,11 +762,48 @@ export const adminListMonitoringTickets = createServerFn({ method: "GET" })
     const { data, error } = await adminQueries(supabaseAdmin)
       .from("support_tickets")
       .select("*")
-      .eq("status", "open")
+      .or("status.eq.open,status.eq.waiting_staff")
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw new Error("فشل تحميل تذاكر الدعم");
     return data ?? [];
+  });
+
+export const adminListMonitoringTicketMessages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({ ticket_id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireStaff(context);
+    const { supabase } = context;
+    const { data: allowed, error: permissionError } = await adminRpc(supabase).rpc("has_chat_moderation_access", { p_user_id: context.userId });
+    if (permissionError || !allowed) throw new Error("غير مصرّح بقراءة محادثات الدعم");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: messages, error } = await adminQueries(supabaseAdmin)
+      .from("support_ticket_messages").select("*").eq("ticket_id", data.ticket_id)
+      .order("created_at", { ascending: true }).limit(200);
+    if (error) throw new Error("فشل تحميل رسائل التذكرة");
+    return messages ?? [];
+  });
+
+export const adminReplyToSupportTicket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({ ticket_id: z.string().uuid(), message: z.string().trim().min(2).max(2000) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireStaff(context);
+    const { supabase } = context;
+    const { data: allowed, error: permissionError } = await adminRpc(supabase).rpc("has_chat_moderation_access", { p_user_id: context.userId });
+    if (permissionError || !allowed) throw new Error("غير مصرّح بالرد على تذاكر الدعم");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adminDb = supabaseAdmin as unknown as SupabaseClient;
+    const { data: ticket, error: ticketError } = await adminDb.from("support_tickets").select("id,status").eq("id", data.ticket_id).maybeSingle();
+    if (ticketError || !ticket) throw new Error("التذكرة غير موجودة");
+    const { error: insertError } = await adminDb.from("support_ticket_messages").insert({
+      ticket_id: data.ticket_id, sender_id: context.userId, message: data.message, is_staff: true, is_ai: false,
+    });
+    if (insertError) throw new Error("تعذر إرسال رد فريق الدعم");
+    const { error: updateError } = await adminDb.from("support_tickets").update({ status: "open", needs_staff: false }).eq("id", data.ticket_id);
+    if (updateError) throw new Error("تم إرسال الرد لكن تعذر تحديث حالة التذكرة");
+    return { ok: true };
   });
 
 

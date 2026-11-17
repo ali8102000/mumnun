@@ -169,6 +169,7 @@ export default function HomeScreen() {
       <View style={styles.bottomTabs}>
         <TabBtn label="الرئيسية" icon="🏠" active onPress={() => {}} />
         <TabBtn label="الرسائل" icon="💬" onPress={() => router.push('/messages')} />
+        <TabBtn label="الدعم" icon="🎧" onPress={() => router.push('/support')} />
         {isWorker && <TabBtn label="الأصدقاء" icon="👥" onPress={() => router.push('/friends')} />}
         <TabBtn label="السجل" icon="📋" onPress={() => router.push('/history')} />
         <TabBtn label="حسابي" icon="👤" onPress={() => router.push('/profile')} />
