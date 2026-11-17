@@ -10,6 +10,9 @@ alter table public.live_locations
 create index if not exists idx_live_locations_location_gist
   on public.live_locations using gist (location);
 
+create index if not exists idx_live_locations_user_updated_at_desc
+  on public.live_locations (user_id, updated_at desc);
+
 -- Provider map pins: GiST prefilter first, retain the original Haversine boundary check.
 create or replace function public.find_nearby_provider_pins(
   _lat numeric, _lng numeric, _type text,
