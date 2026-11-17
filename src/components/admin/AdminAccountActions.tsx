@@ -12,13 +12,16 @@ export function AdminAccountActions({ userId, email, phone, canManage }: Props) 
   const updateContact = useServerFn(adminUpdateUserContact);
   if (!canManage) return null;
   async function save() {
-    if (!nextEmail.trim() && !nextPhone.trim()) { window.alert("أدخل البريد أو الهاتف"); return; }
+    const emailChanged = nextEmail.trim() !== (email ?? "");
+    const phoneChanged = nextPhone.trim() !== (phone ?? "");
+    if (!emailChanged && !phoneChanged) { setOpen(false); return; }
+    if ((emailChanged && !nextEmail.trim()) || (phoneChanged && !nextPhone.trim())) { window.alert("لا تترك البريد أو الهاتف فارغاً؛ أدخل قيمة جديدة."); return; }
     setBusy(true);
     try {
       const result = await updateContact({ data: {
         user_id: userId,
-        ...(nextEmail.trim() !== (email ?? "") ? { email: nextEmail.trim() || null } : {}),
-        ...(nextPhone.trim() !== (phone ?? "") ? { phone: nextPhone.trim() || null } : {}),
+        ...(emailChanged ? { email: nextEmail.trim() } : {}),
+        ...(phoneChanged ? { phone: nextPhone.trim() } : {}),
       } });
       if (!result.audit_logged) window.alert("تم التحديث لكن تعذر تسجيل العملية في سجل الإدارة.");
       setOpen(false);
