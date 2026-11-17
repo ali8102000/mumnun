@@ -180,8 +180,9 @@ export const adminGrantRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireSuperAdmin(context);
     const { supabase } = context;
-    if (await isDeveloperStaff(supabase, data.target_user_id)) {
-      throw new Error("يجب إيقاف عضوية Developer قبل منحه صلاحية إدارية أخرى");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (await isDeveloperStaff(supabaseAdmin, data.target_user_id)) {
+      throw new Error("يجب إزالة عضوية Developer قبل منحه صلاحية إدارية أخرى");
     }
     const { error } = await adminRpc(supabase).rpc("admin_grant_role", { p_target_user: data.target_user_id, p_role: data.role });
     if (error) throw new Error(error.message);
