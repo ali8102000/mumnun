@@ -13,7 +13,10 @@ import { useNearbyProviders } from "@/lib/use-nearby-providers";
 import { lookupMapPlace } from "@/lib/maps.functions";
 import { taxiFare, approxRoadKm, FARE_TABLE } from "@/lib/taxi-fares";
 
-const search = z.object({ type: z.enum(["taxi", "service"]).default("taxi") });
+const search = z.object({
+  type: z.enum(["taxi", "service"]).default("taxi"),
+  serviceId: z.string().uuid().optional(),
+});
 
 export const Route = createFileRoute("/request/new")({
   ssr: false,
@@ -78,13 +81,13 @@ function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: num
 }
 
 function NewRequest() {
-  const { type } = Route.useSearch();
+  const { type, serviceId: initialServiceId } = Route.useSearch();
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const runDispatch = useServerFn(dispatchRequest);
   const createTaxiRequestFn = useServerFn(createTaxiRequest);
   const [services, setServices] = useState<Service[]>([]);
-  const [serviceId, setServiceId] = useState<string | null>(null);
+  const [serviceId, setServiceId] = useState<string | null>(initialServiceId ?? null);
   const selectedService = services.find((service) => service.id === serviceId) ?? null;
   const [level, setLevel] = useState<"fani" | "khabir">("fani");
   const [khabirMode, setKhabirMode] = useState<"alone" | "with_workers">("alone");
