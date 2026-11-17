@@ -138,7 +138,10 @@ Deno.serve(async (req: Request) => {
     });
     if (matchError) throw matchError;
 
-    const rank = new Map((matches ?? []).map((item, index) => [item.service_id, { score: item.similarity, rank: index }]));
+    const rank = new Map<string, { score: number; rank: number }>();
+    (matches ?? []).forEach((item: { service_id: string; similarity: number }, index: number) => {
+      rank.set(item.service_id, { score: Number(item.similarity), rank: index });
+    });
     const matchedIds = [...rank.keys()];
     const { data: matchedServices, error: matchedError } = matchedIds.length
       ? await admin.from("services").select("id, slug, name_ar, name_en, icon").in("id", matchedIds)
