@@ -53,6 +53,7 @@ export default function AdminScreen() {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <Text style={styles.title}>لوحة التحكم</Text>
       {user?.email?.toLowerCase() === 'a7md0555666@gmail.com' && <Pressable style={styles.teamButton} onPress={() => router.push('/admin-team' as never)}><Text style={styles.teamButtonText}>👥 إدارة فريق العمل والصلاحيات</Text></Pressable>}
+      <Pressable style={styles.teamButton} onPress={() => router.push('/admin-accounts' as never)}><Text style={styles.teamButtonText}>🔐 إدارة حسابات المستخدمين</Text></Pressable>
       <View style={styles.statsGrid}><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalRequests}</Text><Text style={styles.statLabel}>إجمالي الطلبات</Text></View><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalUsers}</Text><Text style={styles.statLabel}>المستخدمين</Text></View><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalDrivers}</Text><Text style={styles.statLabel}>السائقين</Text></View></View>
       <Text style={styles.sectionTitle}>قواعد التسعير</Text>
       {pricing.map((p) => (<View key={p.id} style={styles.pricingCard}><Text style={styles.pricingCategory}>{p.category}</Text><Text style={styles.pricingValues}>{p.base_fare?.toLocaleString('en')} + {p.per_km?.toLocaleString('en')}/كم</Text></View>))}
