@@ -23,11 +23,7 @@ async function invokeTeam(body: Record<string, unknown>) {
 }
 
 const ROLES: { value: TeamRole; label: string }[] = [
-  { value: 'developer', label: 'مطور' },
-  { value: 'support', label: 'دعم' },
-  { value: 'finance', label: 'مالية' },
-  { value: 'operations', label: 'عمليات' },
-  { value: 'monitoring', label: 'مراقبة' },
+  { value: 'developer', label: 'Developer — مطور' },
 ];
 
 export default function AdminTeamScreen() {
@@ -121,7 +117,7 @@ export default function AdminTeamScreen() {
         <Text style={styles.label}>الصلاحية</Text>
         <View style={styles.roleRow}>{ROLES.map((item) => <Pressable key={item.value} onPress={() => setRole(item.value)} style={[styles.roleChip, role === item.value && styles.roleChipActive]}><Text style={[styles.roleText, role === item.value && styles.roleTextActive]}>{item.label}</Text></Pressable>)}</View>
         <Pressable disabled={busy || !email.trim()} onPress={invite} style={[styles.primaryButton, (busy || !email.trim()) && styles.disabled]}><Text style={styles.primaryText}>{busy ? 'جارٍ التنفيذ...' : 'إرسال الدعوة'}</Text></Pressable>
-        <Text style={styles.note}>المطور لا يستطيع الاطلاع على بيانات المستخدمين أو لوحة الإدارة. ولا تمنحه هذه الدعوة صلاحية الدفع أو حذف المشروع.</Text>
+        <Text style={styles.note}>المطور لا يستطيع الاطلاع على بيانات المستخدمين أو لوحة الإدارة. هذه الدعوة لا تمنحه صلاحية مستودع GitHub أو إعدادات الدفع الخارجية.</Text>
       </View>
 
       <Text style={styles.sectionTitle}>الأعضاء الحاليون</Text>
