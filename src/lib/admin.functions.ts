@@ -128,6 +128,7 @@ async function requireStaff(context: AdminContext) {
   if (!data) throw new Error("غير مصرّح: للمشرفين فقط");
   const assignment = await adminQueries(supabase).from("staff_assignments")
     .select("display_title").eq("user_id", userId).maybeSingle();
+  if (assignment.error) throw new Error("تعذر التحقق من صلاحيات فريق العمل");
   if (assignment.data?.display_title === "Developer") {
     throw new Error("صلاحية المطور لا تسمح بالدخول إلى بيانات لوحة الإدارة");
   }
