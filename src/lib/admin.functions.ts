@@ -251,7 +251,9 @@ async function assertProtectedAccountTarget(supabaseAdmin: any, actorId: string,
   if (roles.error || assignments.error || target.error || !target.data?.user) {
     throw new Error("تعذر التحقق من الحساب المستهدف");
   }
-  if ((roles.data ?? []).length > 0 || (assignments.data ?? []).length > 0) {
+  const protectedRoles = new Set(["super_admin", "admin", "support", "finance", "moderator"]);
+  const hasProtectedRole = (roles.data ?? []).some((entry: { role: string }) => protectedRoles.has(entry.role));
+  if (hasProtectedRole || (assignments.data ?? []).length > 0) {
     throw new Error("لا يمكن حظر أو حذف حساب من حسابات الإدارة أو الإشراف");
   }
 }
