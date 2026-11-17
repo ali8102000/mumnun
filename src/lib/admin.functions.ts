@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-import type { Json } from "@/integrations/supabase/types";
+import type { Json, Database } from "@/integrations/supabase/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 type AdminContext = { supabase: unknown; userId: string };
 type AdminProfileRow = {
@@ -241,7 +242,7 @@ export const adminUnblockUser = createServerFn({ method: "POST" })
   });
 
 
-async function assertProtectedAccountTarget(supabaseAdmin: any, actorId: string, targetId: string) {
+async function assertProtectedAccountTarget(supabaseAdmin: SupabaseClient<Database>, actorId: string, targetId: string) {
   if (actorId === targetId) throw new Error("لا يمكن تنفيذ العملية على حسابك");
   const [roles, assignments, target] = await Promise.all([
     supabaseAdmin.from("user_roles").select("role").eq("user_id", targetId),
@@ -259,7 +260,7 @@ async function assertProtectedAccountTarget(supabaseAdmin: any, actorId: string,
 }
 
 async function recordAccountAction(
-  supabaseAdmin: any,
+  supabaseAdmin: SupabaseClient<Database>,
   actorId: string,
   action: string,
   targetId: string,
