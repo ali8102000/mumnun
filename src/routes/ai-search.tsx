@@ -81,7 +81,7 @@ function AiSearchPage() {
           <div className="space-y-3">
             <h2 className="font-black">{mode === "chat" ? "الخدمات المرتبطة بسؤالك" : "الخدمات الأقرب لطلبك"}</h2>
             {results.map((item) => (
-              <Link key={item.id} to="/request/new" search={{ type: item.slug }} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+              <Link key={item.id} to="/request/new" search={{ type: "service", serviceId: item.id }} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
                 <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-xl">🛠️</div>
                 <div className="min-w-0 flex-1"><div className="font-bold">{item.name_ar}</div><div className="text-xs text-muted-foreground">{item.name_en}</div></div>
                 <span className="text-xs font-bold text-primary">اطلب</span>
