@@ -245,7 +245,7 @@ async function assertProtectedAccountTarget(supabaseAdmin: any, actorId: string,
   if (actorId === targetId) throw new Error("لا يمكن تنفيذ العملية على حسابك");
   const [roles, assignments, target] = await Promise.all([
     supabaseAdmin.from("user_roles").select("role").eq("user_id", targetId),
-    supabaseAdmin.from("staff_assignments").select("user_id").eq("user_id", targetId).eq("active", true),
+    supabaseAdmin.from("staff_assignments").select("user_id").eq("user_id", targetId),
     supabaseAdmin.auth.admin.getUserById(targetId),
   ]);
   if (roles.error || assignments.error || target.error || !target.data?.user) {
@@ -348,6 +348,14 @@ export const adminDeleteUser = createServerFn({ method: "POST" })
         .eq("reviewed_by", data.user_id),
       supabaseAdmin.from("user_subscriptions").select("id", { count: "exact", head: true })
         .eq("granted_by", data.user_id),
+      supabaseAdmin.from("user_subscriptions").select("id", { count: "exact", head: true })
+        .eq("user_id", data.user_id),
+      supabaseAdmin.from("driver_wallets").select("user_id", { count: "exact", head: true })
+        .eq("user_id", data.user_id),
+      supabaseAdmin.from("trip_location_points").select("id", { count: "exact", head: true })
+        .eq("user_id", data.user_id),
+      supabaseAdmin.from("coupon_assignments").select("id", { count: "exact", head: true })
+        .eq("user_id", data.user_id),
     ]);
     if (blockers.some((result: { error: unknown }) => result.error)) {
       throw new Error("تعذر فحص ارتباطات الحساب قبل الحذف");
@@ -358,6 +366,17 @@ export const adminDeleteUser = createServerFn({ method: "POST" })
 
     const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
     if (authDeleteError) throw new Error("تعذر حذف حساب الدخول؛ قد تكون له ملفات مملوكة في التخزين");
+    const [rolesCleanup, assignmentsCleanup] = await Promise.all([
+      supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id),
+      supabaseAdmin.from("staff_assignments").delete().eq("user_id", data.user_id),
+    ]);
+    if (rolesCleanup.error || assignmentsCleanup.error) {
+      const auditLogged = await recordAccountAction(
+        supabaseAdmin, context.userId, "auth_user_deleted_role_cleanup_failed", data.user_id,
+        { reason: "role_cleanup_failed" },
+      );
+      return { ok: false, auth_deleted: true, profile_deleted: false, audit_logged: auditLogged };
+    }
     const { error: profileDeleteError } = await supabaseAdmin.from("profiles").delete().eq("id", data.user_id);
     if (profileDeleteError) {
       const auditLogged = await recordAccountAction(
