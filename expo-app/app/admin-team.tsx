@@ -68,8 +68,7 @@ export default function AdminTeamScreen() {
   }
 
   async function saveRole(member: TeamMember) {
-    const nextRole = drafts[member.user_id];
-    if (!nextRole) return;
+    const nextRole = drafts[member.user_id] ?? 'developer';
     setBusy(true);
     try {
       await invokeTeam({ action: 'update', user_id: member.user_id, role: nextRole });
