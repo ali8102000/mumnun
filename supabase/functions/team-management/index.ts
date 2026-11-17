@@ -9,13 +9,9 @@ const corsHeaders = {
   "Vary": "Origin",
 };
 
-type TeamRole = "developer" | "support" | "finance" | "operations" | "monitoring";
+type TeamRole = "developer";
 const ROLE_MAP: Record<TeamRole, { department: string; rank: string; display_title: string }> = {
   developer: { department: "operations", rank: "employee", display_title: "Developer" },
-  support: { department: "customer_service", rank: "employee", display_title: "الدعم الفني" },
-  finance: { department: "finance", rank: "employee", display_title: "المحاسبة" },
-  operations: { department: "operations", rank: "employee", display_title: "العمليات" },
-  monitoring: { department: "monitoring", rank: "supervisor", display_title: "المراقبة" },
 };
 
 function json(data: unknown, status = 200) {
@@ -65,6 +61,7 @@ Deno.serve(async (req: Request) => {
     if (action === "list") {
       const { data: assignments, error } = await admin.from("staff_assignments")
         .select("user_id, rank, department, display_title, active, created_at, scope_type, scope_governorate")
+        .or(`user_id.eq.${actor.id},display_title.eq.Developer`)
         .order("created_at", { ascending: false });
       if (error) throw error;
       const ids = (assignments ?? []).map((row) => row.user_id);
@@ -109,6 +106,12 @@ Deno.serve(async (req: Request) => {
 
       let targetUserId = existingProfile?.id as string | undefined;
       if (targetUserId) {
+        const { data: existingAssignment, error: assignmentError } = await admin.from("staff_assignments")
+          .select("display_title").eq("user_id", targetUserId).maybeSingle();
+        if (assignmentError) throw assignmentError;
+        if (existingAssignment && existingAssignment.display_title !== "Developer") {
+          return json({ error: "هذا الحساب عضو في فريق إداري آخر ولا يمكن استبدال صلاحياته من هنا" }, 409);
+        }
         const { data: existingSuperAdmin, error: existingRoleError } = await admin.from("user_roles")
           .select("role").eq("user_id", targetUserId).eq("role", "super_admin").maybeSingle();
         if (existingRoleError) throw existingRoleError;
@@ -157,6 +160,10 @@ Deno.serve(async (req: Request) => {
       if (targetError || !target.user || target.user.email?.toLowerCase() === OWNER_EMAIL) {
         return json({ error: "هذا الحساب محمي ولا يمكن تعديله" }, 403);
       }
+      const { data: existingAssignment, error: assignmentError } = await admin.from("staff_assignments")
+        .select("display_title").eq("user_id", targetUserId).maybeSingle();
+      if (assignmentError) throw assignmentError;
+      if (existingAssignment?.display_title !== "Developer") return json({ error: "يمكن تعديل أعضاء فريق المطورين فقط" }, 403);
       const { data: targetRoles, error: rolesError } = await admin.from("user_roles")
         .select("role").eq("user_id", targetUserId).eq("role", "super_admin");
       if (rolesError) throw rolesError;
@@ -185,6 +192,10 @@ Deno.serve(async (req: Request) => {
       if (targetError || !target.user || target.user.email?.toLowerCase() === OWNER_EMAIL) {
         return json({ error: "هذا الحساب محمي ولا يمكن إيقافه" }, 403);
       }
+      const { data: existingAssignment, error: assignmentError } = await admin.from("staff_assignments")
+        .select("display_title").eq("user_id", targetUserId).maybeSingle();
+      if (assignmentError) throw assignmentError;
+      if (existingAssignment?.display_title !== "Developer") return json({ error: "يمكن إيقاف أعضاء فريق المطورين فقط" }, 403);
       const { data: targetRoles, error: rolesError } = await admin.from("user_roles")
         .select("role").eq("user_id", targetUserId).eq("role", "super_admin");
       if (rolesError) throw rolesError;
