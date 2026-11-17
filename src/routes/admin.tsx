@@ -233,11 +233,16 @@ function UsersSection({ canManageAccounts }: { canManageAccounts: boolean }) {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
-  const [blockModal, setBlockModal] = useState<BlockTarget | null>(null);\n  const [banModal, setBanModal] = useState<BlockTarget | null>(null);\n  const [deleteModal, setDeleteModal] = useState<AdminUser | null>(null);
+  const [blockModal, setBlockModal] = useState<BlockTarget | null>(null);
+  const [banModal, setBanModal] = useState<BlockTarget | null>(null);
+  const [deleteModal, setDeleteModal] = useState<AdminUser | null>(null);
   const listUsers = useServerFn(adminListUsers);
   const searchUsers = useServerFn(adminSearchUsers);
   const blockUser = useServerFn(adminBlockUser);
-  const unblockUser = useServerFn(adminUnblockUser);\n  const banAuthUser = useServerFn(adminBanUser);\n  const unbanAuthUser = useServerFn(adminUnbanUser);\n  const deleteAuthUser = useServerFn(adminDeleteUser);
+  const unblockUser = useServerFn(adminUnblockUser);
+  const banAuthUser = useServerFn(adminBanUser);
+  const unbanAuthUser = useServerFn(adminUnbanUser);
+  const deleteAuthUser = useServerFn(adminDeleteUser);
   const getUserDetail = useServerFn(adminGetUserDetail);
   const load = useCallback(async () => {
     setLoading(true);
