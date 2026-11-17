@@ -244,9 +244,10 @@ export const adminUnblockUser = createServerFn({ method: "POST" })
 
 async function assertProtectedAccountTarget(supabaseAdmin: SupabaseClient<Database>, actorId: string, targetId: string) {
   if (actorId === targetId) throw new Error("لا يمكن تنفيذ العملية على حسابك");
+  const adminDb = supabaseAdmin as unknown as SupabaseClient;
   const [roles, assignments, target] = await Promise.all([
-    supabaseAdmin.from("user_roles").select("role").eq("user_id", targetId),
-    supabaseAdmin.from("staff_assignments").select("user_id").eq("user_id", targetId),
+    adminDb.from("user_roles").select("role").eq("user_id", targetId),
+    adminDb.from("staff_assignments").select("user_id").eq("user_id", targetId),
     supabaseAdmin.auth.admin.getUserById(targetId),
   ]);
   if (roles.error || assignments.error || target.error || !target.data?.user) {
@@ -266,7 +267,8 @@ async function recordAccountAction(
   targetId: string,
   details: Record<string, unknown>,
 ) {
-  const { error } = await supabaseAdmin.from("audit_logs").insert({
+  const adminDb = supabaseAdmin as unknown as SupabaseClient;
+  const { error } = await adminDb.from("audit_logs").insert({
     user_id: actorId,
     action,
     target_type: "user",
