@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { View, Text, StyleSheet, Alert } from 'react-native';
-import { supabase } from '@/lib/supabase';
+import { supabase, authProxy } from '@/lib/supabase';
 import { Button, RealInput } from '@/components/ui';
 
 export default function ResetPassword() {
@@ -16,6 +16,11 @@ export default function ResetPassword() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+      const { data: current } = await supabase.auth.getUser();
+      if (current.user?.app_metadata?.must_change_password === true) {
+        await authProxy<{ ok: boolean }>('/complete-forced-password-change', {});
+        await supabase.auth.refreshSession();
+      }
       Alert.alert('تم', 'تم تغيير كلمة المرور بنجاح');
       router.replace('/');
     } catch (error: unknown) { Alert.alert('خطأ', error instanceof Error ? error.message : 'حدث خطأ'); } finally { setBusy(false); }
