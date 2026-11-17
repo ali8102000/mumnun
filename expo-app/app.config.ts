@@ -24,7 +24,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   if (
     isProduction &&
     supabaseUrl &&
-    supabaseUrl.replace(/\\/+$/, '') !== expectedProductionSupabaseUrl
+    supabaseUrl !== expectedProductionSupabaseUrl &&
+    supabaseUrl !== expectedProductionSupabaseUrl + '/'
   ) {
     throw new Error(
       `Production EXPO_PUBLIC_SUPABASE_URL must point to ${expectedProductionSupabaseUrl} (project ref enteiolvirenbhkyskgb).`,
