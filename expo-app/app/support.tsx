@@ -2,20 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '@/lib/supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { useAuth } from '@/lib/auth-context';
 
 type Ticket = { id: string; subject: string; description: string; category: string; status: string; needs_staff?: boolean; created_at: string };
 type TicketMessage = { id: string; ticket_id: string; sender_id: string; message: string; is_staff: boolean; is_ai?: boolean; created_at: string };
-type Db = {
-  from: (table: string) => any;
-  channel: (name: string) => any;
-  removeChannel: (channel: any) => Promise<any>;
-  functions: typeof supabase.functions;
-};
-
 export default function SupportScreen() {
   const { user } = useAuth();
-  const db = supabase as unknown as Db;
+  const db = supabase as unknown as SupabaseClient;
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [messages, setMessages] = useState<TicketMessage[]>([]);
