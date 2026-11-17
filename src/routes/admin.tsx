@@ -275,7 +275,7 @@ function UsersSection({ canManageAccounts }: { canManageAccounts: boolean }) {
     try {
       const result = await deleteAuthUser({ data: { user_id: userId, confirmation_phone: phone } });
       setDeleteModal(null);
-      if (!result.ok) window.alert("تم حذف تسجيل الدخول لكن تعذّر حذف الملف الشخصي. يلزم تدخل إداري لإكمال التنظيف.");
+      if (!result.ok) window.alert("تم حذف تسجيل الدخول لكن تعذّر إكمال تنظيف بيانات الحساب. يلزم تدخل إداري لإكمال العملية.");
       else if (!result.audit_logged) window.alert("تم حذف الحساب لكن تعذّر تسجيل العملية في سجل الإدارة.");
       load();
     } catch (error) { window.alert(error instanceof Error ? error.message : "تعذّر حذف الحساب"); }
@@ -739,7 +739,7 @@ function AuditSection() {
   const [loading, setLoading] = useState(true);
   const listLogs = useServerFn(adminListAuditLogs);
   useEffect(() => { (async () => { try { setLogs(await listLogs({ data: {} }) as unknown as AdminAuditLog[]); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [listLogs]);
-  const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى", auth_ban_user: "حظر تسجيل الدخول", auth_unban_user: "رفع حظر تسجيل الدخول", delete_auth_user: "حذف حساب نهائياً", auth_user_deleted_profile_cleanup_failed: "حذف دخول مع تعثر تنظيف الملف الشخصي" };
+  const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى", auth_ban_user: "حظر تسجيل الدخول", auth_unban_user: "رفع حظر تسجيل الدخول", delete_auth_user: "حذف حساب نهائياً", auth_user_deleted_profile_cleanup_failed: "حذف دخول مع تعثر تنظيف الملف الشخصي", auth_user_deleted_role_cleanup_failed: "حذف دخول مع تعثر تنظيف الصلاحيات" };
   return (
     <div>
       <h2 className="text-xl font-black mb-4">سجل العمليات</h2>
