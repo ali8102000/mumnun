@@ -34,7 +34,7 @@ export default function AdminAccountsScreen() {
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
 
-  const loadUsers = useCallback(async (term = search) => {
+  const loadUsers = useCallback(async (term = '') => {
     setLoading(true);
     try {
       const result = await authProxy<{ users: AccountUser[] }>('/admin-list-users', { search: term });
@@ -45,9 +45,9 @@ export default function AdminAccountsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, []);
 
-  useEffect(() => { void loadUsers(''); }, []);
+  useEffect(() => { void loadUsers(''); }, [loadUsers]);
 
   const chooseUser = (account: AccountUser) => {
     setSelected(account);
@@ -95,8 +95,8 @@ export default function AdminAccountsScreen() {
             try {
               await authProxy('/admin-update-user-contact', {
                 user_id: selected.id,
-                email: editEmail.trim(),
-                phone: editPhone.trim(),
+                ...(editEmail.trim() ? { email: editEmail.trim() } : {}),
+                ...(editPhone.trim() ? { phone: editPhone.trim() } : {}),
               });
               Alert.alert('تم التحديث', 'تم تحديث بيانات الحساب');
               await loadUsers();
