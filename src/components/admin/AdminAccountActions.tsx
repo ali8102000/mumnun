@@ -47,8 +47,7 @@ export function AdminCreateAccount() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
-  const [invite] = useState(() => adminCreateUserInvite);
-  const sendInvite = useServerFn(invite);
+  const sendInvite = useServerFn(adminCreateUserInvite);
   async function submit() {
     setBusy(true);
     try {
