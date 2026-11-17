@@ -199,6 +199,14 @@ function CustomerHome() {
   ];
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+      <TouchableOpacity onPress={() => router.push('/ai-search')} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe', borderRadius: 18, padding: 15, marginBottom: 18, gap: 12 }}>
+        <Text style={{ fontSize: 26 }}>✨</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 15, fontWeight: '900', color: '#1e40af', textAlign: 'right' }}>البحث الذكي ومساعد ممنون</Text>
+          <Text style={{ fontSize: 11, color: '#64748b', textAlign: 'right', marginTop: 3 }}>اكتب المشكلة بطريقتك وخلي ممنون يلقى الخدمة</Text>
+        </View>
+        <Text style={{ color: '#2563eb', fontSize: 20 }}>←</Text>
+      </TouchableOpacity>
       <Text style={styles.sectionTitle}>ماذا تحتاج؟</Text>
       <View style={styles.tilesGrid}>
         {tiles.map((t) => (
