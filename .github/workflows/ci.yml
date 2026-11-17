@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - main
+      - feat/arabic-ai-semantic-search-2026-11-18
   workflow_dispatch:
 
 permissions:
