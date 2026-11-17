@@ -42,7 +42,7 @@ type AdminChat = { id: string; created_at: string; updated_at?: string; particip
 type AdminFriend = { id: string; user_id: string; friend_id: string; created_at: string; user?: AdminProfile | null; friend?: AdminProfile | null };
 type AdminFriendRequest = { id: string; status: string; created_at: string; sender?: AdminProfile | null; receiver?: AdminProfile | null };
 type AdminMessage = { id: string; content: string; body?: string | null; created_at: string; sender?: AdminProfile | null; chat?: { id: string } | null };
-type AdminAuditLog = { id: string; action: string; created_at: string; user_id: string; admin?: AdminProfile | null; metadata?: Record<string, unknown> | null };
+type AdminAuditLog = { id: string; action: string; created_at: string; user_id: string; admin?: AdminProfile | null; details?: Record<string, unknown> | null };
 type AdminLocation = { user_id: string; latitude?: number | null; longitude?: number | null; lat?: number; lng?: number; profile?: AdminProfile | null };
 type AdminUserDetail = { profile: AdminProfile | null; roles: AdminRole[]; block: AdminBlock | null; driverProfile: AdminProvider | null; workerProfile: AdminProvider | null; transactions: AdminTransaction[]; requests: AdminRequest[] };
 type BlockTarget = { id: string; name: string | null };
@@ -733,12 +733,12 @@ function AuditSection() {
   const [loading, setLoading] = useState(true);
   const listLogs = useServerFn(adminListAuditLogs);
   useEffect(() => { (async () => { try { setLogs(await listLogs({ data: {} }) as unknown as AdminAuditLog[]); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [listLogs]);
-  const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى" };
+  const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى", auth_ban_user: "حظر تسجيل الدخول", auth_unban_user: "رفع حظر تسجيل الدخول", delete_auth_user: "حذف حساب نهائياً" };
   return (
     <div>
       <h2 className="text-xl font-black mb-4">سجل العمليات</h2>
       {loading ? <Loader2 className="h-6 w-6 animate-spin mx-auto" /> : logs.length === 0 ? <EmptyState text="لا توجد عمليات مسجلة" /> : (
-        <div className="space-y-2">{logs.map((l) => (<div key={l.id} className="glass rounded-2xl p-3 text-sm"><div className="flex justify-between mb-1"><span className="font-bold">{actionLabels[l.action] ?? l.action}</span><span className="text-[10px] text-muted-foreground">{new Date(l.created_at).toLocaleString("ar-IQ")}</span></div><div className="text-[10px] text-muted-foreground">بواسطة: {l.admin?.full_name ?? l.user_id?.slice(0, 8) ?? "—"}</div>{l.metadata && <div className="text-[10px] text-muted-foreground mt-1">{Object.entries(l.metadata).map(([k, v]) => `${k}: ${v}`).join(" · ")}</div>}</div>))}</div>
+        <div className="space-y-2">{logs.map((l) => (<div key={l.id} className="glass rounded-2xl p-3 text-sm"><div className="flex justify-between mb-1"><span className="font-bold">{actionLabels[l.action] ?? l.action}</span><span className="text-[10px] text-muted-foreground">{new Date(l.created_at).toLocaleString("ar-IQ")}</span></div><div className="text-[10px] text-muted-foreground">بواسطة: {l.admin?.full_name ?? l.user_id?.slice(0, 8) ?? "—"}</div>{l.details && <div className="text-[10px] text-muted-foreground mt-1">{Object.entries(l.details).map(([k, v]) => `${k}: ${v}`).join(" · ")}</div>}</div>))}</div>
       )}
     </div>
   );
