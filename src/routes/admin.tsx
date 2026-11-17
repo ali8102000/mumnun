@@ -275,7 +275,8 @@ function UsersSection({ canManageAccounts }: { canManageAccounts: boolean }) {
     try {
       const result = await deleteAuthUser({ data: { user_id: userId, confirmation_phone: phone } });
       setDeleteModal(null);
-      if (!result.audit_logged) window.alert("تم حذف الحساب لكن تعذّر تسجيل العملية في سجل الإدارة.");
+      if (!result.ok) window.alert("تم حذف تسجيل الدخول لكن تعذّر حذف الملف الشخصي. يلزم تدخل إداري لإكمال التنظيف.");
+      else if (!result.audit_logged) window.alert("تم حذف الحساب لكن تعذّر تسجيل العملية في سجل الإدارة.");
       load();
     } catch (error) { window.alert(error instanceof Error ? error.message : "تعذّر حذف الحساب"); }
   }
@@ -294,7 +295,7 @@ function UsersSection({ canManageAccounts }: { canManageAccounts: boolean }) {
                 <div className="h-10 w-10 rounded-full bg-surface-2 grid place-items-center text-sm font-black shrink-0">{(u.full_name || u.phone || "?").charAt(0)}</div>
                 <div className="min-w-0"><div className="font-bold text-sm truncate">{u.full_name || "بدون اسم"}</div><div className="text-[10px] text-muted-foreground truncate">{u.phone}</div></div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center justify-end gap-2 max-w-full">
                 {u.blocked ? <button onClick={() => handleUnblock(u.id)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-bold">رفع الحظر</button> : <button onClick={() => setBlockModal({ id: u.id, name: u.full_name })} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-bold">حظر</button>}
                 <button onClick={() => viewUser(u.id)} className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-bold">تفاصيل</button>
                 {canManageAccounts && <>
@@ -405,7 +406,7 @@ function DeleteAccountModal({ user, onConfirm, onClose }: {
         <h3 className="font-black text-red-600 mb-2">حذف حساب نهائياً</h3>
         <p className="text-sm font-bold mb-2">{user.full_name ?? "بدون اسم"}</p>
         <p className="text-xs text-muted-foreground mb-3">رقم الهاتف: {user.phone}</p>
-        <p className="text-xs text-red-600 mb-3">تحذير: الحذف نهائي ولا يمكن التراجع عنه. سيُحذف حساب Auth والملف الشخصي المرتبط به تلقائياً. لن نحذف ملفات التخزين يدوياً؛ إذا كان الحساب مالكاً لملفات تمنع الحذف فستظهر رسالة خطأ.</p>
+        <p className="text-xs text-red-600 mb-3">تحذير: الحذف نهائي. نرفض الحذف إذا كان للحساب طلبات أو معاملات أو سجلات مالية/إدارية. إذا كان الحساب مالكاً لملفات تخزين تمنع الحذف فستظهر رسالة خطأ. السجلات المحمية تبقى محفوظة.</p>
         <label className="block text-xs font-bold mb-1">اكتب رقم الهاتف نفسه للتأكيد</label>
         <input value={confirmation} onChange={(e) => setConfirmation(e.target.value)} placeholder={user.phone} className="w-full glass rounded-xl px-4 py-2.5 text-sm mb-3" />
         <div className="flex gap-2">
@@ -738,7 +739,7 @@ function AuditSection() {
   const [loading, setLoading] = useState(true);
   const listLogs = useServerFn(adminListAuditLogs);
   useEffect(() => { (async () => { try { setLogs(await listLogs({ data: {} }) as unknown as AdminAuditLog[]); } catch (error) { console.error("[admin] action failed", error); } finally { setLoading(false); } })(); }, [listLogs]);
-  const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى", auth_ban_user: "حظر تسجيل الدخول", auth_unban_user: "رفع حظر تسجيل الدخول", delete_auth_user: "حذف حساب نهائياً" };
+  const actionLabels: Record<string, string> = { grant_role: "منح صلاحية", revoke_role: "إزالة صلاحية", block_user: "حظر مستخدم", unblock_user: "رفع حظر", set_provider_status: "تغيير حالة مزود", cancel_request: "إلغاء طلب", reopen_request: "إعادة فتح طلب", adjust_wallet: "تعديل محفظة", broadcast_notification: "إرسال إشعار", create_coupon: "إنشاء كوبون", update_coupon: "تعديل كوبون", delete_coupon: "حذف كوبون", resolve_report: "حل بلاغ", delete_friendship: "حذف صداقة", delete_friend_request: "حذف طلب صداقة", delete_message: "حذف رسالة", bootstrap_first_super_admin: "إنشاء مدير أعلى", auth_ban_user: "حظر تسجيل الدخول", auth_unban_user: "رفع حظر تسجيل الدخول", delete_auth_user: "حذف حساب نهائياً", auth_user_deleted_profile_cleanup_failed: "حذف دخول مع تعثر تنظيف الملف الشخصي" };
   return (
     <div>
       <h2 className="text-xl font-black mb-4">سجل العمليات</h2>
