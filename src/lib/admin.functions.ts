@@ -24,6 +24,7 @@ type AdminRow = {
   created_at: string;
   updated_at: string;
   phone?: string;
+  display_title?: string | null;
   full_name?: string | null;
   email?: string | null;
   avatar_url?: string | null;
@@ -125,6 +126,11 @@ async function requireStaff(context: AdminContext) {
   const { supabase, userId } = context;
   const { data } = await adminRpc(supabase).rpc("has_staff_role", { p_user_id: userId });
   if (!data) throw new Error("غير مصرّح: للمشرفين فقط");
+  const assignment = await adminQueries(supabase).from("staff_assignments")
+    .select("display_title").eq("user_id", userId).maybeSingle();
+  if (assignment.data?.display_title === "Developer") {
+    throw new Error("صلاحية المطور لا تسمح بالدخول إلى بيانات لوحة الإدارة");
+  }
 }
 
 async function requireAdmin(context: AdminContext) {
@@ -183,12 +189,15 @@ export const getStaffRoles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((d) => z.object({ user_id: z.string().uuid().optional() }).parse(d))
   .handler(async ({ data, context }) => {
-    await requireStaff(context);
     const { supabase } = context;
     const targetId = data?.user_id ?? context.userId;
     const { data: roles, error } = await adminRpc(supabase).rpc("get_staff_roles", { p_user_id: targetId });
     if (error) throw new Error(error.message);
-    return Array.isArray(roles) ? roles.filter((role): role is string => typeof role === "string") : [];
+    const result = Array.isArray(roles) ? roles.filter((role): role is string => typeof role === "string") : [];
+    const assignment = await adminQueries(supabase).from("staff_assignments")
+      .select("display_title").eq("user_id", targetId).maybeSingle();
+    if (assignment.data?.display_title === "Developer" && !result.includes("developer")) result.push("developer");
+    return result;
   });
 
 export const adminSearchUsers = createServerFn({ method: "POST" })
