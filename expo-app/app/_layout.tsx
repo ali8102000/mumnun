@@ -29,6 +29,7 @@ export default function RootLayout() {
         <Stack.Screen name="history" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="admin" />
+        <Stack.Screen name="app-editor" />
         <Stack.Screen name="onboarding/driver" />
         <Stack.Screen name="onboarding/worker" />
         <Stack.Screen name="forgot-password" />
