@@ -48,13 +48,19 @@ export function AppEditorSection() {
 
   useEffect(() => {
     let active = true;
-    void supabase.from("app_editor_settings").select("settings").eq("id", "global").maybeSingle()
-      .then(({ data, error }) => {
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from("app_editor_settings").select("settings").eq("id", "global").maybeSingle();
         if (!active) return;
         if (error) toast.error("تعذّر تحميل إعدادات محرر التطبيقات");
         else if (data?.settings) setSettings(normalizeSettings(data.settings));
-      })
-      .finally(() => { if (active) setLoading(false); });
+      } catch (error) {
+        console.error("[app-editor] load failed", error);
+        if (active) toast.error("تعذّر تحميل إعدادات محرر التطبيقات");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
     return () => { active = false; };
   }, []);
 
