@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { ImagePlus, Save, RefreshCw, Loader2, Upload, RotateCcw } from "lucide-react";
+import { ImagePlus, Save, Loader2, Upload, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
