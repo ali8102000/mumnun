@@ -17,6 +17,7 @@ import {
 } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import AppEditorSection from "@/lib/AppEditorSection";
 
 export const Route = createFileRoute("/admin")({ ssr: false,
   head: () => ({ meta: [
@@ -49,7 +50,7 @@ type AdminUserDetail = { profile: AdminProfile | null; roles: AdminRole[]; block
 type BlockTarget = { id: string; name: string | null };
 type DashboardStats = { totalUsers: number; totalDrivers: number; totalWorkers: number; totalRequests: number; activeRequests: number; completedRequests: number; cancelledRequests: number; activeDrivers: number; activeWorkers: number; dailyRevenue: number; monthlyRevenue: number; yearlyRevenue: number };
 
-type Section = "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles" | "team";
+type Section = "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles" | "team" | "appEditor";
 
 const NAV_ITEMS: { key: Section; label: string; icon: LucideIcon; roles: string[] }[] = [
   { key: "overview", label: "نظرة عامة", icon: LayoutDashboard, roles: ["super_admin", "admin", "support", "finance", "moderator"] },
@@ -67,6 +68,7 @@ const NAV_ITEMS: { key: Section; label: string; icon: LucideIcon; roles: string[
   { key: "notifications", label: "الإشعارات", icon: Bell, roles: ["super_admin", "admin", "support", "finance", "moderator"] },
   { key: "roles", label: "الصلاحيات", icon: Settings, roles: ["super_admin"] },
   { key: "team", label: "فريق العمل", icon: Users, roles: ["super_admin"] },
+  { key: "appEditor", label: "محرر التطبيقات", icon: Settings, roles: ["super_admin"] },
   { key: "audit", label: "سجل العمليات", icon: ScrollText, roles: ["super_admin", "admin"] },
 ];
 
@@ -162,6 +164,7 @@ function AdminPage() {
           {section === "notifications" && <NotificationsSection />}
           {section === "roles" && <RolesSection />}
           {section === "team" && <TeamSection />}
+          {section === "appEditor" && <AppEditorSection />}
           {section === "audit" && <AuditSection />}
         </div>
       </main>
