@@ -1,0 +1,89 @@
+name: Android installable APK
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "expo-app/**"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android-apk:
+    name: Build signed Android APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: expo-app
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Expo app dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Validate production app configuration
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          APP_ENV: production
+        run: |
+          set -euo pipefail
+          for name in EXPO_TOKEN EAS_PROJECT_ID EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY EXPO_PUBLIC_GOOGLE_MAPS_API_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              exit 1
+            fi
+          done
+          bunx expo config --type public >/dev/null
+
+      - name: Build signed installable APK with EAS
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
+          APP_ENV: production
+        run: |
+          set -euo pipefail
+          bunx eas-cli@latest build --platform android --profile preview --non-interactive --wait --json | tee eas-build-result.json
+
+      - name: Download completed APK
+        run: |
+          set -euo pipefail
+          BUILD_ID="$(node -e "const fs=require('fs'); const raw=fs.readFileSync('eas-build-result.json','utf8'); const parsed=JSON.parse(raw); const item=Array.isArray(parsed)?parsed[parsed.length-1]:parsed; const id=item.id || item.build?.id; if(!id) process.exit(2); process.stdout.write(id);")"
+          bunx eas-cli@latest build:download --build-id "$BUILD_ID" --non-interactive
+          mkdir -p dist
+          APK_PATH="$(find . -maxdepth 3 -type f -name '*.apk' -print -quit)"
+          if [ -z "$APK_PATH" ]; then
+            echo "::error::EAS build completed but no .apk file was downloaded."
+            exit 1
+          fi
+          cp "$APK_PATH" dist/mamnoon-production.apk
+          test -s dist/mamnoon-production.apk
+
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mamnoon-production-apk
+          path: expo-app/dist/mamnoon-production.apk
+          if-no-files-found: error
+          retention-days: 14
