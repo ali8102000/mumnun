@@ -66,7 +66,7 @@ export default function AppEditorScreen() {
           <View key={item.key} style={styles.card}>
             <Text style={styles.group}>{item.group}</Text>
             <Text style={styles.name}>{item.title}</Text>
-            {image.url ? <View style={styles.preview}><Image source={{ uri: image.url }} style={{ width: '100%', height: '100%', transform: [{ scale: image.scale }] }} resizeMode="cover" /></View> : <View style={styles.empty}><Text style={styles.muted}>أدخل رابط الصورة لمعاينتها</Text></View>}
+            {image.url ? <View style={styles.preview}><Image source={{ uri: image.url }} style={{ width: '100%', height: '100%', transform: [{ scale: image.scale }, { translateX: (50 - image.x) * 0.4 }, { translateY: (50 - image.y) * 0.4 }] }} resizeMode="cover" /></View> : <View style={styles.empty}><Text style={styles.muted}>أدخل رابط الصورة لمعاينتها</Text></View>}
             <TextInput value={image.url} onChangeText={(url) => patch(item.key, { url })} placeholder="رابط الصورة https://" autoCapitalize="none" keyboardType="url" style={styles.input} />
             {(['scale', 'x', 'y'] as const).map((field) => (
               <View key={field} style={styles.control}>
