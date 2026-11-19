@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ImagePlus, Loader2, Save, Upload } from "lucide-react";
+import { ImagePlus, Loader2, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Category = { category_key:string; vertical:string; title:string; image_url:string|null; is_active:boolean; sort_order:number; tile_width_px:number; tile_height_px:number; auto_scroll_seconds:number };
