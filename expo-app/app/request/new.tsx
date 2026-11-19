@@ -9,6 +9,7 @@ import {
   Alert,
   TextInput,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -74,12 +75,24 @@ export default function NewRequest() {
   const [region, setRegion] = useState(BAGHDAD_REGION);
   const [locationLoading, setLocationLoading] = useState(true);
   const [vehicleCat, setVehicleCat] = useState<VehicleCategory>('economy');
+  const [vehicleImages, setVehicleImages] = useState<Record<string, { url: string; scale: number; x: number; y: number }>>({});
   const [workerLevel, setWorkerLevel] = useState<'fani' | 'khabir'>('fani');
   const [extraWorkers, setExtraWorkers] = useState(0);
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [price, setPrice] = useState<number | null>(null);
   const isTaxi = selectedService === 'taxi';
+
+  useEffect(() => {
+    let mounted = true;
+    void (async () => {
+      const { data } = await supabase.from("app_editor_settings").select("settings").eq("id", "global").maybeSingle();
+      if (!mounted || !data?.settings || typeof data.settings !== "object") return;
+      const images = (data.settings as { images?: Record<string, { url?: string; scale?: number; x?: number; y?: number }> }).images;
+      if (images) setVehicleImages(images as Record<string, { url: string; scale: number; x: number; y: number }>);
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -380,7 +393,9 @@ export default function NewRequest() {
                 ]}
                 onPress={() => setVehicleCat(category.key)}
               >
-                <Text style={styles.catEmoji}>{category.emoji}</Text>
+                {vehicleImages["vehicle" + category.key[0].toUpperCase() + category.key.slice(1)]?.url ? (
+                  <Image source={{ uri: vehicleImages["vehicle" + category.key[0].toUpperCase() + category.key.slice(1)].url }} style={{ width: 30, height: 30, transform: [{ scale: vehicleImages["vehicle" + category.key[0].toUpperCase() + category.key.slice(1)].scale }, { translateX: (50 - vehicleImages["vehicle" + category.key[0].toUpperCase() + category.key.slice(1)].x) * 0.25 }, { translateY: (50 - vehicleImages["vehicle" + category.key[0].toUpperCase() + category.key.slice(1)].y) * 0.25 }] }} resizeMode="cover" />
+                ) : <Text style={styles.catEmoji}>{category.emoji}</Text>}
                 <Text
                   style={[
                     styles.catLabel,

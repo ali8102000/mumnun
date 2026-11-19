@@ -247,7 +247,18 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
   const [verificationStatus, setVerificationStatus] = useState('pending');
   const [requests, setRequests] = useState<ProviderRequest[]>([]);
   const [stats, setStats] = useState({ jobs: 0 });
+  const [providerBanner, setProviderBanner] = useState<{ url: string; scale: number; x: number; y: number } | null>(null);
   const table = type === "taxi" ? "driver_profiles" : "worker_profiles";
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data } = await supabase.from("app_editor_settings").select("settings").eq("id", "global").maybeSingle();
+      if (!active || !data?.settings || typeof data.settings !== "object") return;
+      const banner = (data.settings as { images?: { providerBanner?: { url?: string; scale?: number; x?: number; y?: number } } }).images?.providerBanner;
+      if (banner?.url) setProviderBanner({ url: banner.url, scale: banner.scale ?? 1, x: banner.x ?? 50, y: banner.y ?? 50 });
+    })();
+    return () => { active = false; };
+  }, []);
 
   const loadRequests = useCallback(async () => {
     if (!session) return;
@@ -378,6 +389,11 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
 
   return (
     <div className="space-y-4">
+      {type === "service" && providerBanner?.url && (
+        <div className="relative h-36 overflow-hidden rounded-3xl">
+          <img src={providerBanner.url} alt="بانوراما الفنيين" className="h-full w-full object-cover" style={{ objectPosition: providerBanner.x + "% " + providerBanner.y + "%", transform: "scale(" + providerBanner.scale + ")" }} />
+        </div>
+      )}
       <div className={`relative rounded-3xl p-5 overflow-hidden animate-pop-in shadow-card ${
         available
           ? "bg-gradient-to-br from-emerald-500 to-teal-400 text-white"

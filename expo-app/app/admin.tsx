@@ -52,6 +52,7 @@ export default function AdminScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
       <Text style={styles.title}>لوحة التحكم</Text>
+      <Pressable style={styles.teamButton} onPress={() => router.push('/app-editor' as never)}><Text style={styles.teamButtonText}>🖼️ محرر التطبيقات والتحكم بالصور</Text></Pressable>
       {user?.email?.toLowerCase() === 'a7md0555666@gmail.com' && <Pressable style={styles.teamButton} onPress={() => router.push('/admin-team' as never)}><Text style={styles.teamButtonText}>👥 إدارة فريق العمل والصلاحيات</Text></Pressable>}
       <View style={styles.statsGrid}><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalRequests}</Text><Text style={styles.statLabel}>إجمالي الطلبات</Text></View><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalUsers}</Text><Text style={styles.statLabel}>المستخدمين</Text></View><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalDrivers}</Text><Text style={styles.statLabel}>السائقين</Text></View></View>
       <Text style={styles.sectionTitle}>قواعد التسعير</Text>

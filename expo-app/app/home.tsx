@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { router } from 'expo-router';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Alert, Image } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import * as Location from 'expo-location';
@@ -213,8 +213,24 @@ function CustomerHome() {
 }
 
 function ProviderHome({ available, verified, verificationStatus, toggleAvailable, incoming }: { available: boolean; verified: boolean; verificationStatus: string; toggleAvailable: () => void; incoming: IncomingRequest[] }) {
+  const [providerBanner, setProviderBanner] = useState<{ url: string; scale: number; x: number; y: number } | null>(null);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data } = await supabase.from("app_editor_settings").select("settings").eq("id", "global").maybeSingle();
+      if (!active || !data?.settings || typeof data.settings !== "object") return;
+      const banner = (data.settings as { images?: { providerBanner?: { url?: string; scale?: number; x?: number; y?: number } } }).images?.providerBanner;
+      if (banner?.url) setProviderBanner({ url: banner.url, scale: banner.scale ?? 1, x: banner.x ?? 50, y: banner.y ?? 50 });
+    })();
+    return () => { active = false; };
+  }, []);
   return (
     <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+      {providerBanner?.url && (
+        <View style={{ height: 140, borderRadius: 20, overflow: 'hidden', marginBottom: 20 }}>
+          <Image source={{ uri: providerBanner.url }} resizeMode="cover" style={{ width: "100%", height: "100%", transform: [{ scale: providerBanner.scale }, { translateX: (50 - providerBanner.x) * 0.4 }, { translateY: (50 - providerBanner.y) * 0.4 }] }} />
+        </View>
+      )}
       <TouchableOpacity style={[styles.availCard, available && styles.availCardActive, !verified && { opacity: 0.65 }]} onPress={toggleAvailable} activeOpacity={0.85} disabled={!verified}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.availTitle, available && { color: '#fff' }]}>{available ? 'متاح للعمل' : 'غير متاح'}</Text>

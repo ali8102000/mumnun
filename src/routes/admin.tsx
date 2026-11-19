@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   Loader2, ShieldCheck, Users, Car, ListChecks, Wallet, Crown, Activity,
   LayoutDashboard, Tag, MessageSquare, UserCheck, Flag, Bell, ScrollText,
-  Map, ChevronLeft, Settings, AlertCircle, type LucideIcon,
+  Map, ChevronLeft, Settings, AlertCircle, Images, type LucideIcon,
 } from "lucide-react";
 import {
   adminAdjustWallet, adminBanUser, adminBlockUser, adminBroadcastNotification, adminCancelRequest, adminDeleteUser,
@@ -17,6 +17,7 @@ import {
 } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { AppEditorSection } from "@/components/admin/app-editor-section";
 
 export const Route = createFileRoute("/admin")({ ssr: false,
   head: () => ({ meta: [
@@ -49,9 +50,10 @@ type AdminUserDetail = { profile: AdminProfile | null; roles: AdminRole[]; block
 type BlockTarget = { id: string; name: string | null };
 type DashboardStats = { totalUsers: number; totalDrivers: number; totalWorkers: number; totalRequests: number; activeRequests: number; completedRequests: number; cancelledRequests: number; activeDrivers: number; activeWorkers: number; dailyRevenue: number; monthlyRevenue: number; yearlyRevenue: number };
 
-type Section = "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles" | "team";
+type Section = "appEditor" | "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles" | "team";
 
 const NAV_ITEMS: { key: Section; label: string; icon: LucideIcon; roles: string[] }[] = [
+  { key: "appEditor", label: "محرر التطبيقات", icon: Images, roles: ["super_admin"] },
   { key: "overview", label: "نظرة عامة", icon: LayoutDashboard, roles: ["super_admin", "admin", "support", "finance", "moderator"] },
   { key: "stats", label: "الإحصائيات", icon: Activity, roles: ["super_admin", "admin", "finance"] },
   { key: "users", label: "المستخدمون", icon: Users, roles: ["super_admin", "admin", "support", "moderator"] },
@@ -147,6 +149,7 @@ function AdminPage() {
           <div className="w-9" />
         </div>
         <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+          {section === "appEditor" && <AppEditorSection />}
           {section === "overview" && <OverviewSection />}
           {section === "stats" && <StatsSection />}
           {section === "users" && <UsersSection canManageAccounts={staffRoles.includes("super_admin")} />}
