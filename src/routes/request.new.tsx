@@ -90,6 +90,7 @@ function NewRequest() {
   const [khabirMode, setKhabirMode] = useState<"alone" | "with_workers">("alone");
   const [workersCount, setWorkersCount] = useState(1);
   const [vehicleCategory, setVehicleCategory] = useState<VehicleCategory>("economy");
+  const [vehicleImages, setVehicleImages] = useState<Record<string, { url: string; scale: number; x: number; y: number }>>({});
 
   const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [pickupLabel, setPickupLabel] = useState("");
@@ -132,6 +133,17 @@ function NewRequest() {
     enabled: !!pickupCoords,
   });
 
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data } = await supabase.from("app_editor_settings").select("settings").eq("id", "global").maybeSingle();
+      if (!active || !data?.settings || typeof data.settings !== "object") return;
+      const images = (data.settings as { images?: Record<string, { url?: string; scale?: number; x?: number; y?: number }> }).images;
+      if (images) setVehicleImages(images as Record<string, { url: string; scale: number; x: number; y: number }>);
+    })();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (type === "service") {
@@ -474,8 +486,10 @@ function NewRequest() {
                     active ? "bg-white ring-2 ring-primary shadow-lg scale-[1.01]" : "bg-white/70"
                   }`}
                 >
-                  <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${c.gradient} grid place-items-center text-2xl shadow-md shrink-0`}>
-                    {c.emoji}
+                  <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${c.gradient} grid place-items-center text-2xl shadow-md shrink-0 overflow-hidden`}>
+                    {vehicleImages["vehicle" + c.key[0].toUpperCase() + c.key.slice(1)]?.url ? (
+                      <img src={vehicleImages["vehicle" + c.key[0].toUpperCase() + c.key.slice(1)].url} alt={c.label} className="h-full w-full object-cover" style={{ objectPosition: vehicleImages["vehicle" + c.key[0].toUpperCase() + c.key.slice(1)].x + "% " + vehicleImages["vehicle" + c.key[0].toUpperCase() + c.key.slice(1)].y + "%", transform: "scale(" + vehicleImages["vehicle" + c.key[0].toUpperCase() + c.key.slice(1)].scale + ")" }} />
+                    ) : c.emoji}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-black text-sm">{c.label}</div>
