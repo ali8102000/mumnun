@@ -14,6 +14,12 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_editor_settings: {
+        Row: { id: string; settings: Json; updated_at: string; updated_by: string | null }
+        Insert: { id?: string; settings?: Json; updated_at?: string; updated_by?: string | null }
+        Update: { id?: string; settings?: Json; updated_at?: string; updated_by?: string | null }
+        Relationships: []
+      }
       chats: {
         Row: {
           created_at: string
