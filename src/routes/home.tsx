@@ -116,6 +116,11 @@ function HomePage() {
 function CustomerHome() {
   return (
     <div className="space-y-4">
+      <Link to="/ai-search" className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 shadow-sm">
+        <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary text-primary-foreground"><Sparkles className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1"><span className="block font-black">البحث الذكي ومساعد ممنون</span><span className="block text-xs text-muted-foreground mt-0.5">اكتب المشكلة بطريقتك وخلي ممنون يلقى الخدمة</span></span>
+        <ArrowUpLeft className="h-4 w-4 text-primary" />
+      </Link>
       <div className="relative rounded-3xl p-6 overflow-hidden animate-pop-in shadow-elegant bg-gradient-to-br from-primary via-primary-glow to-accent text-primary-foreground">
         <div className="absolute inset-0 shine opacity-40 mix-blend-overlay" />
         <div className="absolute -top-8 -left-8 h-40 w-40 rounded-full bg-white/20 blur-2xl" />

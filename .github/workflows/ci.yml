@@ -79,3 +79,5 @@ jobs:
       - run: deno check --node-modules-dir=auto supabase/functions/auth-proxy/index.ts
       - run: deno check --node-modules-dir=auto supabase/functions/subscription-cron/index.ts
       - run: deno check --node-modules-dir=auto supabase/functions/team-management/index.ts
+      - run: deno check --node-modules-dir=auto supabase/functions/semantic-search/index.ts
+      - run: deno check --node-modules-dir=auto supabase/functions/mamnoon-assistant/index.ts
