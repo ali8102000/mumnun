@@ -55,6 +55,9 @@ jobs:
           bun add expo@^58.0.0
           bunx expo install --fix
 
+      - name: Install required Reanimated worklets peer dependency
+        run: bunx expo install react-native-worklets
+
       - name: Validate Expo dependency compatibility
         run: bunx expo-doctor
 
