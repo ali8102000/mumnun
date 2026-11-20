@@ -72,6 +72,22 @@ function decodeGooglePolyline(encoded:string):Point[] {
 }
 const routeMemoryCache = new Map<string, { value: { distanceKm: number; durationMin: number; routeSource: string }; expiresAt: number }>();
 const ROUTE_MEMORY_TTL_MS = 45_000;
+const ROUTE_MEMORY_MAX_ENTRIES = 500;
+
+function rememberRoute(
+  routeKey: string,
+  value: { distanceKm: number; durationMin: number; routeSource: string },
+  nowMs = Date.now(),
+) {
+  for (const [key, entry] of routeMemoryCache) {
+    if (entry.expiresAt <= nowMs) routeMemoryCache.delete(key);
+  }
+  if (routeMemoryCache.size >= ROUTE_MEMORY_MAX_ENTRIES && !routeMemoryCache.has(routeKey)) {
+    const oldestKey = routeMemoryCache.keys().next().value;
+    if (oldestKey) routeMemoryCache.delete(oldestKey);
+  }
+  rememberRoute(routeKey, value, nowMs);
+}
 
 async function fetchWithRetry(url: string | URL, init: RequestInit, timeoutMs: number, attempts = 2): Promise<Response> {
   let lastError: unknown;
@@ -291,7 +307,7 @@ async function route(from: Point, to: Point, admin: any, includeGeometry = false
     durationMin: routed.durationMin,
     routeSource: routed.routeSource,
   };
-  if (!includeGeometry) routeMemoryCache.set(routeKey, { value, expiresAt: Date.now() + ROUTE_MEMORY_TTL_MS });
+  if (!includeGeometry) rememberRoute(routeKey, value);
   return { ...routed, cacheHit: false, cacheLayer: "live" };
 }
 
