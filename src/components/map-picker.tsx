@@ -85,6 +85,7 @@ export function MapPicker({
   const suppressIdleRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mapRetry, setMapRetry] = useState(0);
   const [address, setAddress] = useState<string>("");
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -102,6 +103,9 @@ export function MapPicker({
 
   useEffect(() => {
     let cancelled = false;
+    readyRef.current = false;
+    setLoading(true);
+    setError(null);
     const slow = setTimeout(() => {
       if (!readyRef.current && !cancelled) {
         setLoading(false);
@@ -193,7 +197,7 @@ export function MapPicker({
       clearTimeout(slow);
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
-  }, [reverseFallback, report]);
+  }, [reverseFallback, report, mapRetry]);
 
   useEffect(() => {
     if (!readyRef.current || !mapRef.current || !value) return;
@@ -508,6 +512,18 @@ export function MapPicker({
           <div className="text-sm text-muted-foreground flex flex-col items-center gap-2">
             <MapPin className="h-5 w-5" />
             {error}
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                setMapRetry((attempt) => attempt + 1);
+              }}
+              className="mt-2 px-5 py-3 rounded-2xl font-bold border border-border bg-white text-foreground shadow-sm flex items-center gap-2"
+            >
+              <Loader2 className="h-4 w-4" />
+              إعادة تحميل الخريطة
+            </button>
             <button
               type="button"
               onClick={() => autoLocate()}
