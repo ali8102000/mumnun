@@ -48,6 +48,7 @@ function RequestDetail() {
   const [showCancel, setShowCancel] = useState(false);
   const [otherRep, setOtherRep] = useState<ReputationData | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasLoadedRef = useRef(false);
   const getRepFn = useServerFn(getReputation);
   const cancelFn = useServerFn(cancelRequest);
   const providerCancelFn = useServerFn(providerCancelRequest);
@@ -69,7 +70,7 @@ function RequestDetail() {
 
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     setLoadError(null);
     try {
       const { data: r, error: requestError } = await supabase
@@ -77,9 +78,11 @@ function RequestDetail() {
       if (requestError) throw requestError;
       if (!r) {
         setReq(null);
+        hasLoadedRef.current = true;
         return;
       }
       setReq(r);
+      hasLoadedRef.current = true;
       const otherId = session?.user.id === r.customer_id ? r.provider_id : r.customer_id;
       if (otherId) {
         const { data: p, error: profileError } = await supabase
@@ -239,6 +242,15 @@ function RequestDetail() {
           )}
         </div>
       </div>
+
+      {loadError && req && (
+        <div role="alert" className="mx-5 mt-3 rounded-2xl border border-destructive/20 bg-destructive/5 p-3 text-sm">
+          <p className="font-bold">{loadError}</p>
+          <button type="button" onClick={() => void loadAll()} className="mt-2 h-10 rounded-xl bg-primary px-4 font-bold text-primary-foreground btn-press">
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
 
       <div className="px-5 py-4 space-y-3">
         {req.type === "taxi" && req.vehicle_category && VEHICLE_CAT_META[req.vehicle_category] && (
