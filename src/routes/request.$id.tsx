@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
+import { RouteErrorFallback } from "@/components/route-error-fallback";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/auth-context";
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/request/$id")({ ssr: false,
     { property: "og:description", content: "تابع حالة طلبك وموقع مزود الخدمة وتواصل معه في ممنون." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary" },
-  ] }), component: RequestDetail });
+  ] }), component: RequestDetail, errorComponent: RouteErrorFallback });
 
 function RequestDetail() {
   const { id } = Route.useParams();
@@ -41,11 +42,13 @@ function RequestDetail() {
   const [messages, setMessages] = useState<Tables<"messages">[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [myRating, setMyRating] = useState<Tables<"ratings"> | null>(null);
   const [showRating, setShowRating] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
   const [otherRep, setOtherRep] = useState<ReputationData | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const hasLoadedRef = useRef(false);
   const getRepFn = useServerFn(getReputation);
   const cancelFn = useServerFn(cancelRequest);
   const providerCancelFn = useServerFn(providerCancelRequest);
@@ -67,31 +70,49 @@ function RequestDetail() {
 
 
   const loadAll = useCallback(async () => {
+    if (!hasLoadedRef.current) setLoading(true);
+    setLoadError(null);
     try {
-      const { data: r } = await supabase.from("service_requests").select("*").eq("id", id).maybeSingle();
-      if (!r) { setLoading(false); return; }
+      const { data: r, error: requestError } = await supabase
+        .from("service_requests").select("*").eq("id", id).maybeSingle();
+      if (requestError) throw requestError;
+      if (!r) {
+        setReq(null);
+        hasLoadedRef.current = true;
+        return;
+      }
       setReq(r);
+      hasLoadedRef.current = true;
       const otherId = session?.user.id === r.customer_id ? r.provider_id : r.customer_id;
       if (otherId) {
-        const { data: p } = await supabase.from("profiles").select("id, full_name, phone, avatar_url").eq("id", otherId).maybeSingle();
+        const { data: p, error: profileError } = await supabase
+          .from("profiles").select("id, full_name, phone, avatar_url").eq("id", otherId).maybeSingle();
+        if (profileError) throw profileError;
         setOther(p);
         getRepFn({ data: { userId: otherId } }).then((rep) => setOtherRep(rep)).catch(() => {});
       }
       if (r.status !== "pending") {
-        const { data: c } = await supabase.from("chats").select("*").eq("request_id", id).maybeSingle();
+        const { data: c, error: chatError } = await supabase
+          .from("chats").select("*").eq("request_id", id).maybeSingle();
+        if (chatError) throw chatError;
         setChat(c);
         if (c) {
-          const { data: m } = await supabase.from("messages").select("*").eq("chat_id", c.id).order("created_at");
+          const { data: m, error: messagesError } = await supabase
+            .from("messages").select("*").eq("chat_id", c.id).order("created_at");
+          if (messagesError) throw messagesError;
           setMessages(m ?? []);
         }
       }
       if (session?.user) {
-        const { data: rate } = await supabase.from("ratings").select("*").eq("request_id", id).eq("rater_id", session.user.id).maybeSingle();
+        const { data: rate, error: ratingError } = await supabase
+          .from("ratings").select("*").eq("request_id", id).eq("rater_id", session.user.id).maybeSingle();
+        if (ratingError) throw ratingError;
         setMyRating(rate);
         if (r.status === "completed" && !rate) setShowRating(true);
       }
     } catch (e) {
       console.error("[request] loadAll error:", e);
+      setLoadError("تعذّر تحميل بيانات الطلب. تحقق من اتصال الإنترنت وحاول مرة أخرى.");
     } finally {
       setLoading(false);
     }
@@ -161,6 +182,17 @@ function RequestDetail() {
 
   if (authLoading || loading) return <div className="min-h-screen grid place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>;
   if (!session) return <Navigate to="/auth" />;
+  if (loadError && !req) return (
+    <main role="alert" dir="rtl" className="min-h-screen grid place-items-center px-5 text-center">
+      <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="text-lg font-black">تعذّر تحميل الطلب</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{loadError}</p>
+        <button type="button" onClick={() => void loadAll()} className="mt-5 h-12 w-full rounded-2xl bg-primary font-bold text-primary-foreground btn-press">
+          إعادة المحاولة
+        </button>
+      </div>
+    </main>
+  );
   if (!req) return <div className="p-8 text-center">الطلب غير موجود</div>;
 
   async function send() {
@@ -210,6 +242,15 @@ function RequestDetail() {
           )}
         </div>
       </div>
+
+      {loadError && req && (
+        <div role="alert" className="mx-5 mt-3 rounded-2xl border border-destructive/20 bg-destructive/5 p-3 text-sm">
+          <p className="font-bold">{loadError}</p>
+          <button type="button" onClick={() => void loadAll()} className="mt-2 h-10 rounded-xl bg-primary px-4 font-bold text-primary-foreground btn-press">
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
 
       <div className="px-5 py-4 space-y-3">
         {req.type === "taxi" && req.vehicle_category && VEHICLE_CAT_META[req.vehicle_category] && (
