@@ -98,7 +98,26 @@ jobs:
       - name: Verify resolved production Expo configuration
         run: |
           bunx expo config --type public --json > /tmp/mamnoon-expo-config.json
-          node -e "const c=require('/tmp/mamnoon-expo-config.json'); const e=c.extra||{}; if(!e.supabaseUrl || !e.supabasePublishableKey || !e.eas?.projectId || !c.android?.config?.googleMaps?.apiKey) process.exit(1); console.log('Production Expo configuration contains Supabase, EAS and Android Maps settings. Values were not printed.')"
+          node <<'NODE'
+          const raw = require('/tmp/mamnoon-expo-config.json');
+          // Expo CLI output may expose the resolved config at the root or under `expo`.
+          const config = raw.expo ?? raw;
+          const extra = config.extra ?? {};
+          const checks = {
+            supabaseUrl: Boolean(extra.supabaseUrl),
+            supabasePublishableKey: Boolean(extra.supabasePublishableKey),
+            easProjectId: Boolean(extra.eas?.projectId),
+            androidMapsApiKey: Boolean(config.android?.config?.googleMaps?.apiKey),
+          };
+          const missing = Object.entries(checks).filter(([, present]) => !present).map(([name]) => name);
+          console.log('Resolved Expo config shape:', raw.expo ? 'expo-wrapped' : 'root');
+          console.log('Production config checks:', JSON.stringify(checks));
+          if (missing.length) {
+            console.error('Missing resolved production config fields:', missing.join(', '));
+            process.exit(1);
+          }
+          console.log('Production Expo configuration verified. Values were not printed.');
+          NODE
 
       - name: Build Android release APK
         working-directory: expo-app/android
