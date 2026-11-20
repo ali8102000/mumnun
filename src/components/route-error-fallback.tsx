@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 export function RouteErrorFallback({
   error,
@@ -7,10 +9,9 @@ export function RouteErrorFallback({
   error: unknown;
   reset: () => void;
 }) {
-  const message =
-    error instanceof Error && error.message
-      ? error.message
-      : "حدث خطأ غير متوقع أثناء تحميل الشاشة.";
+  useEffect(() => {
+    reportLovableError(error, { boundary: "route_error_fallback" });
+  }, [error]);
 
   return (
     <main
@@ -24,7 +25,7 @@ export function RouteErrorFallback({
         </div>
         <h2 className="text-lg font-black">تعذّر تحميل هذه الشاشة</h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {message || "تحقق من اتصال الإنترنت ثم حاول مرة أخرى."}
+          حدث خطأ غير متوقع. تحقق من اتصال الإنترنت ثم حاول مرة أخرى.
         </p>
         <button
           type="button"
