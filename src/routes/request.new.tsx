@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
+import { RouteErrorFallback } from "@/components/route-error-fallback";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/request/new")({
   ] }),
   validateSearch: search,
   component: NewRequest,
+  errorComponent: RouteErrorFallback,
 });
 
 type Service = { id: string; slug: string; name_ar: string };
