@@ -23,6 +23,12 @@ jobs:
     name: Upgrade Expo SDK and verify Android
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    env:
+      APP_ENV: production
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL || secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }}
+      EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID || secrets.EAS_PROJECT_ID }}
     defaults:
       run:
         working-directory: expo-app
@@ -49,6 +55,20 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Validate production build configuration
+        shell: bash
+        run: |
+          missing=()
+          for name in EXPO_PUBLIC_SUPABASE_URL EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY EXPO_PUBLIC_GOOGLE_MAPS_API_KEY EAS_PROJECT_ID; do
+            if [[ -z "${!name}" ]]; then missing+=("$name"); fi
+          done
+          if (( ${#missing[@]} )); then
+            printf 'Missing GitHub Actions variables/secrets: %s\\n' "${missing[*]}"
+            exit 1
+          fi
+          [[ "$EXPO_PUBLIC_SUPABASE_URL" == https://* ]] || { echo "Supabase URL must use HTTPS."; exit 1; }
+          [[ "$EAS_PROJECT_ID" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$ ]] || { echo "EAS_PROJECT_ID must be a UUID."; exit 1; }
+
       - name: Install current locked dependencies
         run: bun install --frozen-lockfile
 
@@ -74,6 +94,11 @@ jobs:
 
       - name: Generate Android native project
         run: bunx expo prebuild --platform android --no-install
+
+      - name: Verify resolved production Expo configuration
+        run: |
+          bunx expo config --type public > /tmp/mamnoon-expo-config.json
+          node -e "const c=require('/tmp/mamnoon-expo-config.json'); const e=c.extra||{}; if(!e.supabaseUrl || !e.supabasePublishableKey || !e.eas?.projectId || !c.android?.config?.googleMaps?.apiKey) process.exit(1); console.log('Production Expo configuration contains Supabase, EAS and Android Maps settings. Values were not printed.')"
 
       - name: Build Android release APK
         working-directory: expo-app/android
