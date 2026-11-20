@@ -158,19 +158,18 @@ function NewRequest() {
   useEffect(() => {
     if (type !== "service") return;
     let active = true;
-    supabase.from("services").select("id, slug, name_ar").order("sort_order").then(({ data, error }) => {
-      if (!active) return;
-      if (error) {
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from("services").select("id, slug, name_ar").order("sort_order");
+        if (!active) return;
+        if (error) throw error;
+        setServices((data ?? []) as Service[]);
+        setScreenDataError(null);
+      } catch (error) {
         console.error("[request/new] services load failed:", error);
-        setScreenDataError("تعذّر تحميل قائمة الخدمات. تحقق من الإنترنت وحاول مرة أخرى.");
-        return;
+        if (active) setScreenDataError("تعذّر تحميل قائمة الخدمات. تحقق من الإنترنت وحاول مرة أخرى.");
       }
-      setServices((data ?? []) as Service[]);
-      setScreenDataError(null);
-    }).catch((error: unknown) => {
-      console.error("[request/new] services load failed:", error);
-      if (active) setScreenDataError("تعذّر تحميل قائمة الخدمات. تحقق من الإنترنت وحاول مرة أخرى.");
-    });
+    })();
     return () => { active = false; };
   }, [type, dataRetry]);
 
