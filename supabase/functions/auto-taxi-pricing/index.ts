@@ -86,7 +86,7 @@ function rememberRoute(
     const oldestKey = routeMemoryCache.keys().next().value;
     if (oldestKey) routeMemoryCache.delete(oldestKey);
   }
-  rememberRoute(routeKey, value, nowMs);
+  routeMemoryCache.set(routeKey, { value, expiresAt: nowMs + ROUTE_MEMORY_TTL_MS });
 }
 
 async function fetchWithRetry(url: string | URL, init: RequestInit, timeoutMs: number, attempts = 2): Promise<Response> {
