@@ -8,6 +8,7 @@ on:
       - ".github/workflows/upgrade-expo-sdk.yml"
       - "expo-app/app.config.ts"
       - "expo-app/app.json"
+      - "expo-app/app/request/**"
   workflow_dispatch:
 
 permissions:
