@@ -86,6 +86,8 @@ function NewRequest() {
   const runDispatch = useServerFn(dispatchRequest);
   const createTaxiRequestFn = useServerFn(createTaxiRequest);
   const [services, setServices] = useState<Service[]>([]);
+  const [screenDataError, setScreenDataError] = useState<string | null>(null);
+  const [dataRetry, setDataRetry] = useState(0);
   const [serviceId, setServiceId] = useState<string | null>(null);
   const selectedService = services.find((service) => service.id === serviceId) ?? null;
   const [level, setLevel] = useState<"fani" | "khabir">("fani");
@@ -139,21 +141,38 @@ function NewRequest() {
   useEffect(() => {
     let active = true;
     void (async () => {
-      const { data } = await supabase.from("app_editor_settings").select("settings").eq("id", "global").maybeSingle();
-      if (!active || !data?.settings || typeof data.settings !== "object") return;
-      const images = (data.settings as { images?: Record<string, { url?: string; scale?: number; x?: number; y?: number }> }).images;
-      if (images) setVehicleImages(images as Record<string, { url: string; scale: number; x: number; y: number }>);
+      try {
+        const { data, error } = await supabase.from("app_editor_settings").select("settings").eq("id", "global").maybeSingle();
+        if (error) throw error;
+        if (!active || !data?.settings || typeof data.settings !== "object") return;
+        const images = (data.settings as { images?: Record<string, { url?: string; scale?: number; x?: number; y?: number }> }).images;
+        if (images) setVehicleImages(images as Record<string, { url: string; scale: number; x: number; y: number }>);
+      } catch (error) {
+        console.error("[request/new] settings load failed:", error);
+        if (active) setScreenDataError("تعذّر تحميل بعض إعدادات الطلب. يمكنك إعادة المحاولة.");
+      }
     })();
     return () => { active = false; };
-  }, []);
+  }, [dataRetry]);
 
   useEffect(() => {
-    if (type === "service") {
-      supabase.from("services").select("id, slug, name_ar").order("sort_order").then(({ data }) => {
-        setServices((data ?? []) as Service[]);
-      });
-    }
-  }, [type]);
+    if (type !== "service") return;
+    let active = true;
+    supabase.from("services").select("id, slug, name_ar").order("sort_order").then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        console.error("[request/new] services load failed:", error);
+        setScreenDataError("تعذّر تحميل قائمة الخدمات. تحقق من الإنترنت وحاول مرة أخرى.");
+        return;
+      }
+      setServices((data ?? []) as Service[]);
+      setScreenDataError(null);
+    }).catch((error: unknown) => {
+      console.error("[request/new] services load failed:", error);
+      if (active) setScreenDataError("تعذّر تحميل قائمة الخدمات. تحقق من الإنترنت وحاول مرة أخرى.");
+    });
+    return () => { active = false; };
+  }, [type, dataRetry]);
 
 
 
@@ -250,6 +269,21 @@ function NewRequest() {
       <p className="text-sm text-muted-foreground mt-1">
         {type === "taxi" ? "شارك موقعك وحدد وجهتك" : "اختر الخدمة بسهولة"}
       </p>
+      {screenDataError && (
+        <div role="alert" className="mt-4 rounded-2xl border border-destructive/20 bg-destructive/5 p-3 text-sm">
+          <p className="font-bold text-foreground">{screenDataError}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setScreenDataError(null);
+              setDataRetry((attempt) => attempt + 1);
+            }}
+            className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 font-bold text-primary-foreground btn-press"
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
 
       {type === "service" && (
         <>
