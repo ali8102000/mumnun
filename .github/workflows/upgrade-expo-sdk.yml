@@ -130,7 +130,28 @@ jobs:
         working-directory: expo-app/android
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a assembleRelease
+          ./gradlew --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a,x86_64 assembleRelease
+
+      - name: Install and launch APK on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 600
+          script: |
+            set -euo pipefail
+            adb install -r "$GITHUB_WORKSPACE/expo-app/android/app/build/outputs/apk/release/app-release.apk"
+            adb logcat -c
+            adb shell monkey -p com.mamnoon.app 1
+            sleep 25
+            adb logcat -d -v time > "$GITHUB_WORKSPACE/mamnoon-android-logcat.txt"
+            if grep -E 'FATAL EXCEPTION|Fatal signal|UnsatisfiedLinkError|ReactNativeJS.*(Error|error)' "$GITHUB_WORKSPACE/mamnoon-android-logcat.txt"; then
+              echo "Android emulator detected a startup/runtime crash."
+              exit 1
+            fi
+            adb shell pidof com.mamnoon.app >/dev/null
+            echo "APK installed and remained running for 25 seconds on Android API 35."
 
       - name: Save upgraded dependencies to branch
         if: success()
