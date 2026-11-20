@@ -105,7 +105,7 @@ jobs:
           const extra = config.extra ?? {};
           const manifestPath = 'android/app/src/main/AndroidManifest.xml';
           const manifest = fs.readFileSync(manifestPath, 'utf8');
-          const mapTag = manifest.match(/<meta-data\\b[^>]*android:name=["']com\\.google\\.android\\.geo\\.API_KEY["'][^>]*>/);
+          const mapTag = manifest.match(/<meta-data\b[^>]*android:name=["']com\.google\.android\.geo\.API_KEY["'][^>]*>/);
           const mapValue = mapTag?.[0].match(/android:value=["']([^"']+)["']/)?.[1];
           const checks = {
             supabaseUrl: Boolean(extra.supabaseUrl),
