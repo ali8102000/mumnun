@@ -302,7 +302,7 @@ export default function NewRequest() {
       <Text style={styles.label}>حدد النقطة على الخريطة</Text>
       <View style={styles.mapModeRow}>
         <TouchableOpacity
-          style={[styles.mapModeButton, mapMode === 'pickup' && styles.mapModeButtonActive]}
+          style={[styles.mapModeButton, mapMode === 'pickup' && styles.mapModePickupActive]}
           onPress={() => setMapMode('pickup')}
         >
           <Text style={[styles.mapModeText, mapMode === 'pickup' && styles.mapModeTextActive]}>
@@ -313,7 +313,7 @@ export default function NewRequest() {
           <TouchableOpacity
             style={[
               styles.mapModeButton,
-              mapMode === 'destination' && styles.mapModeButtonActive,
+              mapMode === 'destination' && styles.mapModeDestinationActive,
             ]}
             onPress={() => setMapMode('destination')}
           >
@@ -351,7 +351,7 @@ export default function NewRequest() {
             <Marker coordinate={pickupCoords} title="نقطة الانطلاق" pinColor="#2563eb" />
           )}
           {destinationCoords && isTaxi && (
-            <Marker coordinate={destinationCoords} title="الوجهة" pinColor="#16a34a" />
+            <Marker coordinate={destinationCoords} title="الوجهة" pinColor="#166534" />
           )}
         </MapView>
         <Text style={styles.mapHint}>
@@ -481,7 +481,8 @@ const styles = StyleSheet.create({
   serviceLabel: { fontSize: 13, fontWeight: '700' },
   mapModeRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
   mapModeButton: { flex: 1, paddingVertical: 11, borderRadius: 12, backgroundColor: '#e2e8f0', alignItems: 'center' },
-  mapModeButtonActive: { backgroundColor: '#1e40af' },
+  mapModePickupActive: { backgroundColor: '#2563eb' },
+  mapModeDestinationActive: { backgroundColor: '#166534' },
   mapModeText: { color: '#64748b', fontWeight: '700', fontSize: 12 },
   mapModeTextActive: { color: '#fff' },
   locateButton: { paddingHorizontal: 14, paddingVertical: 11, borderRadius: 12, backgroundColor: '#16a34a', minWidth: 62, alignItems: 'center' },
