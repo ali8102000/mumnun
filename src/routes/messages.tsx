@@ -50,7 +50,11 @@ function MessagesPage() {
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "chats" }, () => {
         void loadChats();
       })
-      .subscribe();
+      .subscribe((status, error) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("[realtime] chats subscription:", status, error?.message);
+        }
+      });
     return () => { void supabase.removeChannel(channel); };
   }, [session, loadChats]);
 

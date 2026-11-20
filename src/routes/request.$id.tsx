@@ -154,8 +154,12 @@ function RequestDetail() {
               : [...current, message],
           );
         })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+      .subscribe((status, error) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("[realtime] messages subscription:", status, error?.message);
+        }
+      });
+    return () => { void supabase.removeChannel(ch); };
   }, [chat]);
 
   useEffect(() => {
@@ -163,8 +167,12 @@ function RequestDetail() {
     const ch = supabase.channel(`req-${id}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "service_requests", filter: `id=eq.${id}` },
         () => loadAll())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+      .subscribe((status, error) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("[realtime] request subscription:", status, error?.message);
+        }
+      });
+    return () => { void supabase.removeChannel(ch); };
   }, [req?.id, req, id, loadAll]);
 
   useEffect(() => {

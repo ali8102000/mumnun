@@ -105,8 +105,12 @@ export default function RequestDetail() {
         if (nextStatus === 'completed') setShowRating(true);
         if (nextStatus === 'accepted') loadChat();
       })
-      .subscribe();
-    return () => { supabase.removeChannel(sub); };
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[realtime] request subscription:', status, error?.message);
+        }
+      });
+    return () => { void supabase.removeChannel(sub); };
   }, [id, loadRequest, loadChat]);
 
   useEffect(() => {
@@ -114,7 +118,11 @@ export default function RequestDetail() {
     const sub = supabase
       .channel(`chat-${chatId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` }, () => loadMessages())
-      .subscribe();
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[realtime] messages subscription:', status, error?.message);
+        }
+      });
     loadMessages();
     return () => { supabase.removeChannel(sub); };
   }, [chatId, loadMessages]);
@@ -198,9 +206,13 @@ export default function RequestDetail() {
           setOtherLocation({ latitude: row.lat, longitude: row.lng });
         }
       })
-      .subscribe();
+      .subscribe((status, error) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[realtime] live-location subscription:', status, error?.message);
+        }
+      });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { void supabase.removeChannel(channel); };
   }, [id, isActive, isCustomer, currentRequestType, currentProviderId, currentCustomerId, currentUserId]);
 
   async function sendMessage(text?: string) {
