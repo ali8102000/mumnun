@@ -9,10 +9,8 @@ import { toast } from "sonner";
 import { Loader2, ArrowLeft, MapPin, CheckCircle2, User, Users } from "lucide-react";
 import { MapPicker } from "@/components/map-picker";
 import { dispatchRequest } from "@/lib/dispatch.functions";
-import { createTaxiRequest } from "@/lib/request.functions";
 import { useNearbyProviders } from "@/lib/use-nearby-providers";
 import { lookupMapPlace } from "@/lib/maps.functions";
-import { taxiFare, approxRoadKm, FARE_TABLE } from "@/lib/taxi-fares";
 
 const search = z.object({ type: z.enum(["taxi", "service"]).default("taxi") });
 
@@ -69,22 +67,11 @@ function shortAddr(addr: string) {
   return first.length > 40 ? `${first.slice(0, 40)}…` : first;
 }
 
-function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-
 function NewRequest() {
   const { type } = Route.useSearch();
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const runDispatch = useServerFn(dispatchRequest);
-  const createTaxiRequestFn = useServerFn(createTaxiRequest);
   const [services, setServices] = useState<Service[]>([]);
   const [screenDataError, setScreenDataError] = useState<string | null>(null);
   const [dataRetry, setDataRetry] = useState(0);
@@ -113,19 +100,79 @@ function NewRequest() {
   const [customerPrice, setCustomerPrice] = useState("");
   const [workHours, setWorkHours] = useState("");
   const [workDescription, setWorkDescription] = useState("");
-  const [routeKm, setRouteKm] = useState<number | null>(null);
+  const [taxiQuote, setTaxiQuote] = useState<{
+    distanceKm: number;
+    categoryPrices: Partial<Record<VehicleCategory, number>>;
+    fromGovernorateKey: string;
+    toGovernorateKey: string;
+    isIntercity: boolean;
+    pickupLat: number;
+    pickupLng: number;
+    destinationLat: number;
+    destinationLng: number;
+    vehicleCategory: VehicleCategory;
+  } | null>(null);
+  const [pricingLoading, setPricingLoading] = useState(false);
+  const [pricingError, setPricingError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!pickupCoords || !destCoords) { setRouteKm(null); return; }
-    let stale = false;
-    setRouteKm(approxRoadKm(haversineKm(pickupCoords, destCoords)));
-    const t = setTimeout(() => {
-      lookupMapPlace({ data: { action: "route", from: pickupCoords, to: destCoords } })
-        .then((result) => { if (!stale && "distanceKm" in result && result.distanceKm > 0) setRouteKm(result.distanceKm); })
-        .catch(() => {});
-    }, 400);
-    return () => { stale = true; clearTimeout(t); };
-  }, [pickupCoords, destCoords]);
+    if (type !== "taxi" || !pickupCoords || !destCoords) {
+      setTaxiQuote(null);
+      setPricingError(null);
+      setPricingLoading(false);
+      return;
+    }
+    let active = true;
+    setTaxiQuote(null);
+    setPricingError(null);
+    setPricingLoading(true);
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke("auto-taxi-pricing", {
+            body: {
+              action: "quote",
+              from: pickupCoords,
+              to: destCoords,
+              vehicleCategory,
+              tripType: "one_way",
+              extraMinutes: 0,
+              urgencyEnabled: false,
+            },
+          });
+          if (error) throw error;
+          if (!data || !Number.isFinite(Number(data.distanceKm)) ||
+              !data.categoryPrices || typeof data.governorateKey !== "string" ||
+              typeof data.toGovernorateKey !== "string" || typeof data.isIntercity !== "boolean") {
+            throw new Error(data?.error || "تعذّر الحصول على تسعيرة موثوقة.");
+          }
+          const categoryPrices = data.categoryPrices as Partial<Record<VehicleCategory, number>>;
+          if (!(["economy", "premium", "luxury"] as const).every((key) => Number.isFinite(Number(categoryPrices[key])))) {
+            throw new Error("تعريفة إحدى فئات السيارات غير متاحة حالياً.");
+          }
+          if (!active) return;
+          setTaxiQuote({
+            distanceKm: Number(data.distanceKm),
+            categoryPrices,
+            fromGovernorateKey: data.governorateKey,
+            toGovernorateKey: data.toGovernorateKey,
+            isIntercity: data.isIntercity,
+            pickupLat: pickupCoords.lat,
+            pickupLng: pickupCoords.lng,
+            destinationLat: destCoords.lat,
+            destinationLng: destCoords.lng,
+            vehicleCategory,
+          });
+        } catch (error) {
+          if (!active) return;
+          setPricingError(error instanceof Error ? error.message : "تعذّر حساب السعر حالياً.");
+        } finally {
+          if (active) setPricingLoading(false);
+        }
+      })();
+    }, 350);
+    return () => { active = false; clearTimeout(timer); };
+  }, [type, pickupCoords, destCoords, vehicleCategory]);
   const [busy, setBusy] = useState(false);
 
   const nearby = useNearbyProviders({
@@ -179,6 +226,7 @@ function NewRequest() {
   if (!session) return <Navigate to="/auth" />;
 
   async function submit() {
+    if (busy) return;
     if (!pickupCoords) { toast.error("شارك موقع الانطلاق"); return; }
     if (type === "taxi" && (!destCoords || !destText.trim() && !destLabel.trim())) { toast.error("حدد الوجهة على الخريطة"); return; }
     if (type === "service" && !serviceId) { toast.error("اختر الخدمة"); return; }
@@ -206,18 +254,35 @@ function NewRequest() {
     try {
       let requestId: string;
       if (type === "taxi") {
-        const result = await createTaxiRequestFn({ data: {
-          pickupLat: pickupCoords.lat,
-          pickupLng: pickupCoords.lng,
-          pickupText: pickupLabel || "موقعي الحالي",
-          destinationLat: destCoords!.lat,
-          destinationLng: destCoords!.lng,
-          destinationText: destLabel || destText,
-          vehicleCategory,
-          notes,
-        } });
+        const currentQuote = taxiQuote;
+        if (!currentQuote ||
+            currentQuote.pickupLat !== pickupCoords.lat ||
+            currentQuote.pickupLng !== pickupCoords.lng ||
+            currentQuote.destinationLat !== destCoords!.lat ||
+            currentQuote.destinationLng !== destCoords!.lng ||
+            currentQuote.vehicleCategory !== vehicleCategory) {
+          throw new Error("انتظر اكتمال حساب السعر ثم أعد إرسال الطلب.");
+        }
+        const { data: result, error } = await supabase.functions.invoke("auto-taxi-pricing", {
+          body: {
+            action: "create",
+            from: pickupCoords,
+            to: destCoords,
+            pickupGovernorateKey: currentQuote.fromGovernorateKey,
+            destinationGovernorateKey: currentQuote.toGovernorateKey,
+            isIntercity: currentQuote.isIntercity,
+            vehicleCategory,
+            tripType: "one_way",
+            extraMinutes: 0,
+            urgencyEnabled: false,
+            pickupText: pickupLabel || "موقعي الحالي",
+            destinationText: destLabel || destText,
+            notes,
+          },
+        });
+        if (error) throw error;
+        if (!result?.requestId) throw new Error(result?.error || "تعذّر إنشاء طلب التكسي.");
         requestId = result.requestId;
-        setRouteKm(result.distanceKm);
       } else {
         const { data, error } = await supabase.from("service_requests").insert({
           customer_id: session!.user.id,
@@ -507,12 +572,12 @@ function NewRequest() {
           />
 
           <div className="mt-6 mb-2 text-sm font-bold text-muted-foreground">
-            🚘 اختر فئة السيارة{routeKm !== null && <span className="font-medium"> · المسافة {routeKm.toFixed(1)} كم</span>}
+            🚘 اختر فئة السيارة{taxiQuote && <span className="font-medium"> · المسافة {taxiQuote.distanceKm.toFixed(1)} كم</span>}
           </div>
           <div className="space-y-2">
             {VEHICLE_CATS.map((c) => {
               const active = vehicleCategory === c.key;
-              const est = routeKm !== null ? taxiFare(c.key, routeKm) : null;
+              const est = taxiQuote?.categoryPrices[c.key] ?? null;
               return (
                 <button
                   key={c.key}
@@ -534,10 +599,10 @@ function NewRequest() {
                     {est !== null ? (
                       <>
                         <div className="font-black text-sm">{est.toLocaleString()}</div>
-                        <div className="text-[10px] text-muted-foreground">د.ع تقريبي</div>
+                        <div className="text-[10px] text-muted-foreground">د.ع حسب التعريفة الحالية</div>
                       </>
                     ) : (
-                      <div className="text-[11px] text-muted-foreground">من {FARE_TABLE[c.key].minimum.toLocaleString()} د.ع</div>
+                      <div className="text-[11px] text-muted-foreground">{pricingLoading ? "جارٍ حساب السعر..." : "بانتظار حساب السعر"}</div>
                     )}
                   </div>
                   {active && <CheckCircle2 className="h-5 w-5 text-primary shrink-0" />}
@@ -545,6 +610,7 @@ function NewRequest() {
               );
             })}
           </div>
+          {pricingError && <p role="alert" className="mt-2 text-xs text-destructive">{pricingError}</p>}
         </>
       )}
 

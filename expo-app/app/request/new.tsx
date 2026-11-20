@@ -15,7 +15,6 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import { haversineKm, estimateFare } from '@/lib/pricing';
 import { Button } from '@/components/ui';
 
 type Coordinates = { latitude: number; longitude: number };
@@ -81,6 +80,9 @@ export default function NewRequest() {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [price, setPrice] = useState<number | null>(null);
+  const [quote, setQuote] = useState<{ fromGovernorateKey: string; toGovernorateKey: string; isIntercity: boolean; pickupLat: number; pickupLng: number; destinationLat: number; destinationLng: number; vehicleCategory: VehicleCategory } | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const isTaxi = selectedService === 'taxi';
 
   useEffect(() => {
@@ -125,19 +127,61 @@ export default function NewRequest() {
   }, []);
 
   useEffect(() => {
-    if (!pickupCoords || !destinationCoords || !isTaxi) {
+    let active = true;
+    if (!pickupCoords || !destinationCoords || !isTaxi || !user) {
       setPrice(null);
-      return;
+      setQuote(null);
+      setQuoteError(null);
+      setQuoteLoading(false);
+      return () => { active = false; };
     }
-    const straightDistance = haversineKm(
-      pickupCoords.latitude,
-      pickupCoords.longitude,
-      destinationCoords.latitude,
-      destinationCoords.longitude,
-    );
-    // A display-only estimate. The server must calculate and confirm the final fare.
-    setPrice(estimateFare(straightDistance * 1.35, vehicleCat));
-  }, [pickupCoords, destinationCoords, isTaxi, vehicleCat]);
+
+    setPrice(null);
+    setQuote(null);
+    setQuoteError(null);
+    setQuoteLoading(true);
+    void (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('auto-taxi-pricing', {
+          body: {
+            action: 'quote',
+            from: { lat: pickupCoords.latitude, lng: pickupCoords.longitude },
+            to: { lat: destinationCoords.latitude, lng: destinationCoords.longitude },
+            vehicleCategory: vehicleCat,
+            tripType: 'one_way',
+            extraMinutes: 0,
+            urgencyEnabled: false,
+          },
+        });
+        if (error) throw error;
+        if (!data || !Number.isFinite(Number(data.priceEstimate)) ||
+            typeof data.governorateKey !== 'string' ||
+            typeof data.toGovernorateKey !== 'string' ||
+            typeof data.isIntercity !== 'boolean') {
+          throw new Error(data?.error || 'تعذّر الحصول على تسعيرة موثوقة.');
+        }
+        if (!active) return;
+        setPrice(Number(data.priceEstimate));
+        setQuote({
+          fromGovernorateKey: data.governorateKey,
+          toGovernorateKey: data.toGovernorateKey,
+          isIntercity: data.isIntercity,
+          pickupLat: pickupCoords.latitude,
+          pickupLng: pickupCoords.longitude,
+          destinationLat: destinationCoords.latitude,
+          destinationLng: destinationCoords.longitude,
+          vehicleCategory: vehicleCat,
+        });
+      } catch (error) {
+        if (!active) return;
+        setQuoteError(error instanceof Error ? error.message : 'تعذّر حساب السعر حالياً.');
+      } finally {
+        if (active) setQuoteLoading(false);
+      }
+    })();
+
+    return () => { active = false; };
+  }, [pickupCoords, destinationCoords, isTaxi, vehicleCat, user?.id]);
 
   async function locateMe() {
     setLocationLoading(true);
@@ -179,6 +223,7 @@ export default function NewRequest() {
   }
 
   async function submit() {
+    if (busy) return;
     if (!user) {
       Alert.alert('تسجيل الدخول مطلوب', 'سجّل الدخول قبل إرسال الطلب.');
       return;
@@ -200,20 +245,36 @@ export default function NewRequest() {
     try {
       let requestId: string;
       if (isTaxi) {
-        const { data: taxiRequest, error: taxiError } = await supabase.functions.invoke('create-taxi-request', {
+        const currentQuote = quote;
+        if (!currentQuote ||
+            currentQuote.pickupLat !== pickupCoords.latitude ||
+            currentQuote.pickupLng !== pickupCoords.longitude ||
+            currentQuote.destinationLat !== destinationCoords!.latitude ||
+            currentQuote.destinationLng !== destinationCoords!.longitude ||
+            currentQuote.vehicleCategory !== vehicleCat) {
+          throw new Error('انتظر اكتمال حساب السعر ثم أعد إرسال الطلب.');
+        }
+        const { data: taxiRequest, error: taxiError } = await supabase.functions.invoke('auto-taxi-pricing', {
           body: {
-            pickupLat: pickupCoords.latitude,
-            pickupLng: pickupCoords.longitude,
-            pickupText: pickup,
-            destinationLat: destinationCoords!.latitude,
-            destinationLng: destinationCoords!.longitude,
-            destinationText: destination,
+            action: 'create',
+            from: { lat: pickupCoords.latitude, lng: pickupCoords.longitude },
+            to: { lat: destinationCoords!.latitude, lng: destinationCoords!.longitude },
+            pickupGovernorateKey: currentQuote.fromGovernorateKey,
+            destinationGovernorateKey: currentQuote.toGovernorateKey,
+            isIntercity: currentQuote.isIntercity,
             vehicleCategory: vehicleCat,
+            tripType: 'one_way',
+            extraMinutes: 0,
+            urgencyEnabled: false,
+            pickupText: pickup,
+            destinationText: destination,
             notes,
           },
         });
         if (taxiError) throw taxiError;
-        if (!taxiRequest?.requestId) throw new Error('تعذّر إنشاء طلب التكسي.');
+        if (!taxiRequest?.requestId) {
+          throw new Error(taxiRequest?.error || 'تعذّر إنشاء طلب التكسي.');
+        }
         requestId = taxiRequest.requestId;
 
         const { error: dispatchError } = await supabase.rpc('dispatch_request', {
@@ -458,11 +519,25 @@ export default function NewRequest() {
         multiline
       />
 
-      {price !== null && isTaxi && (
+      {isTaxi && (quoteLoading || quoteError || price !== null) && (
         <View style={styles.priceBox}>
-          <Text style={styles.priceLabel}>تقدير أولي تقريبي (ليس السعر النهائي)</Text>
-          <Text style={styles.priceValue}>{price.toLocaleString('en')} د.ع</Text>
-          <Text style={styles.priceNote}>السعر النهائي يحتاج حساب مسار الطريق من الخادم</Text>
+          {quoteLoading ? (
+            <>
+              <ActivityIndicator color="#2563eb" />
+              <Text style={styles.priceLabel}>جارٍ حساب السعر حسب مسار الطريق...</Text>
+            </>
+          ) : quoteError ? (
+            <>
+              <Text style={styles.priceLabel}>تعذّر حساب السعر</Text>
+              <Text style={styles.priceNote}>{quoteError}</Text>
+            </>
+          ) : price !== null ? (
+            <>
+              <Text style={styles.priceLabel}>السعر المحسوب حسب مسار الطريق</Text>
+              <Text style={styles.priceValue}>{price.toLocaleString('en')} د.ع</Text>
+              <Text style={styles.priceNote}>السعر النهائي يُثبت عند إنشاء الطلب من الخادم</Text>
+            </>
+          ) : null}
         </View>
       )}
       <View style={{ height: 24 }} />
