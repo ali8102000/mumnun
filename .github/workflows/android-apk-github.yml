@@ -78,12 +78,18 @@ jobs:
           test -s "$APK"
           mkdir -p dist
           cp "$APK" dist/mamnoon-installable.apk
-          sha256sum dist/mamnoon-installable.apk
+          sha256sum dist/mamnoon-installable.apk > dist/SHA256SUMS.txt
+          {
+            echo "App: Mamnoon"
+            echo "Package: com.mamnoon.app"
+            echo "Source commit: $GITHUB_SHA"
+            echo "Build type: Release ARM64"
+          } > dist/BUILD-INFO.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: mamnoon-release-arm64-apk
-          path: expo-app/dist/mamnoon-installable.apk
+          path: expo-app/dist/*
           if-no-files-found: error
           retention-days: 14
