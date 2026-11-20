@@ -226,6 +226,7 @@ function NewRequest() {
   if (!session) return <Navigate to="/auth" />;
 
   async function submit() {
+    if (busy) return;
     if (!pickupCoords) { toast.error("شارك موقع الانطلاق"); return; }
     if (type === "taxi" && (!destCoords || !destText.trim() && !destLabel.trim())) { toast.error("حدد الوجهة على الخريطة"); return; }
     if (type === "service" && !serviceId) { toast.error("اختر الخدمة"); return; }
