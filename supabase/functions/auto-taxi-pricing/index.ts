@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Preserve the deployed Edge Function's existing Supabase/provider response shapes. */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.119.0";
 import { getSupabasePublishableKey, getSupabaseSecretKey, createSupabaseFetch } from "../_shared/api-keys.ts";
 import boundaries from "./iraq-governorate-boundaries.json" with { type: "json" };
