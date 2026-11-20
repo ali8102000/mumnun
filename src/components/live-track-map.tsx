@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 
 type Coords = { lat: number; lng: number; heading?: number | null };
 
@@ -62,25 +62,42 @@ export function LiveTrackMap({
   } | null>(null);
 
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [mapRetry, setMapRetry] = useState(0);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    loadGoogleMaps().then((g) => {
-      if (cancelled || !ref.current) return;
-      if (!g) return;
-      const center = me ?? other ?? { lat: 33.3152, lng: 44.3661 };
-      const map = new g.maps.Map(ref.current, {
-        center,
-        zoom: 14,
-        disableDefaultUI: true,
-        zoomControl: true,
-        gestureHandling: "greedy",
-        clickableIcons: false,
+    readyRef.current = false;
+    setMapReady(false);
+    setMapError(null);
+    loadGoogleMaps()
+      .then((g) => {
+        if (cancelled || !ref.current) return;
+        if (!g?.maps) throw new Error("Google Maps API is unavailable");
+        const center = me ?? other ?? { lat: 33.3152, lng: 44.3661 };
+        const map = new g.maps.Map(ref.current, {
+          center,
+          zoom: 14,
+          disableDefaultUI: true,
+          zoomControl: true,
+          gestureHandling: "greedy",
+          clickableIcons: false,
+        });
+        mapRef.current = map;
+        readyRef.current = true;
+        setMapReady(true);
+        try {
+          apply(false);
+        } catch (error) {
+          console.error("[Mamnoon] live map render failed:", error);
+          setMapError("تعذّر عرض الخريطة. حاول تحميلها مرة أخرى.");
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("[Mamnoon] live map initialization failed:", error);
+        if (!cancelled) setMapError("تعذّر تحميل خريطة التتبع. تحقق من الإنترنت وحاول مرة أخرى.");
       });
-      mapRef.current = map;
-      readyRef.current = true;
-      apply(false);
-    });
     return () => {
       cancelled = true;
       if (otherAnimRef.current?.raf) cancelAnimationFrame(otherAnimRef.current.raf);
@@ -92,7 +109,7 @@ export function LiveTrackMap({
       didFitRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mapRetry]);
 
   function setMarkerPosition(marker: google.maps.Marker, pos: Coords, heading: number | null) {
     if (!marker) return;
@@ -257,7 +274,13 @@ export function LiveTrackMap({
   }
 
   useEffect(() => {
-    if (readyRef.current) apply(true);
+    if (!readyRef.current) return;
+    try {
+      apply(true);
+    } catch (error) {
+      console.error("[Mamnoon] live map update failed:", error);
+      setMapError("تعذّر تحديث مواقع الرحلة. يمكنك إعادة تحميل الخريطة.");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me?.lat, me?.lng, other?.lat, other?.lng, other?.heading, follow, meColor, otherColor]);
 
@@ -267,9 +290,28 @@ export function LiveTrackMap({
   return (
     <div className="relative rounded-2xl overflow-hidden border border-border" style={{ height }}>
       <div ref={ref} className="absolute inset-0" style={{ background: "#e5edf5" }} />
-      {!me && !other && (
-        <div className="absolute inset-0 grid place-items-center bg-white/60">
+      {!mapReady && !mapError && (
+        <div className="absolute inset-0 grid place-items-center bg-white/75 z-10">
           <Loader2 className="h-5 w-5 animate-spin" style={{ color: meColor }} />
+        </div>
+      )}
+      {mapError && (
+        <div role="alert" className="absolute inset-0 z-20 grid place-items-center bg-white/95 px-4 text-center">
+          <div className="flex max-w-xs flex-col items-center gap-2">
+            <p className="text-sm font-bold text-foreground">{mapError}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setMapError(null);
+                setMapReady(false);
+                setMapRetry((attempt) => attempt + 1);
+              }}
+              className="mt-2 inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-bold text-primary-foreground btn-press"
+            >
+              <RefreshCw className="h-4 w-4" />
+              إعادة المحاولة
+            </button>
+          </div>
         </div>
       )}
       {distanceKm != null && (
