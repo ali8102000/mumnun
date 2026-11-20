@@ -464,6 +464,17 @@ Deno.serve(async (req) => {
     const previewRow=Array.isArray(preview)?preview[0]:preview;
     if(previewError||!previewRow) return json({error:"الكوبون غير متاح لهذا السعر أو لهذا الحساب"},400);
   }
+  const { data: allowed, error: rateLimitError } = await admin.rpc("consume_taxi_request_slot", {
+    _user_id: user.id,
+  });
+  if (rateLimitError) {
+    console.error("[auto-taxi-pricing] request rate-limit check failed", rateLimitError.code || "unknown");
+    return json({ error: "تعذّر التحقق من عدد الطلبات؛ حاول مرة أخرى." }, 500);
+  }
+  if (!allowed) {
+    return json({ error: "وصلت للحد المؤقت لطلبات التكسي. انتظر دقيقة وحاول مجدداً." }, 429);
+  }
+
   const insert={
     customer_id:user.id,type:"taxi",status:"pending",governorate_key:governorate,
     coupon_code:null,
