@@ -7,12 +7,6 @@
     "icon": "./assets/icon.png",
     "scheme": "mamnoon",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mamnoon.app",
@@ -48,6 +42,14 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "نحتاج موقعك لعرض الخدمات القريبة وتتبع الرحلات"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
         }
       ]
     ],

@@ -31,6 +31,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: config.name ?? 'ممنون',
     slug: config.slug ?? 'mamnoon',
+    // Keep config plugins explicit for SDK 58; dynamic app.config.ts files cannot be auto-edited by expo install.
+    plugins: [...(config.plugins ?? []), 'expo-font', 'expo-secure-store', 'expo-status-bar'],
     ios: {
       ...config.ios,
       ...(mapsKey ? {

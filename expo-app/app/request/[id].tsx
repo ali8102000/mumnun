@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
@@ -36,7 +37,7 @@ export default function RequestDetail() {
   const [loading, setLoading] = useState(true);
   const [rating, setRating] = useState(0);
   const [showRating, setShowRating] = useState(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance | null>(null);
   const isProvider = request?.provider_id === user?.id;
   const isCustomer = request?.customer_id === user?.id;
   const canAccept = Boolean(
