@@ -174,5 +174,6 @@ jobs:
           path: |
             expo-app/dist
             expo-app/android/app/build/outputs/apk/release/app-release.apk
+            mamnoon-android-logcat.txt
           if-no-files-found: ignore
           retention-days: 7
