@@ -99,24 +99,31 @@ jobs:
         run: |
           bunx expo config --type public --json > /tmp/mamnoon-expo-config.json
           node <<'NODE'
+          const fs = require('node:fs');
           const raw = require('/tmp/mamnoon-expo-config.json');
-          // Expo CLI output may expose the resolved config at the root or under `expo`.
           const config = raw.expo ?? raw;
           const extra = config.extra ?? {};
+          const manifestPath = 'android/app/src/main/AndroidManifest.xml';
+          const manifest = fs.readFileSync(manifestPath, 'utf8');
+          const mapTag = manifest.match(/<meta-data\\b[^>]*android:name=["']com\\.google\\.android\\.geo\\.API_KEY["'][^>]*>/);
+          const mapValue = mapTag?.[0].match(/android:value=["']([^"']+)["']/)?.[1];
           const checks = {
             supabaseUrl: Boolean(extra.supabaseUrl),
             supabasePublishableKey: Boolean(extra.supabasePublishableKey),
             easProjectId: Boolean(extra.eas?.projectId),
-            androidMapsApiKey: Boolean(config.android?.config?.googleMaps?.apiKey),
+            androidMapsKeyInjectedIntoManifest: Boolean(
+              process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY &&
+              mapValue === process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY
+            ),
           };
-          const missing = Object.entries(checks).filter(([, present]) => !present).map(([name]) => name);
           console.log('Resolved Expo config shape:', raw.expo ? 'expo-wrapped' : 'root');
           console.log('Production config checks:', JSON.stringify(checks));
+          const missing = Object.entries(checks).filter(([, present]) => !present).map(([name]) => name);
           if (missing.length) {
-            console.error('Missing resolved production config fields:', missing.join(', '));
+            console.error('Production Android configuration checks failed:', missing.join(', '));
             process.exit(1);
           }
-          console.log('Production Expo configuration verified. Values were not printed.');
+          console.log('Production Expo and native Android configuration verified. Secret values were not printed.');
           NODE
 
       - name: Build Android release APK
