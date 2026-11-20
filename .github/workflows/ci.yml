@@ -18,8 +18,8 @@ jobs:
     name: Web lint, typecheck and production build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
@@ -37,8 +37,8 @@ jobs:
       run:
         working-directory: expo-app
     steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
@@ -71,8 +71,8 @@ jobs:
     name: Supabase Edge Function typecheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: denoland/setup-deno@v2
+      - uses: actions/checkout@v7
+      - uses: denoland/setup-deno@v2.0.5
         with:
           deno-version: v2.x
       - run: deno check --node-modules-dir=auto supabase/functions/create-taxi-request/index.ts
