@@ -17,6 +17,7 @@ interface AuthCtx {
   profile: Profile | null;
   roles: AppRole[];
   loading: boolean;
+  mustChangePassword: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -28,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const mustChangePassword = session?.user?.app_metadata?.must_change_password === true;
 
   async function loadProfile(uid: string) {
     const [{ data: prof }, { data: roleRows }] = await Promise.all([
@@ -71,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ session, user: session?.user ?? null, profile, roles, loading, refresh, signOut }}>
+    <Ctx.Provider value={{ session, user: session?.user ?? null, profile, roles, loading, mustChangePassword, refresh, signOut }}>
       {children}
     </Ctx.Provider>
   );

@@ -782,3 +782,104 @@ export const adminGetUserRoles = createServerFn({ method: "POST" })
     if (error) throw new Error("فشل تحميل صلاحيات المستخدم");
     return (roles ?? []).map((row: { role: string }) => row.role);
   });
+
+// Super-admin account maintenance. All Auth Admin operations stay on the server.
+export const adminUpdateUserContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({
+    user_id: z.string().uuid(),
+    email: z.string().trim().email().max(254).optional().nullable(),
+    phone: z.string().trim().min(7).max(30).optional().nullable(),
+  }).refine((d) => d.email !== undefined || d.phone !== undefined, {
+    message: "أدخل البريد أو رقم الهاتف المراد تحديثه",
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertProtectedAccountTarget(supabaseAdmin, context.userId, data.user_id);
+    const authUpdate: { email?: string; phone?: string } = {};
+    if (data.email !== undefined) {
+      if (!data.email) throw new Error("البريد الإلكتروني لا يمكن أن يكون فارغاً");
+      authUpdate.email = data.email;
+    }
+    if (data.phone !== undefined) {
+      if (!data.phone) throw new Error("رقم الهاتف لا يمكن أن يكون فارغاً");
+      authUpdate.phone = data.phone;
+    }
+    const { data: updated, error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, authUpdate);
+    if (error || !updated.user) throw new Error(error?.message ?? "تعذر تحديث بيانات الدخول");
+    const adminDb = supabaseAdmin as unknown as SupabaseClient;
+    const profilePatch: Record<string, string> = {};
+    if (data.email !== undefined) profilePatch.email = data.email!;
+    if (data.phone !== undefined) profilePatch.phone = data.phone!;
+    const { error: profileError } = await adminDb.from("profiles").update(profilePatch).eq("id", data.user_id);
+    if (profileError) {
+      await recordAccountAction(supabaseAdmin, context.userId, "auth_contact_updated_profile_sync_failed", data.user_id, { fields: Object.keys(profilePatch) });
+      throw new Error("تم تحديث بيانات المصادقة لكن تعذرت مزامنة الملف الشخصي؛ يلزم فحص الحساب");
+    }
+    const auditLogged = await recordAccountAction(supabaseAdmin, context.userId, "auth_contact_updated", data.user_id, { fields: Object.keys(profilePatch) });
+    return { ok: true, audit_logged: auditLogged };
+  });
+
+
+export const adminRequirePasswordChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({ user_id: z.string().uuid(), required: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertProtectedAccountTarget(supabaseAdmin, context.userId, data.user_id);
+    const { data: target, error: getError } = await supabaseAdmin.auth.admin.getUserById(data.user_id);
+    if (getError || !target.user) throw new Error("تعذر التحقق من الحساب");
+    const metadata = { ...(target.user.app_metadata ?? {}), must_change_password: data.required };
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, { app_metadata: metadata });
+    if (error) throw new Error("تعذر تحديث حالة تغيير كلمة المرور");
+    const auditLogged = await recordAccountAction(supabaseAdmin, context.userId, data.required ? "password_change_required" : "password_change_requirement_removed", data.user_id, {});
+    return { ok: true, audit_logged: auditLogged };
+  });
+
+export const adminCompleteForcedPasswordChange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({}).parse(d ?? {}))
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: current, error: getError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
+    if (getError || !current.user) throw new Error("تعذر التحقق من الحساب");
+    const metadata = { ...(current.user.app_metadata ?? {}) };
+    delete metadata.must_change_password;
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, { app_metadata: metadata });
+    if (error) throw new Error("تم تغيير كلمة المرور لكن تعذر إكمال تحديث حالة الحساب");
+    return { ok: true };
+  });
+
+export const adminCreateUserInvite = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((d) => z.object({
+    email: z.string().trim().email().max(254),
+    full_name: z.string().trim().min(2).max(120),
+    phone: z.string().trim().min(7).max(30).optional(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
+      data: { full_name: data.full_name, ...(data.phone ? { phone: data.phone } : {}) },
+    });
+    if (error || !invited.user) throw new Error(error?.message ?? "تعذر إرسال دعوة الحساب");
+    const { error: metadataError } = await supabaseAdmin.auth.admin.updateUserById(invited.user.id, { app_metadata: { ...(invited.user.app_metadata ?? {}), must_change_password: true } });
+    if (metadataError) throw new Error("تم إنشاء الدعوة لكن تعذر فرض تغيير كلمة المرور؛ يلزم فحص الحساب");
+    const adminDb = supabaseAdmin as unknown as SupabaseClient;
+    const { error: profileError } = await adminDb.from("profiles").upsert({
+      id: invited.user.id,
+      full_name: data.full_name,
+      phone: data.phone ?? "",
+      email: data.email,
+    }, { onConflict: "id" });
+    if (profileError) {
+      await recordAccountAction(supabaseAdmin, context.userId, "auth_invite_profile_sync_failed", invited.user.id, { email: data.email });
+      throw new Error("أُرسلت الدعوة لكن تعذر إكمال الملف الشخصي؛ يلزم فحص الحساب");
+    }
+    const auditLogged = await recordAccountAction(supabaseAdmin, context.userId, "auth_user_invited", invited.user.id, { email: data.email });
+    return { ok: true, user_id: invited.user.id, audit_logged: auditLogged };
+  });
+
