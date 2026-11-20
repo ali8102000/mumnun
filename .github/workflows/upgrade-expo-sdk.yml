@@ -1,0 +1,97 @@
+name: Upgrade Expo app to SDK 58
+
+on:
+  push:
+    branches:
+      - upgrade/platform-hardening-2026-11-20
+    paths:
+      - ".github/workflows/upgrade-expo-sdk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mamnoon-expo-sdk-upgrade
+  cancel-in-progress: false
+
+jobs:
+  upgrade-and-verify:
+    name: Upgrade Expo SDK and verify Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: expo-app
+    steps:
+      - name: Checkout upgrade branch
+        uses: actions/checkout@v7
+        with:
+          ref: upgrade/platform-hardening-2026-11-20
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2.2.0
+        with:
+          bun-version: latest
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install current locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Upgrade Expo to SDK 58
+        run: |
+          bun add expo@^58.0.0
+          bunx expo install --fix
+
+      - name: Validate Expo dependency compatibility
+        run: bunx expo-doctor
+
+      - name: TypeScript validation
+        run: bunx tsc --noEmit
+
+      - name: Export Android JavaScript bundle
+        run: bunx expo export --platform android
+
+      - name: Generate Android native project
+        run: bunx expo prebuild --platform android --no-install
+
+      - name: Build Android release APK
+        working-directory: expo-app/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a assembleRelease
+
+      - name: Save upgraded dependencies to branch
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json bun.lock
+          if git diff --cached --quiet; then
+            echo "No dependency changes to commit."
+          else
+            git commit -m "chore(android): upgrade Expo app to SDK 58"
+            git push origin HEAD:upgrade/platform-hardening-2026-11-20
+          fi
+
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: expo-sdk-58-verification
+          path: |
+            expo-app/dist
+            expo-app/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: ignore
+          retention-days: 7
