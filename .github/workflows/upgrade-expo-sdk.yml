@@ -97,7 +97,7 @@ jobs:
 
       - name: Verify resolved production Expo configuration
         run: |
-          bunx expo config --type public > /tmp/mamnoon-expo-config.json
+          bunx expo config --type public --json > /tmp/mamnoon-expo-config.json
           node -e "const c=require('/tmp/mamnoon-expo-config.json'); const e=c.extra||{}; if(!e.supabaseUrl || !e.supabasePublishableKey || !e.eas?.projectId || !c.android?.config?.googleMaps?.apiKey) process.exit(1); console.log('Production Expo configuration contains Supabase, EAS and Android Maps settings. Values were not printed.')"
 
       - name: Build Android release APK
