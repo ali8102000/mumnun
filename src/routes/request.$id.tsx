@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
+import { RouteErrorFallback } from "@/components/route-error-fallback";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/auth-context";
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/request/$id")({ ssr: false,
     { property: "og:description", content: "تابع حالة طلبك وموقع مزود الخدمة وتواصل معه في ممنون." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary" },
-  ] }), component: RequestDetail });
+  ] }), component: RequestDetail, errorComponent: RouteErrorFallback });
 
 function RequestDetail() {
   const { id } = Route.useParams();
