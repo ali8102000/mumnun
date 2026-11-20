@@ -6,6 +6,7 @@ on:
       - upgrade/platform-hardening-2026-11-20
     paths:
       - ".github/workflows/upgrade-expo-sdk.yml"
+      - "expo-app/app.config.ts"
   workflow_dispatch:
 
 permissions:
