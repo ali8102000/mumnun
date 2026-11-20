@@ -223,6 +223,7 @@ export default function NewRequest() {
   }
 
   async function submit() {
+    if (busy) return;
     if (!user) {
       Alert.alert('تسجيل الدخول مطلوب', 'سجّل الدخول قبل إرسال الطلب.');
       return;
