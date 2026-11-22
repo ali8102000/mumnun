@@ -14,12 +14,13 @@ export default function ResetPassword() {
     if (password !== confirm) { Alert.alert('خطأ', 'كلمتا المرور غير متطابقتين'); return; }
     setBusy(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
       const { data: current } = await supabase.auth.getUser();
       if (current.user?.app_metadata?.must_change_password === true) {
-        await authProxy<{ ok: boolean }>('/complete-forced-password-change', {});
+        await authProxy<{ ok: boolean }>('/complete-forced-password-change', { new_password: password });
         await supabase.auth.refreshSession();
+      } else {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
       }
       Alert.alert('تم', 'تم تغيير كلمة المرور بنجاح');
       router.replace('/');
