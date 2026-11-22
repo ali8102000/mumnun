@@ -26,6 +26,7 @@ export default function AdminScreen() {
   const [recent, setRecent] = useState<RecentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const load = useCallback(async () => {
     const [adminCheck, ownerCheck] = await Promise.all([
@@ -33,6 +34,7 @@ export default function AdminScreen() {
       supabase.rpc('is_super_admin', { p_user_id: user?.id }),
     ]);
     if (!adminCheck.data && !ownerCheck.data) { Alert.alert('خطأ', 'ليس لديك صلاحية للوصول'); router.back(); return; }
+    setIsSuperAdmin(Boolean(ownerCheck.data));
     const [reqs, users, drivers, pricingRules, recentReqs] = await Promise.all([
       supabase.from('service_requests').select('id', { count: 'exact', head: true }),
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
@@ -54,6 +56,7 @@ export default function AdminScreen() {
       <Text style={styles.title}>لوحة التحكم</Text>
       <Pressable style={styles.teamButton} onPress={() => router.push('/app-editor' as never)}><Text style={styles.teamButtonText}>🖼️ محرر التطبيقات والتحكم بالصور</Text></Pressable>
       {user?.email?.toLowerCase() === 'a7md0555666@gmail.com' && <Pressable style={styles.teamButton} onPress={() => router.push('/admin-team' as never)}><Text style={styles.teamButtonText}>👥 إدارة فريق العمل والصلاحيات</Text></Pressable>}
+      {isSuperAdmin && <Pressable style={styles.teamButton} onPress={() => router.push('/admin-accounts' as never)}><Text style={styles.teamButtonText}>🔐 إدارة حسابات المستخدمين</Text></Pressable>}
       <View style={styles.statsGrid}><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalRequests}</Text><Text style={styles.statLabel}>إجمالي الطلبات</Text></View><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalUsers}</Text><Text style={styles.statLabel}>المستخدمين</Text></View><View style={styles.statCard}><Text style={styles.statValue}>{stats.totalDrivers}</Text><Text style={styles.statLabel}>السائقين</Text></View></View>
       <Text style={styles.sectionTitle}>قواعد التسعير</Text>
       {pricing.map((p) => (<View key={p.id} style={styles.pricingCard}><Text style={styles.pricingCategory}>{p.category}</Text><Text style={styles.pricingValues}>{p.base_fare?.toLocaleString('en')} + {p.per_km?.toLocaleString('en')}/كم</Text></View>))}

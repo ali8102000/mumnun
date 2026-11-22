@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { View, Text, StyleSheet, Alert } from 'react-native';
-import { supabase } from '@/lib/supabase';
+import { supabase, authProxy } from '@/lib/supabase';
 import { Button, RealInput } from '@/components/ui';
 
 export default function ResetPassword() {
@@ -10,12 +10,18 @@ export default function ResetPassword() {
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    if (password.length < 6) { Alert.alert('خطأ', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
+    if (password.length < 8) { Alert.alert('خطأ', 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'); return; }
     if (password !== confirm) { Alert.alert('خطأ', 'كلمتا المرور غير متطابقتين'); return; }
     setBusy(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      const { data: current } = await supabase.auth.getUser();
+      if (current.user?.app_metadata?.must_change_password === true) {
+        await authProxy<{ ok: boolean }>('/complete-forced-password-change', { new_password: password });
+        await supabase.auth.refreshSession();
+      } else {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+      }
       Alert.alert('تم', 'تم تغيير كلمة المرور بنجاح');
       router.replace('/');
     } catch (error: unknown) { Alert.alert('خطأ', error instanceof Error ? error.message : 'حدث خطأ'); } finally { setBusy(false); }

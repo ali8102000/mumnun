@@ -1,4 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { adminCompleteForcedPasswordChange } from "@/lib/admin.functions";
 import { useEffect, useState } from "react";
 import { Loader2, Lock, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +25,7 @@ function ResetPasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  const completeForcedChange = useServerFn(adminCompleteForcedPasswordChange);
 
   // Recovery flow: Supabase redirects with #access_token=...&type=recovery
   // and the JS client picks it up automatically into a session.
@@ -41,8 +44,8 @@ function ResetPasswordPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 6) {
-      toast.error("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+    if (password.length < 8) {
+      toast.error("كلمة المرور يجب أن تكون 8 أحرف على الأقل");
       return;
     }
     if (password !== confirm) {
@@ -51,8 +54,14 @@ function ResetPasswordPage() {
     }
     setBusy(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      const { data: current } = await supabase.auth.getUser();
+      if (current.user?.app_metadata?.must_change_password === true) {
+        await completeForcedChange({ data: { new_password: password } });
+        await supabase.auth.refreshSession();
+      } else {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+      }
       toast.success("تم تحديث كلمة المرور");
       navigate({ to: "/" });
     } catch (err: unknown) {

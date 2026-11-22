@@ -4,6 +4,8 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useNavigate,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -13,7 +15,7 @@ import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider } from "@/lib/auth-context";
+import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { DriverOfferPopup } from "@/components/driver-offer-popup";
 
 function NotFoundComponent() {
@@ -121,6 +123,18 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function PasswordChangeGate() {
+  const { user, mustChangePassword, loading } = useAuth();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!loading && user && mustChangePassword && pathname !== "/reset-password") {
+      void navigate({ to: "/reset-password", replace: true });
+    }
+  }, [loading, user?.id, mustChangePassword, pathname, navigate]);
+  return <Outlet />;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -135,7 +149,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Outlet />
+        <PasswordChangeGate />
         <DriverOfferPopup />
         <Toaster richColors position="top-center" />
       </AuthProvider>

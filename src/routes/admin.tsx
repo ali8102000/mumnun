@@ -16,6 +16,7 @@ import {
   adminSaveCoupon, adminSearchUsers, adminSetProviderStatus, adminUnbanUser, adminUnblockUser,
 } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
+import { AdminAccountActions, AdminCreateAccount } from "@/components/admin/AdminAccountActions";
 import { supabase } from "@/integrations/supabase/client";
 import { AppEditorSection } from "@/components/admin/app-editor-section";
 
@@ -293,6 +294,7 @@ function UsersSection({ canManageAccounts }: { canManageAccounts: boolean }) {
   return (
     <div>
       <h2 className="text-xl font-black mb-4">إدارة المستخدمين</h2>
+      {canManageAccounts && <AdminCreateAccount />}
       <div className="flex gap-2 mb-4">
         <input value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }} placeholder="بحث بالاسم، الهاتف، أو البريد..." className="flex-1 glass rounded-xl px-4 py-2.5 text-sm outline-none" onKeyDown={(e) => { if (e.key === "Enter") load(); }} />
         <button onClick={load} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold">بحث</button>
@@ -309,6 +311,7 @@ function UsersSection({ canManageAccounts }: { canManageAccounts: boolean }) {
                 {u.blocked ? <button onClick={() => handleUnblock(u.id)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-bold">رفع الحظر</button> : <button onClick={() => setBlockModal({ id: u.id, name: u.full_name })} className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-700 font-bold">حظر</button>}
                 <button onClick={() => viewUser(u.id)} className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-bold">تفاصيل</button>
                 {canManageAccounts && <>
+                  <AdminAccountActions userId={u.id} email={u.email} phone={u.phone} canManage={canManageAccounts} />
                   <button onClick={() => setBanModal({ id: u.id, name: u.full_name })} className="text-xs px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 font-bold">حظر دخول</button>
                   <button onClick={() => handleAuthUnban(u.id)} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-bold">رفع حظر الدخول</button>
                   <button onClick={() => setDeleteModal(u)} className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white font-bold">حذف نهائي</button>

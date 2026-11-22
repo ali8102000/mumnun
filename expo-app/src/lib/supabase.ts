@@ -29,9 +29,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 export async function authProxy<T>(path: string, body: Record<string, unknown>): Promise<T> {
+  const { data: sessionData } = await supabase.auth.getSession();
   const response = await fetch(`${supabaseUrl}/functions/v1/auth-proxy${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: supabaseAnonKey },
+    headers: { 'Content-Type': 'application/json', apikey: supabaseAnonKey, ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {}) },
     body: JSON.stringify(body),
   });
   const result = await response.json();

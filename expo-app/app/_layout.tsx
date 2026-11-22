@@ -1,6 +1,10 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { I18nManager, LogBox } from 'react-native';
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'expo-router';
+import { useAuth } from '@/lib/auth-context';
+import type { ReactNode } from 'react';
 import { AuthProvider } from '@/lib/auth-context';
 
 I18nManager.forceRTL(true);
@@ -8,10 +12,20 @@ I18nManager.allowRTL(true);
 
 LogBox.ignoreLogs(['Setting a timer', 'AsyncStorage']);
 
+function PasswordChangeGate({ children }: { children: ReactNode }) {
+  const { user, mustChangePassword, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  useEffect(() => {
+    if (!loading && user && mustChangePassword && pathname !== '/reset-password') router.replace('/reset-password');
+  }, [loading, user?.id, mustChangePassword, pathname]);
+  return <>{children}</>;
+}
+
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <StatusBar style="dark" />
+      <PasswordChangeGate><StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -34,7 +48,7 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding/worker" />
         <Stack.Screen name="forgot-password" />
         <Stack.Screen name="reset-password" />
-      </Stack>
+      </Stack></PasswordChangeGate>
     </AuthProvider>
   );
 }
