@@ -10,7 +10,7 @@ export default function ResetPassword() {
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    if (password.length < 6) { Alert.alert('خطأ', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل'); return; }
+    if (password.length < 8) { Alert.alert('خطأ', 'كلمة المرور يجب أن تكون 8 أحرف على الأقل'); return; }
     if (password !== confirm) { Alert.alert('خطأ', 'كلمتا المرور غير متطابقتين'); return; }
     setBusy(true);
     try {
