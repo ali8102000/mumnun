@@ -840,15 +840,20 @@ export const adminRequirePasswordChange = createServerFn({ method: "POST" })
 
 export const adminCompleteForcedPasswordChange = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((d) => z.object({}).parse(d ?? {}))
-  .handler(async ({ context }) => {
+  .validator((d) => z.object({ new_password: z.string().min(8).max(128) }).parse(d))
+  .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: current, error: getError } = await supabaseAdmin.auth.admin.getUserById(context.userId);
     if (getError || !current.user) throw new Error("تعذر التحقق من الحساب");
+    if (current.user.app_metadata?.must_change_password !== true) {
+      throw new Error("لا يوجد طلب إلزامي لتغيير كلمة المرور");
+    }
+    const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(context.userId, { password: data.new_password });
+    if (passwordError) throw new Error("تعذر تحديث كلمة المرور");
     const metadata = { ...(current.user.app_metadata ?? {}) };
     delete metadata.must_change_password;
     const { error } = await supabaseAdmin.auth.admin.updateUserById(context.userId, { app_metadata: metadata });
-    if (error) throw new Error("تم تغيير كلمة المرور لكن تعذر إكمال تحديث حالة الحساب");
+    if (error) throw new Error("تم تغيير كلمة المرور لكن تعذر إكمال تحديث حالة الحساب؛ أعد المحاولة أو تواصل مع الدعم");
     return { ok: true };
   });
 
