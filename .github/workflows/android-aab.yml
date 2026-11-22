@@ -1,6 +1,10 @@
 name: Android production AAB
 
 on:
+  # Build automatically when a GitHub release is published.
+  release:
+    types: [published]
+  # Keep manual builds available from the Actions tab.
   workflow_dispatch:
 
 permissions:
