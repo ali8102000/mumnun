@@ -66,10 +66,24 @@ Deno.serve(async (req: Request) => {
       if (authError || !authData.user) return json({ error: "Unauthorized" }, 401);
       const { data: current, error: getError } = await supabase.auth.admin.getUserById(authData.user.id);
       if (getError || !current.user) return json({ error: "Unable to verify account" }, 400);
+      if (current.user.app_metadata?.must_change_password !== true) {
+        return json({ error: "لا يوجد طلب إلزامي لتغيير كلمة المرور" }, 409);
+      }
+      const body = await req.json().catch(() => ({}));
+      const newPassword = typeof body?.new_password === "string" ? body.new_password : "";
+      if (newPassword.length < 8 || newPassword.length > 128) {
+        return json({ error: "كلمة المرور يجب أن تكون بين 8 و128 حرفاً" }, 400);
+      }
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${bearer}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { error: passwordError } = await userClient.auth.updateUser({ password: newPassword });
+      if (passwordError) return json({ error: safeError(passwordError.message) }, 400);
       const metadata = { ...(current.user.app_metadata ?? {}) };
       delete metadata.must_change_password;
       const { error: updateError } = await supabase.auth.admin.updateUserById(authData.user.id, { app_metadata: metadata });
-      if (updateError) return json({ error: "Unable to complete password change" }, 400);
+      if (updateError) return json({ error: "تم تغيير كلمة المرور لكن تعذر إكمال تحديث حالة الحساب؛ أعد المحاولة أو تواصل مع الدعم" }, 500);
       return json({ ok: true });
     }
 
