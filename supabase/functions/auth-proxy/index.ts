@@ -74,11 +74,7 @@ Deno.serve(async (req: Request) => {
       if (newPassword.length < 8 || newPassword.length > 128) {
         return json({ error: "كلمة المرور يجب أن تكون بين 8 و128 حرفاً" }, 400);
       }
-      const userClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: `Bearer ${bearer}` } },
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
-      const { error: passwordError } = await userClient.auth.updateUser({ password: newPassword });
+      const { error: passwordError } = await supabase.auth.admin.updateUserById(authData.user.id, { password: newPassword });
       if (passwordError) return json({ error: safeError(passwordError.message) }, 400);
       const metadata = { ...(current.user.app_metadata ?? {}) };
       delete metadata.must_change_password;
