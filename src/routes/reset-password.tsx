@@ -54,12 +54,13 @@ function ResetPasswordPage() {
     }
     setBusy(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
       const { data: current } = await supabase.auth.getUser();
       if (current.user?.app_metadata?.must_change_password === true) {
-        await completeForcedChange({ data: {} });
+        await completeForcedChange({ data: { new_password: password } });
         await supabase.auth.refreshSession();
+      } else {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
       }
       toast.success("تم تحديث كلمة المرور");
       navigate({ to: "/" });
