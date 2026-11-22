@@ -229,5 +229,5 @@ const styles = StyleSheet.create({
   warningText: { color: '#c2410c', fontWeight: '800', fontSize: 13 },
   secondaryButton: { backgroundColor: '#f1f5f9', borderRadius: 12, padding: 13, alignItems: 'center' },
   secondaryText: { color: '#334155', fontWeight: '800', fontSize: 13 },
-  busyOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.12)', alignItems: 'center', justifyContent: 'center' },
+  busyOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.12)', alignItems: 'center', justifyContent: 'center' },
 });
