@@ -336,14 +336,15 @@ export function MapPicker({
       if (!supported || cancelled || !mapRef.current) return;
       const g = (window as Window & { google?: typeof google }).google;
       if (!g?.maps) return;
+      const maps = g.maps;
       const currentIds = new Set(nearby.map((pin) => pin.pin_id));
       nearby.forEach((pin) => {
         let overlay = nearbyModelOverlaysRef.current.get(pin.pin_id);
         if (!overlay) {
           const modelKind = (pin.model_type || (nearbyKind === "worker" ? "worker" : "taxi")) as MapModelKind;
           const modelUrl = mapModelUrls[modelKind] || mapModelUrls.taxi;
-          overlay = new (class extends g.maps.OverlayView {
-            private position = new g.maps.LatLng(pin.lat, pin.lng);
+          overlay = new (class extends maps.OverlayView {
+            private position = new maps.LatLng(pin.lat, pin.lng);
             private root = document.createElement("div");
             private viewer = document.createElement("model-viewer") as HTMLElement;
             onAdd() {
@@ -375,7 +376,7 @@ export function MapPicker({
             onRemove() { this.root.remove(); }
             setCoords(coords: Coords, heading: number) {
               this.position = new g.maps.LatLng(coords.lat, coords.lng);
-              this.viewer.setAttribute("orientation", `0deg ${heading}deg 0deg`);
+              this.viewer.setAttribute("orientation", `0deg 0deg ${heading}deg`);
               this.draw();
             }
             getCoords() { return { lat: this.position.lat(), lng: this.position.lng() }; }
