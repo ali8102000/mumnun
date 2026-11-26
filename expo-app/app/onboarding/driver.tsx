@@ -8,7 +8,7 @@ import { Button } from '@/components/ui';
 type VehicleModel = { id: string; make: string; model: string; category: string };
 
 export default function DriverOnboarding() {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [models, setModels] = useState<VehicleModel[]>([]);
   const [selectedMake, setSelectedMake] = useState('');
   const [selectedModel, setSelectedModel] = useState<VehicleModel | null>(null);
@@ -21,13 +21,15 @@ export default function DriverOnboarding() {
   const makes = [...new Set(models.map((m) => m.make))];
 
   async function submit() {
+    if (!user?.id) { Alert.alert('خطأ', 'انتهت الجلسة. سجّل الدخول من جديد.'); return; }
     if (!selectedModel || !year || !plate) { Alert.alert('خطأ', 'الرجاء تعبئة جميع الحقول'); return; }
     setBusy(true);
     try {
-      const { error } = await supabase.from('driver_profiles').upsert({ user_id: user?.id, vehicle_model: `${selectedMake} ${selectedModel.model}`, vehicle_plate: plate, vehicle_color: color || null, available: false });
+      const { error } = await supabase.from('driver_profiles').upsert({ user_id: user.id, vehicle_model: `${selectedMake} ${selectedModel.model}`, vehicle_plate: plate, vehicle_color: color || null, available: false });
       if (error) throw error;
       const { error: roleError } = await supabase.rpc('grant_provider_role_safe', { _role: 'driver' });
       if (roleError) throw roleError;
+      await refresh();
       router.replace('/home');
     } catch (err: unknown) { Alert.alert('خطأ', err instanceof Error ? err.message : 'حدث خطأ'); } finally { setBusy(false); }
   }
