@@ -153,12 +153,18 @@ export default function RequestDetail() {
     }
 
     async function startTracking() {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!(await Location.hasServicesEnabledAsync())) {
+        if (mounted) Alert.alert('الموقع متوقف', 'شغّل GPS حتى تتم مشاركة موقع الرحلة.');
+        return;
+      }
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== 'granted') permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         if (mounted) Alert.alert('إذن الموقع مطلوب', 'اسمح بمشاركة موقعك أثناء الرحلة حتى يظهر للطرف الآخر.');
         return;
       }
       const first = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      if (!mounted) return;
       await publishLocation(first);
       if (!mounted) return;
       subscription = await Location.watchPositionAsync(
@@ -334,7 +340,6 @@ export default function RequestDetail() {
                 latitudeDelta: 0.025,
                 longitudeDelta: 0.025,
               }}
-              showsUserLocation
             >
               <Marker
                 coordinate={{ latitude: request.pickup_lat, longitude: request.pickup_lng }}
