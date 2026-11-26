@@ -72,6 +72,7 @@ export default function NewRequest() {
   const [destinationCoords, setDestinationCoords] = useState<Coordinates | null>(null);
   const [mapMode, setMapMode] = useState<'pickup' | 'destination'>('pickup');
   const [region, setRegion] = useState(BAGHDAD_REGION);
+  const [nearbyProviders, setNearbyProviders] = useState<Array<{ pin_id: string; lat: number; lng: number; heading: number | null }>>([]);
   const [locationLoading, setLocationLoading] = useState(true);
   const [vehicleCat, setVehicleCat] = useState<VehicleCategory>('economy');
   const [vehicleImages, setVehicleImages] = useState<Record<string, { url: string; scale: number; x: number; y: number }>>({});
@@ -84,6 +85,54 @@ export default function NewRequest() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const isTaxi = selectedService === 'taxi';
+
+  // Nearby provider pins are read-only map data. They do not affect dispatch or availability.
+  useEffect(() => {
+    if (!pickupCoords) {
+      setNearbyProviders([]);
+      return;
+    }
+    let active = true;
+    let busyNearby = false;
+    let serviceId: string | null = null;
+    const loadNearby = async () => {
+      if (busyNearby) return;
+      busyNearby = true;
+      try {
+        if (!isTaxi && !serviceId) {
+          const { data: service } = await supabase.from('services').select('id').eq('slug', selectedService).maybeSingle();
+          serviceId = service?.id ?? null;
+        }
+        const { data, error } = await supabase.rpc('find_nearby_provider_pins', {
+          _lat: pickupCoords.latitude,
+          _lng: pickupCoords.longitude,
+          _type: isTaxi ? 'taxi' : 'service',
+          _category: isTaxi ? vehicleCat : null,
+          _service_id: isTaxi ? null : serviceId,
+          _radius_km: 5,
+          _limit: 30,
+        });
+        if (error) throw error;
+        if (!active) return;
+        setNearbyProviders((data ?? []).map((pin: { pin_id: string; lat: number; lng: number; heading: number | null }) => ({
+          pin_id: String(pin.pin_id),
+          lat: Number(pin.lat),
+          lng: Number(pin.lng),
+          heading: pin.heading == null ? null : Number(pin.heading),
+        })).filter((pin) => Number.isFinite(pin.lat) && Number.isFinite(pin.lng)));
+      } catch {
+        // Nearby markers are optional; keep the request map usable if the lookup is unavailable.
+      } finally {
+        busyNearby = false;
+      }
+    };
+    void loadNearby();
+    const timer = setInterval(() => void loadNearby(), 20000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [pickupCoords?.latitude, pickupCoords?.longitude, selectedService, vehicleCat, isTaxi]);
 
   useEffect(() => {
     let mounted = true;
@@ -414,6 +463,19 @@ export default function NewRequest() {
           {destinationCoords && isTaxi && (
             <Marker coordinate={destinationCoords} title="الوجهة" pinColor="#166534" />
           )}
+          {nearbyProviders.map((provider) => (
+            <Marker
+              key={provider.pin_id}
+              coordinate={{ latitude: provider.lat, longitude: provider.lng }}
+              title={isTaxi ? 'تكسي قريب' : 'فني قريب'}
+              anchor={{ x: 0.5, y: 0.5 }}
+              tracksViewChanges={false}
+            >
+              <View style={styles.nearbyMarker}>
+                <Text style={styles.nearbyMarkerEmoji}>{isTaxi ? '🚕' : '🧰'}</Text>
+              </View>
+            </Marker>
+          ))}
         </MapView>
         <Text style={styles.mapHint}>
           {mapMode === 'pickup' ? 'اضغط على الخريطة لتحديد الانطلاق' : 'اضغط على الخريطة لتحديد الوجهة'}
@@ -547,6 +609,9 @@ export default function NewRequest() {
 }
 
 const styles = StyleSheet.create({
+  nearbyMarker: { minWidth: 42, height: 42, paddingHorizontal: 5, borderRadius: 21, backgroundColor: '#ffffff', borderWidth: 2, borderColor: '#2563eb', alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  nearbyMarkerEmoji: { fontSize: 23 },
+
   container: { flex: 1, paddingHorizontal: 20, paddingTop: 50 },
   title: { fontSize: 28, fontWeight: '900', color: '#1e293b', marginBottom: 24 },
   label: { fontSize: 13, fontWeight: '700', color: '#64748b', marginBottom: 8, marginTop: 16 },
