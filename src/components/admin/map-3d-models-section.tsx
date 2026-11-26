@@ -81,7 +81,7 @@ export function Map3DModelsSection() {
       const path = `map-models/${key}/${Date.now()}-${crypto.randomUUID()}.glb`;
       const { error } = await supabase.storage.from("map-3d-models").upload(path, file, { upsert: false, contentType: "model/gltf-binary" });
       if (error) throw error;
-      const { data } = supabase.storage.from("app-visuals").getPublicUrl(path);
+      const { data } = supabase.storage.from("map-3d-models").getPublicUrl(path);
       setModels((current) => ({ ...current, [key]: { url: data.publicUrl, fileName: file.name } }));
       toast.success("تم رفع المجسّم. اضغط حفظ لتثبيت الربط");
     } catch (error) {
