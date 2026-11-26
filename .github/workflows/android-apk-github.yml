@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/admin-3d-map-models
     paths:
       - "expo-app/**"
       - ".github/workflows/android-apk-github.yml"
