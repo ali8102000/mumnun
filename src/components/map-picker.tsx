@@ -1,11 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
+import { supabase } from "@/integrations/supabase/client";
 import { getCurrentLocation, locationError } from "@/lib/location";
 import { lookupMapPlace } from "@/lib/maps.functions";
 import { Loader2, MapPin, Crosshair, Search, X, CheckCircle2, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
 import type { ProviderPin } from "@/lib/use-nearby-providers";
 
 type Coords = { lat: number; lng: number };
+type MapModelKind = "taxi" | "worker";
+type NearbyModelOverlay = google.maps.OverlayView & {
+  setCoords: (coords: Coords, heading: number) => void;
+  getCoords: () => Coords;
+};
+const DEFAULT_MAP_MODEL_URLS: Record<MapModelKind, string> = {
+  taxi: "https://tevy.dev/models/city-taxi/v1/lod2.glb",
+  worker: "https://tevy.dev/models/road-worker/v1/lod2.glb",
+};
+let modelViewerScriptPromise: Promise<boolean> | null = null;
+
+function ensureModelViewer(): Promise<boolean> {
+  if (typeof window === "undefined" || !window.customElements) return Promise.resolve(false);
+  if (window.customElements.get("model-viewer")) return Promise.resolve(true);
+  if (modelViewerScriptPromise) return modelViewerScriptPromise;
+  modelViewerScriptPromise = new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.type = "module";
+    script.src = "https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js";
+    script.onload = () => resolve(Boolean(window.customElements.get("model-viewer")));
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+  return modelViewerScriptPromise;
+}
 
 const DEFAULT_CENTER: Coords = { lat: 33.3152, lng: 44.3661 };
 
@@ -99,7 +125,29 @@ export function MapPicker({
   const nearbyMarkersRef = useRef<
     Map<string, { marker: google.maps.Marker; anim: { from: Coords; to: Coords; startedAt: number; raf: number | null; heading: number } | null }>
   >(new Map());
+  const nearbyModelOverlaysRef = useRef<Map<string, NearbyModelOverlay>>(new Map());
+  const [mapModelUrls, setMapModelUrls] = useState<Record<MapModelKind, string>>(DEFAULT_MAP_MODEL_URLS);
   const readyRef = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data } = await supabase.from("app_editor_settings").select("settings").eq("id", "global").maybeSingle();
+      if (!active || !data?.settings || typeof data.settings !== "object" || Array.isArray(data.settings)) return;
+      const mapModels = (data.settings as { mapModels?: Record<string, { url?: string }> }).mapModels;
+      if (!mapModels) return;
+      setMapModelUrls((current) => ({
+        taxi: mapModels.taxi?.url || current.taxi,
+        worker: mapModels.worker?.url || current.worker,
+      }));
+    })();
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => () => {
+    nearbyModelOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    nearbyModelOverlaysRef.current.clear();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -267,6 +315,70 @@ export function MapPicker({
       }
     });
   }, [nearby, nearbyKind]);
+
+  // A transparent GLB overlay replaces the old dot on vector-capable browsers.
+  // The original Google marker remains as a safe fallback if WebGL or the model fails.
+  useEffect(() => {
+    if (!nearby?.length || !mapRef.current) return;
+    let cancelled = false;
+    void ensureModelViewer().then((supported) => {
+      if (!supported || cancelled || !mapRef.current) return;
+      const g = (window as Window & { google?: typeof google }).google;
+      if (!g?.maps) return;
+      const currentIds = new Set(nearby.map((pin) => pin.pin_id));
+      nearby.forEach((pin) => {
+        let overlay = nearbyModelOverlaysRef.current.get(pin.pin_id);
+        if (!overlay) {
+          const modelUrl = mapModelUrls[nearbyKind === "worker" ? "worker" : "taxi"];
+          overlay = new (class extends g.maps.OverlayView {
+            private position = new g.maps.LatLng(pin.lat, pin.lng);
+            private root = document.createElement("div");
+            private viewer = document.createElement("model-viewer") as HTMLElement;
+            onAdd() {
+              this.root.style.cssText = "position:absolute;width:78px;height:78px;transform:translate(-50%,-82%);pointer-events:none;transition:left .85s linear,top .85s linear;overflow:visible;";
+              const shadow = document.createElement("div");
+              shadow.style.cssText = "position:absolute;left:18%;right:18%;bottom:4px;height:10px;border-radius:50%;background:radial-gradient(ellipse,rgba(15,23,42,.28) 0%,rgba(15,23,42,0) 75%);filter:blur(2px);";
+              this.viewer.setAttribute("src", modelUrl);
+              this.viewer.setAttribute("alt", nearbyKind === "worker" ? "فني متاح" : "تكسي متاح");
+              this.viewer.setAttribute("camera-orbit", "0deg 72deg 105%");
+              this.viewer.setAttribute("camera-target", "auto auto auto");
+              this.viewer.setAttribute("shadow-intensity", "0.75");
+              this.viewer.setAttribute("exposure", "1.1");
+              this.viewer.setAttribute("interaction-prompt", "none");
+              this.viewer.setAttribute("disable-zoom", "");
+              this.viewer.style.cssText = "position:absolute;inset:0;width:100%;height:100%;background:transparent;--poster-color:transparent;pointer-events:none;";
+              this.root.append(shadow, this.viewer);
+              this.getPanes()?.overlayMouseTarget.appendChild(this.root);
+            }
+            draw() {
+              const point = this.getProjection().fromLatLngToDivPixel(this.position);
+              if (!point) return;
+              this.root.style.left = `${point.x}px`;
+              this.root.style.top = `${point.y}px`;
+            }
+            onRemove() { this.root.remove(); }
+            setCoords(coords: Coords, heading: number) {
+              this.position = new g.maps.LatLng(coords.lat, coords.lng);
+              this.viewer.setAttribute("orientation", `0deg ${heading}deg 0deg`);
+              this.draw();
+            }
+            getCoords() { return { lat: this.position.lat(), lng: this.position.lng() }; }
+          })();
+          overlay.setMap(mapRef.current);
+          nearbyModelOverlaysRef.current.set(pin.pin_id, overlay);
+        }
+        overlay.setCoords({ lat: pin.lat, lng: pin.lng }, pin.heading ?? 0);
+        nearbyMarkersRef.current.get(pin.pin_id)?.marker.setVisible(false);
+      });
+      nearbyModelOverlaysRef.current.forEach((overlay, id) => {
+        if (!currentIds.has(id)) {
+          overlay.setMap(null);
+          nearbyModelOverlaysRef.current.delete(id);
+        }
+      });
+    });
+    return () => { cancelled = true; };
+  }, [nearby, nearbyKind, mapModelUrls]);
 
   function autoLocate() {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
