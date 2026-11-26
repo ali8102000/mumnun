@@ -72,7 +72,6 @@ export default function NewRequest() {
   const [destinationCoords, setDestinationCoords] = useState<Coordinates | null>(null);
   const [mapMode, setMapMode] = useState<'pickup' | 'destination'>('pickup');
   const mapRef = useRef<MapView | null>(null);
-  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [locationLoading, setLocationLoading] = useState(true);
   const [vehicleCat, setVehicleCat] = useState<VehicleCategory>('economy');
   const [vehicleImages, setVehicleImages] = useState<Record<string, { url: string; scale: number; x: number; y: number }>>({});
@@ -104,7 +103,6 @@ export default function NewRequest() {
         let permission = await Location.getForegroundPermissionsAsync();
         if (permission.status !== 'granted') permission = await Location.requestForegroundPermissionsAsync();
         if (permission.status !== 'granted') return;
-        setLocationPermissionGranted(true);
         if (!(await Location.hasServicesEnabledAsync())) return;
         const position = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
@@ -200,7 +198,6 @@ export default function NewRequest() {
         Alert.alert('الموقع متوقف', 'شغّل GPS ثم حاول مرة أخرى.');
         return;
       }
-      setLocationPermissionGranted(true);
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -414,7 +411,6 @@ export default function NewRequest() {
           provider={PROVIDER_GOOGLE}
           initialRegion={BAGHDAD_REGION}
           onPress={(event) => chooseMapPoint(event.nativeEvent.coordinate)}
-          showsUserLocation={locationPermissionGranted}
           showsMyLocationButton={false}
           loadingEnabled
         >
