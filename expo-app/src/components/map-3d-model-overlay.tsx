@@ -133,5 +133,5 @@ export function Map3DModelOverlay({
 
 const styles = StyleSheet.create({
   container: { ...StyleSheet.absoluteFill, backgroundColor: 'transparent' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent' },
+  overlay: { ...StyleSheet.absoluteFill, backgroundColor: 'transparent' },
 });
