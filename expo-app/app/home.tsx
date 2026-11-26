@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, A
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import * as Location from 'expo-location';
+import { NearbyProvidersMap } from '@/components/nearby-providers-map';
 
 type IncomingRequest = {
   id: string;
@@ -198,7 +199,9 @@ function CustomerHome() {
     { key: 'general', label: 'خدمات عامة', emoji: '🏠', color: '#7c3aed' },
   ];
   return (
-    <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
+    <View style={{ paddingTop: 4 }}>
+      <NearbyProvidersMap />
+      <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
       <Text style={styles.sectionTitle}>ماذا تحتاج؟</Text>
       <View style={styles.tilesGrid}>
         {tiles.map((t) => (
@@ -207,6 +210,7 @@ function CustomerHome() {
             <Text style={[styles.tileLabel, { color: t.color }]}>{t.label}</Text>
           </TouchableOpacity>
         ))}
+      </View>
       </View>
     </View>
   );
