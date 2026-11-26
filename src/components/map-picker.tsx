@@ -359,6 +359,8 @@ export function MapPicker({
               this.viewer.setAttribute("interaction-prompt", "none");
               this.viewer.setAttribute("disable-zoom", "");
               this.viewer.style.cssText = "position:absolute;inset:0;width:100%;height:100%;background:transparent;--poster-color:transparent;pointer-events:none;";
+              this.viewer.addEventListener("load", () => {
+                      }, { once: true });
               this.root.append(shadow, this.viewer);
               this.getPanes()?.overlayMouseTarget.appendChild(this.root);
             }
