@@ -7,13 +7,16 @@ import { Loader2, MapPin, Crosshair, Search, X, CheckCircle2, ChevronRight, Maxi
 import type { ProviderPin } from "@/lib/use-nearby-providers";
 
 type Coords = { lat: number; lng: number };
-type MapModelKind = "taxi" | "worker";
+type MapModelKind = "taxi" | "cargo_van" | "passenger_van" | "bus" | "worker";
 type NearbyModelOverlay = google.maps.OverlayView & {
   setCoords: (coords: Coords, heading: number) => void;
   getCoords: () => Coords;
 };
 const DEFAULT_MAP_MODEL_URLS: Record<MapModelKind, string> = {
   taxi: "https://tevy.dev/models/city-taxi/v1/lod2.glb",
+  cargo_van: "https://tevy.dev/models/delivery-van/v1/lod2.glb",
+  passenger_van: "https://tevy.dev/models/kei-van/v1/lod2.glb",
+  bus: "https://tevy.dev/models/city-bus/v1/lod2.glb",
   worker: "https://tevy.dev/models/road-worker/v1/lod2.glb",
 };
 let modelViewerScriptPromise: Promise<boolean> | null = null;
@@ -138,6 +141,9 @@ export function MapPicker({
       if (!mapModels) return;
       setMapModelUrls((current) => ({
         taxi: mapModels.taxi?.url || current.taxi,
+        cargo_van: mapModels.cargo_van?.url || current.cargo_van,
+        passenger_van: mapModels.passenger_van?.url || current.passenger_van,
+        bus: mapModels.bus?.url || current.bus,
         worker: mapModels.worker?.url || current.worker,
       }));
     })();
@@ -334,7 +340,8 @@ export function MapPicker({
       nearby.forEach((pin) => {
         let overlay = nearbyModelOverlaysRef.current.get(pin.pin_id);
         if (!overlay) {
-          const modelUrl = mapModelUrls[nearbyKind === "worker" ? "worker" : "taxi"];
+          const modelKind = (pin.model_type || (nearbyKind === "worker" ? "worker" : "taxi")) as MapModelKind;
+          const modelUrl = mapModelUrls[modelKind] || mapModelUrls.taxi;
           overlay = new (class extends g.maps.OverlayView {
             private position = new g.maps.LatLng(pin.lat, pin.lng);
             private root = document.createElement("div");
@@ -344,7 +351,7 @@ export function MapPicker({
               const shadow = document.createElement("div");
               shadow.style.cssText = "position:absolute;left:18%;right:18%;bottom:4px;height:10px;border-radius:50%;background:radial-gradient(ellipse,rgba(15,23,42,.28) 0%,rgba(15,23,42,0) 75%);filter:blur(2px);";
               this.viewer.setAttribute("src", modelUrl);
-              this.viewer.setAttribute("alt", nearbyKind === "worker" ? "فني متاح" : "تكسي متاح");
+              this.viewer.setAttribute("alt", modelKind === "worker" ? "فني متاح" : modelKind === "bus" ? "باص متاح" : modelKind === "cargo_van" ? "كيّة حمل متاحة" : modelKind === "passenger_van" ? "كيّة ركاب متاحة" : "تكسي متاح");
               this.viewer.setAttribute("camera-orbit", "0deg 72deg 105%");
               this.viewer.setAttribute("camera-target", "auto auto auto");
               this.viewer.setAttribute("shadow-intensity", "0.75");
