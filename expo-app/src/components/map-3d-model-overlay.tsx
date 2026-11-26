@@ -61,7 +61,7 @@ const MODEL_VIEWER_HTML = `<!doctype html>
           }
           entry.wrapper.style.left = item.x + 'px';
           entry.wrapper.style.top = item.y + 'px';
-          entry.viewer.setAttribute('orientation', '0deg ' + (Number(item.heading) || 0) + 'deg 0deg');
+          entry.viewer.setAttribute('orientation', '0deg 0deg ' + (Number(item.heading) || 0) + 'deg');
           if (entry.url !== item.url) {
             if (entry.url) report('loading', item.id);
             entry.url = item.url;
