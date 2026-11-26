@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function applySession(nextSession: Session | null) {
+    const previousUserId = activeUserId.current;
     const currentRequest = ++requestId.current;
     setSession(nextSession);
     activeUserId.current = nextSession?.user?.id ?? null;
@@ -64,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (activeUserId.current !== nextSession.user.id) {
+    if (previousUserId !== nextSession.user.id) {
       setProfile(null);
       setRoles([]);
     }
