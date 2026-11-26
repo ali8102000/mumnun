@@ -319,7 +319,12 @@ export function MapPicker({
   // A transparent GLB overlay replaces the old dot on vector-capable browsers.
   // The original Google marker remains as a safe fallback if WebGL or the model fails.
   useEffect(() => {
-    if (!nearby?.length || !mapRef.current) return;
+    if (!mapRef.current) return;
+    if (!nearby?.length) {
+      nearbyModelOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+      nearbyModelOverlaysRef.current.clear();
+      return;
+    }
     let cancelled = false;
     void ensureModelViewer().then((supported) => {
       if (!supported || cancelled || !mapRef.current) return;
