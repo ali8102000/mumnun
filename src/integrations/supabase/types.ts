@@ -103,6 +103,7 @@ export type Database = {
           vehicle_color: string | null
           vehicle_make: string | null
           vehicle_model: string | null
+          map_model_type: string
           vehicle_plate: string | null
           vehicle_year: number | null
         }
@@ -123,6 +124,7 @@ export type Database = {
           vehicle_color?: string | null
           vehicle_make?: string | null
           vehicle_model?: string | null
+          map_model_type?: string
           vehicle_plate?: string | null
           vehicle_year?: number | null
         }
@@ -851,6 +853,24 @@ export type Database = {
           lat: number
           lng: number
           pin_id: string
+        }[]
+      }
+      find_nearby_provider_map_pins: {
+        Args: {
+          _category?: string | null
+          _lat: number
+          _limit?: number
+          _lng: number
+          _radius_km?: number
+          _service_id?: string | null
+          _type: string
+        }
+        Returns: {
+          heading: number | null
+          lat: number
+          lng: number
+          pin_id: string
+          model_type: string
         }[]
       }
       grant_provider_role_safe: {

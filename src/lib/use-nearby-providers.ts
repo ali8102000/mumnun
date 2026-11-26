@@ -7,6 +7,7 @@ export type ProviderPin = {
   lat: number;
   lng: number;
   heading: number | null;
+  model_type: "taxi" | "cargo_van" | "passenger_van" | "bus" | "worker";
 };
 
 export function useNearbyProviders(opts: {
@@ -48,6 +49,7 @@ export function useNearbyProviders(opts: {
             lat: Number(r.lat),
             lng: Number(r.lng),
             heading: r.heading == null ? null : Number(r.heading),
+            model_type: r.model_type,
           }))
         );
       } catch {

@@ -190,6 +190,7 @@ export type ProviderPin = {
   lat: number;
   lng: number;
   heading: number | null;
+  model_type: "taxi" | "cargo_van" | "passenger_van" | "bus" | "worker";
 };
 
 export const findNearbyProviderPins = createServerFn({ method: "POST" })
@@ -209,7 +210,7 @@ export const findNearbyProviderPins = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase.rpc(
-      "find_nearby_provider_pins",
+      "find_nearby_provider_map_pins",
       {
         _lat: data.lat,
         _lng: data.lng,
