@@ -35,7 +35,7 @@ const MODEL_VIEWER_HTML = `<!doctype html>
       window.setMapModels = function (items) {
         const seen = new Set();
         (items || []).forEach(function (item) {
-          if (!item || !item.id || !item.url || !/^https?:\\/\\//i.test(item.url)) return;
+          if (!item || !item.id || !item.url || !(item.url.indexOf('https://') === 0 || item.url.indexOf('http://') === 0)) return;
           seen.add(item.id);
           let entry = nodes.get(item.id);
           if (!entry) {
