@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { loading, session, roles, profile } = useAuth();
+  const { loading, session, roles, profile, authError, refresh } = useAuth();
   const { ready, completed } = useWelcomePreferences();
 
   if (loading || !ready) {
@@ -31,7 +31,20 @@ function Index() {
     );
   }
 
+  if (authError) {
+    return (
+      <div className="min-h-screen grid place-items-center px-6 text-center" dir="rtl">
+        <div className="max-w-sm space-y-4">
+          <div className="text-lg font-extrabold text-foreground">تعذّر تحميل بيانات الحساب</div>
+          <p className="text-sm text-muted-foreground">{authError}</p>
+          <button className="rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground" onClick={() => { void refresh(); }}>إعادة المحاولة</button>
+        </div>
+      </div>
+    );
+  }
+
   if (!session) return <Navigate to={completed ? "/auth" : "/welcome"} />;
+  if (roles.includes('admin')) return <Navigate to="/admin" />;
   if (!profile) return <Navigate to="/select-role" />;
   if (roles.length === 0) return <Navigate to="/select-role" />;
   return <Navigate to="/home" />;

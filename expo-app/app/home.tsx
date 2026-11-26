@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Alert, Image } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -20,6 +20,12 @@ export default function HomeScreen() {
   const [incoming, setIncoming] = useState<IncomingRequest[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const isWorker = activeRole === 'worker' || activeRole === 'driver';
+
+  useEffect(() => {
+    if (roles.length > 0 && !roles.includes(activeRole as (typeof roles)[number])) {
+      setActiveRole(roles.includes('customer') ? 'customer' : roles[0]);
+    }
+  }, [roles, activeRole]);
 
   const loadIncoming = useCallback(async () => {
     if (activeRole === 'customer') return;
@@ -89,7 +95,10 @@ export default function HomeScreen() {
     }
 
     async function startPresence() {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) throw new Error('GPS is disabled');
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== 'granted') permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         if (mounted) {
           Alert.alert('إذن الموقع مطلوب', 'فعّل الموقع حتى تظهر للسائقين والزبائن القريبين.');
@@ -130,7 +139,13 @@ export default function HomeScreen() {
     }
     const next = !available;
     if (next) {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        Alert.alert('الموقع متوقف', 'شغّل GPS ثم حاول تفعيل استقبال الطلبات.');
+        return;
+      }
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== 'granted') permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         Alert.alert('إذن الموقع مطلوب', 'اسمح بمشاركة موقعك قبل استقبال الطلبات.');
         return;
@@ -146,6 +161,8 @@ export default function HomeScreen() {
   }
 
   const onRefresh = async () => { setRefreshing(true); await loadIncoming(); setRefreshing(false); };
+
+  if (activeRole === 'admin') return <Redirect href="/admin" />;
 
   return (
     <View style={styles.container}>
