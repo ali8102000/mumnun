@@ -118,7 +118,8 @@ export default function NewRequest() {
         });
         if (error) throw error;
         if (!active) return;
-        setNearbyProviders((data ?? []).map((pin) => ({
+        const nearbyRows = (data ?? []) as Array<{ pin_id: string | number; lat: number | string; lng: number | string; heading: number | string | null; model_type: string }>;
+        setNearbyProviders(nearbyRows.map((pin) => ({
           pin_id: String(pin.pin_id),
           lat: Number(pin.lat),
           lng: Number(pin.lng),
