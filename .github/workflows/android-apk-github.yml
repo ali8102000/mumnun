@@ -1,3 +1,4 @@
+# Builds the installable APK directly with Gradle; this path intentionally does not require an EAS project ID or EXPO_TOKEN.
 name: Android APK - GitHub Actions (No EAS)
 
 on:
