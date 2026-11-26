@@ -24,7 +24,7 @@ type VehicleModel = {
   id: string;
   make: string;
   model: string;
-  category: "economy" | "premium" | "luxury";
+  category: "economy" | "premium" | "luxury" | "large";
   base_fare: number;
   per_km: number;
 };
@@ -33,7 +33,16 @@ const CATEGORY_META: Record<string, { label: string; emoji: string; gradient: st
   economy: { label: "ممنون اقتصادي", emoji: "🚗", gradient: "from-emerald-400 to-teal-500", icon: Wallet, desc: "موديلات موفرة وعملية" },
   premium: { label: "ممنون المتميز", emoji: "🚙", gradient: "from-sky-500 to-indigo-600", icon: Sparkles, desc: "موديلات حديثة ومتوسطة" },
   luxury: { label: "ممنون فاخر", emoji: "🏎️", gradient: "from-amber-400 to-orange-500", icon: Crown, desc: "سيارات فاخرة وراقية" },
+  large: { label: "ممنون نقل جماعي", emoji: "🚐", gradient: "from-indigo-500 to-blue-700", icon: Car, desc: "مركبات الحمل والركاب الكبيرة" },
 };
+
+function resolveMapModelType(model: string): "taxi" | "cargo_van" | "passenger_van" | "bus" {
+  const value = model.toLowerCase();
+  if (value.includes("حمل") || value.includes("cargo")) return "cargo_van";
+  if (value.includes("ركاب") || value.includes("passenger")) return "passenger_van";
+  if (value.includes("باص") || value.includes("bus")) return "bus";
+  return "taxi";
+}
 
 function OnboardingDriver() {
   const { session, loading, refresh } = useAuth();
@@ -67,6 +76,7 @@ function OnboardingDriver() {
         user_id: session!.user.id,
         vehicle_make: selected.make,
         vehicle_model: selected.model,
+        map_model_type: resolveMapModelType(selected.model),
         vehicle_year: Number(year) || null,
         vehicle_category: selected.category,
         vehicle_plate: plate.trim(),
