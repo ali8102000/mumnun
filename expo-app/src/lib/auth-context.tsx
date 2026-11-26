@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
@@ -29,47 +29,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const requestId = useRef(0);
+  const activeUserId = useRef<string | null>(null);
   const mustChangePassword = session?.user?.app_metadata?.must_change_password === true;
 
   async function loadProfile(uid: string) {
-    const [{ data: prof }, { data: roleRows }] = await Promise.all([
+    const [profileResult, rolesResult] = await Promise.all([
       supabase.from('profiles').select('id, phone, full_name, avatar_url').eq('id', uid).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', uid),
     ]);
-    setProfile(prof ?? null);
-    setRoles((roleRows ?? []).map((r) => r.role as AppRole));
+    if (profileResult.error) throw profileResult.error;
+    if (rolesResult.error) throw rolesResult.error;
+
+    const validRoles = (rolesResult.data ?? [])
+      .map((row) => row.role)
+      .filter((role): role is AppRole => role === 'customer' || role === 'driver' || role === 'worker');
+
+    setProfile(profileResult.data ?? null);
+    setRoles(validRoles);
+  }
+
+  async function applySession(nextSession: Session | null) {
+    const currentRequest = ++requestId.current;
+    setSession(nextSession);
+    activeUserId.current = nextSession?.user?.id ?? null;
+
+    if (!nextSession?.user) {
+      setProfile(null);
+      setRoles([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await loadProfile(nextSession.user.id);
+    } catch (error) {
+      // Keep the app stable and stop routing until this single load attempt finishes.
+      console.warn('Unable to load account profile and roles', error);
+    } finally {
+      if (requestId.current === currentRequest) setLoading(false);
+    }
   }
 
   async function refresh() {
-    const { data } = await supabase.auth.getSession();
-    setSession(data.session);
-    if (data.session?.user) await loadProfile(data.session.user.id);
-    else {
-      setProfile(null);
-      setRoles([]);
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      await applySession(data.session);
+    } catch (error) {
+      console.warn('Unable to refresh authentication session', error);
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (s?.user) {
-        setTimeout(() => loadProfile(s.user.id), 0);
-      } else {
-        setProfile(null);
-        setRoles([]);
+    let mounted = true;
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!mounted) return;
+
+      // Token refreshes do not require another profile/role query. This avoids
+      // repeatedly interrupting navigation while Supabase renews the session.
+      if (
+        event === 'TOKEN_REFRESHED' &&
+        nextSession?.user?.id &&
+        nextSession.user.id === activeUserId.current
+      ) {
+        setSession(nextSession);
+        return;
       }
+
+      // Defer Supabase queries until after its auth callback has returned.
+      void Promise.resolve().then(() => {
+        if (mounted) void applySession(nextSession);
+      });
     });
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) await loadProfile(data.session.user.id);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+
+    return () => {
+      mounted = false;
+      requestId.current += 1;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   return (
