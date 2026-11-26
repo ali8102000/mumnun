@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   View,
@@ -71,7 +71,8 @@ export default function NewRequest() {
   const [pickupCoords, setPickupCoords] = useState<Coordinates | null>(null);
   const [destinationCoords, setDestinationCoords] = useState<Coordinates | null>(null);
   const [mapMode, setMapMode] = useState<'pickup' | 'destination'>('pickup');
-  const [region, setRegion] = useState(BAGHDAD_REGION);
+  const mapRef = useRef<MapView | null>(null);
+  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [locationLoading, setLocationLoading] = useState(true);
   const [vehicleCat, setVehicleCat] = useState<VehicleCategory>('economy');
   const [vehicleImages, setVehicleImages] = useState<Record<string, { url: string; scale: number; x: number; y: number }>>({});
@@ -100,8 +101,11 @@ export default function NewRequest() {
     let mounted = true;
     async function locateInitialPosition() {
       try {
-        const permission = await Location.requestForegroundPermissionsAsync();
+        let permission = await Location.getForegroundPermissionsAsync();
+        if (permission.status !== 'granted') permission = await Location.requestForegroundPermissionsAsync();
         if (permission.status !== 'granted') return;
+        setLocationPermissionGranted(true);
+        if (!(await Location.hasServicesEnabledAsync())) return;
         const position = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
@@ -111,7 +115,7 @@ export default function NewRequest() {
           longitude: position.coords.longitude,
         };
         setPickupCoords(coords);
-        setRegion({ ...coords, latitudeDelta: 0.02, longitudeDelta: 0.02 });
+        mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.02, longitudeDelta: 0.02 }, 500);
         const address = formatAddress(await Location.reverseGeocodeAsync(coords));
         if (address) setPickup(address);
       } catch {
@@ -186,20 +190,26 @@ export default function NewRequest() {
   async function locateMe() {
     setLocationLoading(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== 'granted') permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         Alert.alert('إذن الموقع مطلوب', 'اسمح لممنون باستخدام الموقع أو اختر النقطة يدوياً.');
         return;
       }
+      if (!(await Location.hasServicesEnabledAsync())) {
+        Alert.alert('الموقع متوقف', 'شغّل GPS ثم حاول مرة أخرى.');
+        return;
+      }
+      setLocationPermissionGranted(true);
       const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Balanced,
       });
       const coords = {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       };
       setPickupCoords(coords);
-      setRegion({ ...coords, latitudeDelta: 0.015, longitudeDelta: 0.015 });
+      mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.015, longitudeDelta: 0.015 }, 500);
       const address = formatAddress(await Location.reverseGeocodeAsync(coords));
       setPickup(address || 'موقعي الحالي');
       setMapMode('pickup');
@@ -399,12 +409,12 @@ export default function NewRequest() {
 
       <View style={styles.mapContainer}>
         <MapView
+          ref={mapRef}
           style={styles.map}
           provider={PROVIDER_GOOGLE}
-          region={region}
-          onRegionChangeComplete={setRegion}
+          initialRegion={BAGHDAD_REGION}
           onPress={(event) => chooseMapPoint(event.nativeEvent.coordinate)}
-          showsUserLocation
+          showsUserLocation={locationPermissionGranted}
           showsMyLocationButton={false}
           loadingEnabled
         >
