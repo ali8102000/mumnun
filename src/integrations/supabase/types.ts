@@ -52,33 +52,6 @@ export type Database = {
           },
         ]
       }
-      provider_locations: {
-        Row: {
-          user_id: string
-          role: string
-          lat: number
-          lng: number
-          heading: number | null
-          updated_at: string
-        }
-        Insert: {
-          user_id: string
-          role: string
-          lat: number
-          lng: number
-          heading?: number | null
-          updated_at?: string
-        }
-        Update: {
-          user_id?: string
-          role?: string
-          lat?: number
-          lng?: number
-          heading?: number | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       provider_presence: {
         Row: {
           user_id: string
