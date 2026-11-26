@@ -26,6 +26,7 @@ export default function Index() {
   }
 
   if (!session) return <Redirect href="/auth" />;
+  if (roles.includes('admin')) return <Redirect href="/admin" />;
   if (roles.length === 0) return <Redirect href="/select-role" />;
   return <Redirect href="/home" />;
 }
