@@ -356,7 +356,9 @@ export function MapPicker({
               this.getPanes()?.overlayMouseTarget.appendChild(this.root);
             }
             draw() {
-              const point = this.getProjection().fromLatLngToDivPixel(this.position);
+              const projection = this.getProjection();
+              if (!projection) return;
+              const point = projection.fromLatLngToDivPixel(this.position);
               if (!point) return;
               this.root.style.left = `${point.x}px`;
               this.root.style.top = `${point.y}px`;
