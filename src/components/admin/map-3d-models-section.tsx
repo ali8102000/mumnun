@@ -72,7 +72,7 @@ export function Map3DModelsSection() {
     setUploading(key);
     try {
       const path = `map-models/${key}/${Date.now()}-${crypto.randomUUID()}.glb`;
-      const { error } = await supabase.storage.from("app-visuals").upload(path, file, { upsert: false, contentType: "model/gltf-binary" });
+      const { error } = await supabase.storage.from("map-3d-models").upload(path, file, { upsert: false, contentType: "model/gltf-binary" });
       if (error) throw error;
       const { data } = supabase.storage.from("app-visuals").getPublicUrl(path);
       setModels((current) => ({ ...current, [key]: { url: data.publicUrl, fileName: file.name } }));
