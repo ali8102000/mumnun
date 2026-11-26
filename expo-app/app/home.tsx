@@ -70,9 +70,8 @@ export default function HomeScreen() {
 
     async function publishPresence(location: Location.LocationObject) {
       if (!mounted || !user) return;
-      const { error } = await supabase.from('provider_locations').upsert({
+      const { error } = await supabase.from('provider_presence').upsert({
         user_id: userId,
-        role: activeRole,
         lat: location.coords.latitude,
         lng: location.coords.longitude,
         heading: location.coords.heading,

@@ -318,9 +318,8 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
       return;
     }
     if (next && coords) {
-      const { error: presenceError } = await supabase.from("provider_locations").upsert({
+      const { error: presenceError } = await supabase.from("provider_presence").upsert({
         user_id: session.user.id,
-        role: type === "taxi" ? "driver" : "worker",
         lat: coords.lat,
         lng: coords.lng,
         updated_at: new Date().toISOString(),
@@ -342,10 +341,9 @@ function ProviderHome({ type }: { type: "taxi" | "service" }) {
     let loadedOnce = false;
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        void supabase.from("provider_locations").upsert({
+        void supabase.from("provider_presence").upsert({
           user_id: userId,
-          role: type === "taxi" ? "driver" : "worker",
-          lat: position.coords.latitude,
+            lat: position.coords.latitude,
           lng: position.coords.longitude,
           heading: position.coords.heading,
           updated_at: new Date().toISOString(),
