@@ -44,6 +44,7 @@ function Index() {
   }
 
   if (!session) return <Navigate to={completed ? "/auth" : "/welcome"} />;
+  if (roles.includes('admin')) return <Navigate to="/admin" />;
   if (!profile) return <Navigate to="/select-role" />;
   if (roles.length === 0) return <Navigate to="/select-role" />;
   return <Navigate to="/home" />;
