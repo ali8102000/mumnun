@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { findNearbyProviderPins } from "@/lib/dispatch.functions";
 
+function normalizeModelType(value: string): ProviderPin["model_type"] {
+  return value === "cargo_van" || value === "passenger_van" || value === "bus" || value === "worker" ? value : "taxi";
+}
+
 export type ProviderPin = {
   pin_id: string;
   lat: number;
@@ -49,7 +53,7 @@ export function useNearbyProviders(opts: {
             lat: Number(r.lat),
             lng: Number(r.lng),
             heading: r.heading == null ? null : Number(r.heading),
-            model_type: r.model_type,
+            model_type: normalizeModelType(String(r.model_type)),
           }))
         );
       } catch {

@@ -18,6 +18,10 @@ import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui';
 
 type Coordinates = { latitude: number; longitude: number };
+type MapModelType = 'taxi' | 'cargo_van' | 'passenger_van' | 'bus' | 'worker';
+function normalizeMapModelType(value: string): MapModelType {
+  return value === 'cargo_van' || value === 'passenger_van' || value === 'bus' || value === 'worker' ? value : 'taxi';
+}
 type VehicleCategory = 'economy' | 'premium' | 'luxury';
 
 const SERVICES = [
@@ -114,12 +118,12 @@ export default function NewRequest() {
         });
         if (error) throw error;
         if (!active) return;
-        setNearbyProviders((data ?? []).map((pin: { pin_id: string; lat: number; lng: number; heading: number | null; model_type: 'taxi' | 'cargo_van' | 'passenger_van' | 'bus' | 'worker' }) => ({
+        setNearbyProviders((data ?? []).map((pin) => ({
           pin_id: String(pin.pin_id),
           lat: Number(pin.lat),
           lng: Number(pin.lng),
           heading: pin.heading == null ? null : Number(pin.heading),
-          model_type: pin.model_type,
+          model_type: normalizeMapModelType(String(pin.model_type)),
         })).filter((pin) => Number.isFinite(pin.lat) && Number.isFinite(pin.lng)));
       } catch {
         // Nearby markers are optional; keep the request map usable if the lookup is unavailable.

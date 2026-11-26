@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabase';
 
 type ModelType = 'taxi' | 'cargo_van' | 'passenger_van' | 'bus' | 'worker';
 type Pin = { pin_id: string; lat: number; lng: number; heading: number | null; model_type: ModelType };
+function normalizeModelType(value: string): ModelType {
+  return value === 'cargo_van' || value === 'passenger_van' || value === 'bus' || value === 'worker' ? value : 'taxi';
+}
 const DEFAULT_REGION: Region = { latitude: 32.0, longitude: 44.0, latitudeDelta: 3.5, longitudeDelta: 3.5 };
 
 export function NearbyProvidersMap() {
@@ -41,9 +44,9 @@ export function NearbyProvidersMap() {
         if (taxiResult.error || largeResult.error || workerResult.error) throw taxiResult.error || largeResult.error || workerResult.error;
         if (!active) return;
         const rows = [...(taxiResult.data ?? []), ...(largeResult.data ?? []), ...(workerResult.data ?? [])];
-        setPins(rows.map((pin: { pin_id: string; lat: number; lng: number; heading: number | null; model_type: ModelType }) => ({
+        setPins(rows.map((pin) => ({
           pin_id: String(pin.pin_id), lat: Number(pin.lat), lng: Number(pin.lng),
-          heading: pin.heading == null ? null : Number(pin.heading), model_type: pin.model_type,
+          heading: pin.heading == null ? null : Number(pin.heading), model_type: normalizeModelType(String(pin.model_type)),
         })).filter((pin) => Number.isFinite(pin.lat) && Number.isFinite(pin.lng)));
         setMessage(rows.length ? 'المزوّدون المتاحون حولك' : 'ماكو مزوّدين متاحين قريباً حالياً');
       } catch {
