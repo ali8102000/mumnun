@@ -4,7 +4,8 @@ import { StyleSheet } from 'react-native';
 import { WebView as NativeWebView, type WebViewProps, type WebViewMessageEvent } from 'react-native-webview';
 
 // react-native-webview 14.0.1 has a published generic default-type bug (P=undefined).
-const WebView = NativeWebView as unknown as ComponentType<WebViewProps & { ref?: Ref<NativeWebView> }>;
+type NativeWebViewInstance = InstanceType<typeof NativeWebView>;
+const WebView = NativeWebView as unknown as ComponentType<WebViewProps & { ref?: Ref<NativeWebViewInstance | null> }>;
 
 export type ProjectedMapModelPin = {
   id: string;
@@ -92,7 +93,7 @@ export function Map3DModelOverlay({
   pins: ProjectedMapModelPin[];
   onModelStateChange: (id: string, loaded: boolean) => void;
 }) {
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<NativeWebViewInstance | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
