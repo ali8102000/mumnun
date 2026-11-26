@@ -35,7 +35,7 @@ function greetingByHour() {
 }
 
 function HomePage() {
-  const { loading, session, profile, roles } = useAuth();
+  const { loading, session, profile, roles, authError, refresh } = useAuth();
   const [activeRole, setActiveRole] = useState<AppRole | null>(null);
   const { theme, toggle } = useTheme();
   const greet = useMemo(greetingByHour, []);
@@ -48,6 +48,17 @@ function HomePage() {
   }, [roles, activeRole]);
 
   if (loading) return null;
+  if (authError) return (
+    <MobileShell>
+      <div className="grid min-h-[60vh] place-items-center px-6 text-center" dir="rtl">
+        <div className="max-w-sm space-y-4">
+          <h2 className="text-lg font-extrabold">تعذّر تحميل بيانات الحساب</h2>
+          <p className="text-sm text-muted-foreground">{authError}</p>
+          <button className="rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground" onClick={() => { void refresh(); }}>إعادة المحاولة</button>
+        </div>
+      </div>
+    </MobileShell>
+  );
   if (!session) return <Navigate to="/auth" />;
   if (!roles.length) return <Navigate to="/select-role" />;
 
