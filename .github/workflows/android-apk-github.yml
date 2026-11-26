@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   build-android-apk:
-    name: Build installable Android APK
+    name: Build universal installable Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -66,11 +66,11 @@ jobs:
       - name: Generate native Android project
         run: bunx expo prebuild --platform android --no-install
 
-      - name: Build optimized installable release APK (ARM64)
+      - name: Build optimized universal installable release APK
         working-directory: expo-app/android
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a assembleRelease
+          ./gradlew --no-daemon --stacktrace assembleRelease
 
       - name: Verify APK
         run: |
@@ -78,19 +78,20 @@ jobs:
           APK="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
           mkdir -p dist
-          cp "$APK" dist/mamnoon-installable.apk
-          sha256sum dist/mamnoon-installable.apk > dist/SHA256SUMS.txt
+          cp "$APK" dist/mamnoon-universal-installable.apk
+          sha256sum dist/mamnoon-universal-installable.apk > dist/SHA256SUMS.txt
           {
             echo "App: Mamnoon"
             echo "Package: com.mamnoon.app"
             echo "Source commit: $GITHUB_SHA"
-            echo "Build type: Release ARM64"
+            echo "Build type: Release universal APK (all configured Android ABIs)"
+            echo "Note: Requires hosted Supabase services for online account and app data features"
           } > dist/BUILD-INFO.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: mamnoon-release-arm64-apk
+          name: mamnoon-universal-release-apk
           path: expo-app/dist/*
           if-no-files-found: error
           retention-days: 14
