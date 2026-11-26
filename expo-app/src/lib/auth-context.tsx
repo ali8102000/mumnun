@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const activeUserId = useRef<string | null>(null);
   const mustChangePassword = session?.user?.app_metadata?.must_change_password === true;
 
-  async function loadProfile(uid: string) {
+  async function loadProfile(uid: string): Promise<{ profile: Profile | null; roles: AppRole[] }> {
     const [profileResult, rolesResult] = await Promise.all([
       supabase.from('profiles').select('id, phone, full_name, avatar_url').eq('id', uid).maybeSingle(),
       supabase.from('user_roles').select('role').eq('user_id', uid),
@@ -47,8 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .map((row) => row.role)
       .filter((role): role is AppRole => role === 'customer' || role === 'driver' || role === 'worker');
 
-    setProfile(profileResult.data ?? null);
-    setRoles(validRoles);
+    return { profile: profileResult.data ?? null, roles: validRoles };
   }
 
   async function applySession(nextSession: Session | null) {
@@ -72,7 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthError(null);
     setLoading(true);
     try {
-      await loadProfile(nextSession.user.id);
+      const account = await loadProfile(nextSession.user.id);
+      if (requestId.current === currentRequest) {
+        setProfile(account.profile);
+        setRoles(account.roles);
+      }
     } catch (error) {
       console.warn('Unable to load account profile and roles', error);
       if (requestId.current === currentRequest) {
