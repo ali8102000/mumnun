@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   Loader2, ShieldCheck, Users, Car, ListChecks, Wallet, Crown, Activity,
   LayoutDashboard, Tag, MessageSquare, UserCheck, Flag, Bell, ScrollText,
-  Map, ChevronLeft, Settings, AlertCircle, Images, type LucideIcon,
+  Map, ChevronLeft, Settings, AlertCircle, Images, Box, type LucideIcon,
 } from "lucide-react";
 import {
   adminAdjustWallet, adminBanUser, adminBlockUser, adminBroadcastNotification, adminCancelRequest, adminDeleteUser,
@@ -19,6 +19,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AdminAccountActions, AdminCreateAccount } from "@/components/admin/AdminAccountActions";
 import { supabase } from "@/integrations/supabase/client";
 import { AppEditorSection } from "@/components/admin/app-editor-section";
+import { Map3DModelsSection } from "@/components/admin/map-3d-models-section";
 
 export const Route = createFileRoute("/admin")({ ssr: false,
   head: () => ({ meta: [
@@ -51,9 +52,10 @@ type AdminUserDetail = { profile: AdminProfile | null; roles: AdminRole[]; block
 type BlockTarget = { id: string; name: string | null };
 type DashboardStats = { totalUsers: number; totalDrivers: number; totalWorkers: number; totalRequests: number; activeRequests: number; completedRequests: number; cancelledRequests: number; activeDrivers: number; activeWorkers: number; dailyRevenue: number; monthlyRevenue: number; yearlyRevenue: number };
 
-type Section = "appEditor" | "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles" | "team";
+type Section = "map3d" | "appEditor" | "overview" | "users" | "providers" | "requests" | "chat" | "friends" | "reports" | "subscriptions" | "coupons" | "wallet" | "stats" | "map" | "notifications" | "audit" | "roles" | "team";
 
 const NAV_ITEMS: { key: Section; label: string; icon: LucideIcon; roles: string[] }[] = [
+  { key: "map3d", label: "مجسّمات الخريطة 3D", icon: Box, roles: ["super_admin"] },
   { key: "appEditor", label: "محرر التطبيقات", icon: Images, roles: ["super_admin"] },
   { key: "overview", label: "نظرة عامة", icon: LayoutDashboard, roles: ["super_admin", "admin", "support", "finance", "moderator"] },
   { key: "stats", label: "الإحصائيات", icon: Activity, roles: ["super_admin", "admin", "finance"] },
@@ -150,6 +152,7 @@ function AdminPage() {
           <div className="w-9" />
         </div>
         <div className="p-4 lg:p-8 max-w-5xl mx-auto">
+          {section === "map3d" && <Map3DModelsSection />}
           {section === "appEditor" && <AppEditorSection />}
           {section === "overview" && <OverviewSection />}
           {section === "stats" && <StatsSection />}
