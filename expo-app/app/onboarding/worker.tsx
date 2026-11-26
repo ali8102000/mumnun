@@ -8,7 +8,7 @@ import { Button } from '@/components/ui';
 type WorkerService = { id: string; slug: string; name_ar: string };
 
 export default function WorkerOnboarding() {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [services, setServices] = useState<WorkerService[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [level, setLevel] = useState<'fani' | 'khabir'>('fani');
@@ -19,15 +19,19 @@ export default function WorkerOnboarding() {
   function toggleService(id: string) { setSelected((prev) => prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]); }
 
   async function submit() {
+    if (!user?.id) { Alert.alert('خطأ', 'انتهت الجلسة. سجّل الدخول من جديد.'); return; }
     if (selected.length === 0) { Alert.alert('خطأ', 'الرجاء اختيار خدمة واحدة على الأقل'); return; }
     setBusy(true);
     try {
-      const { error } = await supabase.from('worker_profiles').upsert({ user_id: user?.id, level, bio: bio || null, available: false });
+      const { error } = await supabase.from('worker_profiles').upsert({ user_id: user.id, level, bio: bio || null, available: false });
       if (error) throw error;
-      await supabase.from('worker_services').delete().eq('worker_id', user?.id);
-      await supabase.from('worker_services').insert(selected.map((serviceId) => ({ worker_id: user?.id, service_id: serviceId })));
+      const { error: deleteError } = await supabase.from('worker_services').delete().eq('worker_id', user.id);
+      if (deleteError) throw deleteError;
+      const { error: insertError } = await supabase.from('worker_services').insert(selected.map((serviceId) => ({ worker_id: user.id, service_id: serviceId })));
+      if (insertError) throw insertError;
       const { error: roleError } = await supabase.rpc('grant_provider_role_safe', { _role: 'worker' });
       if (roleError) throw roleError;
+      await refresh();
       router.replace('/home');
     } catch (err: unknown) { Alert.alert('خطأ', err instanceof Error ? err.message : 'حدث خطأ'); } finally { setBusy(false); }
   }
