@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - mamnoon-production-hardening-2026-11-09
+      - feature/admin-3d-map-models
   pull_request:
     branches:
       - main
