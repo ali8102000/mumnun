@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,6 +17,7 @@ interface AuthCtx {
   profile: Profile | null;
   roles: AppRole[];
   loading: boolean;
+  authError: string | null;
   mustChangePassword: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -29,68 +30,107 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const requestId = useRef(0);
+  const activeUserId = useRef<string | null>(null);
   const mustChangePassword = session?.user?.app_metadata?.must_change_password === true;
 
-  async function loadProfile(uid: string) {
-    try {
-      const [{ data: prof }, { data: roleRows }] = await Promise.all([
-        supabase.from("profiles").select("id, phone, full_name, avatar_url").eq("id", uid).maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", uid),
-      ]);
-      setProfile(prof ?? null);
-      setRoles((roleRows ?? []).map((r) => r.role as AppRole));
-    } catch {
+  async function loadProfile(uid: string): Promise<{ profile: Profile | null; roles: AppRole[] }> {
+    const [profileResult, rolesResult] = await Promise.all([
+      supabase.from("profiles").select("id, phone, full_name, avatar_url").eq("id", uid).maybeSingle(),
+      supabase.from("user_roles").select("role").eq("user_id", uid),
+    ]);
+    if (profileResult.error) throw profileResult.error;
+    if (rolesResult.error) throw rolesResult.error;
+
+    const validRoles = (rolesResult.data ?? [])
+      .map((row) => row.role)
+      .filter((role): role is AppRole => role === "customer" || role === "driver" || role === "worker" || role === "admin");
+    return { profile: profileResult.data ?? null, roles: validRoles };
+  }
+
+  async function applySession(nextSession: Session | null) {
+    const previousUserId = activeUserId.current;
+    const currentRequest = ++requestId.current;
+    setSession(nextSession);
+    activeUserId.current = nextSession?.user?.id ?? null;
+
+    if (!nextSession?.user) {
       setProfile(null);
       setRoles([]);
+      setAuthError(null);
+      setLoading(false);
+      return;
+    }
+
+    if (previousUserId !== nextSession.user.id) {
+      setProfile(null);
+      setRoles([]);
+    }
+    setAuthError(null);
+    setLoading(true);
+    try {
+      const account = await loadProfile(nextSession.user.id);
+      if (requestId.current === currentRequest) {
+        setProfile(account.profile);
+        setRoles(account.roles);
+      }
+    } catch (error) {
+      console.warn("[auth] profile/roles load failed", error);
+      if (requestId.current === currentRequest) {
+        setProfile(null);
+        setRoles([]);
+        setAuthError(error instanceof Error ? error.message : "تعذّر تحميل بيانات الحساب. تحقق من الإنترنت ثم أعد المحاولة.");
+      }
+    } finally {
+      if (requestId.current === currentRequest) setLoading(false);
     }
   }
 
   async function refresh() {
+    setLoading(true);
     try {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      if (data.session?.user) await loadProfile(data.session.user.id);
-      else {
-        setProfile(null);
-        setRoles([]);
-      }
-    } catch {
-      setProfile(null);
-      setRoles([]);
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      await applySession(data.session);
+    } catch (error) {
+      console.warn("[auth] session refresh failed", error);
+      setAuthError(error instanceof Error ? error.message : "تعذّر تحديث الجلسة. تحقق من الإنترنت ثم أعد المحاولة.");
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      if (s?.user) {
-        setTimeout(() => loadProfile(s.user.id), 0);
-      } else {
-        setProfile(null);
-        setRoles([]);
+    let mounted = true;
+    const { data: sub } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!mounted) return;
+      if (
+        event === "TOKEN_REFRESHED" &&
+        nextSession?.user?.id &&
+        nextSession.user.id === activeUserId.current
+      ) {
+        setSession(nextSession);
+        return;
       }
+      void Promise.resolve().then(() => {
+        if (mounted) void applySession(nextSession);
+      });
     });
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) await loadProfile(data.session.user.id);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-    return () => sub.subscription.unsubscribe();
+
+    return () => {
+      mounted = false;
+      requestId.current += 1;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.warn("[auth] sign-out failed", error);
-    }
-    setProfile(null);
-    setRoles([]);
-    setSession(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
   return (
-    <Ctx.Provider value={{ session, user: session?.user ?? null, profile, roles, loading, mustChangePassword, refresh, signOut }}>
+    <Ctx.Provider value={{ session, user: session?.user ?? null, profile, roles, loading, authError, mustChangePassword, refresh, signOut }}>
       {children}
     </Ctx.Provider>
   );
