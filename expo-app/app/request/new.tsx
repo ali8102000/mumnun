@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   View,
@@ -12,6 +12,7 @@ import {
   Image,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Map3DModelOverlay, type ProjectedMapModelPin } from '@/components/map-3d-model-overlay';
 import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -21,6 +22,22 @@ type Coordinates = { latitude: number; longitude: number };
 type MapModelType = 'taxi' | 'cargo_van' | 'passenger_van' | 'bus' | 'worker';
 function normalizeMapModelType(value: string): MapModelType {
   return value === 'cargo_van' || value === 'passenger_van' || value === 'bus' || value === 'worker' ? value : 'taxi';
+}
+
+const DEFAULT_MAP_MODEL_URLS: Record<MapModelType, string> = {
+  taxi: 'https://tevy.dev/models/city-taxi/v1/lod2.glb',
+  cargo_van: 'https://tevy.dev/models/delivery-van/v1/lod2.glb',
+  passenger_van: 'https://tevy.dev/models/kei-van/v1/lod2.glb',
+  bus: 'https://tevy.dev/models/city-bus/v1/lod2.glb',
+  worker: 'https://tevy.dev/models/road-worker/v1/lod2.glb',
+};
+
+function mapModelTitle(type: MapModelType) {
+  return type === 'worker' ? 'فني قريب'
+    : type === 'cargo_van' ? 'كيّة حمل قريبة'
+    : type === 'passenger_van' ? 'كيّة ركاب قريبة'
+    : type === 'bus' ? 'باص قريب'
+    : 'تكسي قريب';
 }
 type VehicleCategory = 'economy' | 'premium' | 'luxury';
 
@@ -76,7 +93,19 @@ export default function NewRequest() {
   const [destinationCoords, setDestinationCoords] = useState<Coordinates | null>(null);
   const [mapMode, setMapMode] = useState<'pickup' | 'destination'>('pickup');
   const [region, setRegion] = useState(BAGHDAD_REGION);
-  const [nearbyProviders, setNearbyProviders] = useState<Array<{ pin_id: string; lat: number; lng: number; heading: number | null; model_type: 'taxi' | 'cargo_van' | 'passenger_van' | 'bus' | 'worker' }>>([]);
+  const mapRef = useRef<MapView | null>(null);
+  const [nearbyProviders, setNearbyProviders] = useState<Array<{ pin_id: string; lat: number; lng: number; heading: number | null; model_type: MapModelType }>>([]);
+  const [projectedModelPins, setProjectedModelPins] = useState<ProjectedMapModelPin[]>([]);
+  const [loadedModelIds, setLoadedModelIds] = useState<Set<string>>(() => new Set());
+  const [mapModelUrls, setMapModelUrls] = useState(DEFAULT_MAP_MODEL_URLS);
+  const handleModelStateChange = useCallback((id: string, loaded: boolean) => {
+    setLoadedModelIds((current) => {
+      const next = new Set(current);
+      if (loaded) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
   const [locationLoading, setLocationLoading] = useState(true);
   const [vehicleCat, setVehicleCat] = useState<VehicleCategory>('economy');
   const [vehicleImages, setVehicleImages] = useState<Record<string, { url: string; scale: number; x: number; y: number }>>({});
@@ -89,6 +118,24 @@ export default function NewRequest() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const isTaxi = selectedService === 'taxi';
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data, error } = await supabase.from('app_editor_settings').select('settings').eq('id', 'global').maybeSingle();
+      if (!active || error || !data?.settings || typeof data.settings !== 'object' || Array.isArray(data.settings)) return;
+      const mapModels = (data.settings as { mapModels?: Record<string, { url?: string }> }).mapModels;
+      if (!mapModels) return;
+      setMapModelUrls({
+        taxi: mapModels.taxi?.url || DEFAULT_MAP_MODEL_URLS.taxi,
+        cargo_van: mapModels.cargo_van?.url || DEFAULT_MAP_MODEL_URLS.cargo_van,
+        passenger_van: mapModels.passenger_van?.url || DEFAULT_MAP_MODEL_URLS.passenger_van,
+        bus: mapModels.bus?.url || DEFAULT_MAP_MODEL_URLS.bus,
+        worker: mapModels.worker?.url || DEFAULT_MAP_MODEL_URLS.worker,
+      });
+    })();
+    return () => { active = false; };
+  }, []);
 
   // Nearby provider pins are read-only map data. They do not affect dispatch or availability.
   useEffect(() => {
@@ -150,6 +197,34 @@ export default function NewRequest() {
     })();
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const map = mapRef.current;
+    if (!map || nearbyProviders.length === 0) {
+      setProjectedModelPins([]);
+      setLoadedModelIds(new Set());
+      return;
+    }
+    void Promise.all(nearbyProviders.map(async (provider) => {
+      try {
+        const point = await map.pointForCoordinate({ latitude: provider.lat, longitude: provider.lng });
+        return {
+          id: provider.pin_id,
+          x: point.x,
+          y: point.y,
+          heading: provider.heading ?? 0,
+          url: mapModelUrls[provider.model_type] || mapModelUrls.taxi,
+          label: mapModelTitle(provider.model_type),
+        } satisfies ProjectedMapModelPin;
+      } catch {
+        return null;
+      }
+    })).then((items) => {
+      if (!cancelled) setProjectedModelPins(items.filter((item): item is ProjectedMapModelPin => item !== null));
+    });
+    return () => { cancelled = true; };
+  }, [nearbyProviders, region, mapModelUrls]);
 
   useEffect(() => {
     let mounted = true;
@@ -454,6 +529,7 @@ export default function NewRequest() {
 
       <View style={styles.mapContainer}>
         <MapView
+          ref={mapRef}
           style={styles.map}
           provider={PROVIDER_GOOGLE}
           region={region}
@@ -469,7 +545,7 @@ export default function NewRequest() {
           {destinationCoords && isTaxi && (
             <Marker coordinate={destinationCoords} title="الوجهة" pinColor="#166534" />
           )}
-          {nearbyProviders.map((provider) => (
+          {nearbyProviders.filter((provider) => !loadedModelIds.has(provider.pin_id)).map((provider) => (
             <Marker
               key={provider.pin_id}
               coordinate={{ latitude: provider.lat, longitude: provider.lng }}
@@ -483,6 +559,7 @@ export default function NewRequest() {
             </Marker>
           ))}
         </MapView>
+        <Map3DModelOverlay pins={projectedModelPins} onModelStateChange={handleModelStateChange} />
         <Text style={styles.mapHint}>
           {mapMode === 'pickup' ? 'اضغط على الخريطة لتحديد الانطلاق' : 'اضغط على الخريطة لتحديد الوجهة'}
         </Text>
