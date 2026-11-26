@@ -913,7 +913,7 @@ export type Database = {
         | "completed"
         | "cancelled"
       request_type: "taxi" | "service"
-      vehicle_category: "economy" | "premium" | "luxury"
+      vehicle_category: "economy" | "premium" | "luxury" | "large"
       worker_level: "fani" | "khabir"
     }
     CompositeTypes: {
@@ -1052,7 +1052,7 @@ export const Constants = {
         "cancelled",
       ],
       request_type: ["taxi", "service"],
-      vehicle_category: ["economy", "premium", "luxury"],
+      vehicle_category: ["economy", "premium", "luxury", "large"],
       worker_level: ["fani", "khabir"],
     },
   },
