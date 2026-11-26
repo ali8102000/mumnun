@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
-export type AppRole = 'customer' | 'driver' | 'worker';
+export type AppRole = 'customer' | 'driver' | 'worker' | 'admin';
 
 export interface Profile {
   id: string;
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const validRoles = (rolesResult.data ?? [])
       .map((row) => row.role)
-      .filter((role): role is AppRole => role === 'customer' || role === 'driver' || role === 'worker');
+      .filter((role): role is AppRole => role === 'customer' || role === 'driver' || role === 'worker' || role === 'admin');
 
     return { profile: profileResult.data ?? null, roles: validRoles };
   }
