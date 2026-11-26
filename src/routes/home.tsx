@@ -61,6 +61,7 @@ function HomePage() {
   );
   if (!session) return <Navigate to="/auth" />;
   if (!roles.length) return <Navigate to="/select-role" />;
+  if (activeRole === 'admin') return <Navigate to="/admin" />;
 
   const firstName = (profile?.full_name || "صديقنا").split(" ")[0];
 
