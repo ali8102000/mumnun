@@ -41,7 +41,7 @@ function readModels(value: Json | null | undefined): ModelSettings {
 }
 
 export function Map3DModelsSection() {
-  const [models, setModels] = useState<ModelSettings>(EMPTY_MODELS);
+  const [models, setModels] = useState<ModelSettings>(DEFAULT_MODELS);
   const [baseSettings, setBaseSettings] = useState<SettingsRecord>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
