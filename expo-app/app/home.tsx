@@ -21,6 +21,12 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const isWorker = activeRole === 'worker' || activeRole === 'driver';
 
+  useEffect(() => {
+    if (roles.length > 0 && !roles.includes(activeRole as (typeof roles)[number])) {
+      setActiveRole(roles.includes('customer') ? 'customer' : roles[0]);
+    }
+  }, [roles, activeRole]);
+
   const loadIncoming = useCallback(async () => {
     if (activeRole === 'customer') return;
     const isDriver = activeRole === 'driver';
@@ -89,7 +95,10 @@ export default function HomeScreen() {
     }
 
     async function startPresence() {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) throw new Error('GPS is disabled');
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== 'granted') permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         if (mounted) {
           Alert.alert('إذن الموقع مطلوب', 'فعّل الموقع حتى تظهر للسائقين والزبائن القريبين.');
@@ -130,7 +139,13 @@ export default function HomeScreen() {
     }
     const next = !available;
     if (next) {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        Alert.alert('الموقع متوقف', 'شغّل GPS ثم حاول تفعيل استقبال الطلبات.');
+        return;
+      }
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== 'granted') permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
         Alert.alert('إذن الموقع مطلوب', 'اسمح بمشاركة موقعك قبل استقبال الطلبات.');
         return;
