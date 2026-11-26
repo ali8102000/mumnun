@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '800', color: '#1e293b' },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#16a34a' },
   mapContainer: { height: 210, borderRadius: 14, overflow: 'hidden', position: 'relative' },
-  map: { ...StyleSheet.absoluteFillObject },
+  map: { ...StyleSheet.absoluteFill },
   caption: { marginTop: 8, color: '#64748b', fontSize: 12, textAlign: 'center' },
   marker: { minWidth: 42, height: 42, paddingHorizontal: 5, borderRadius: 21, backgroundColor: '#fff', borderWidth: 2, borderColor: '#2563eb', alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
   workerMarker: { borderColor: '#059669' },
