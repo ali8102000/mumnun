@@ -79,6 +79,39 @@ export type Database = {
         }
         Relationships: []
       }
+      provider_presence: {
+        Row: {
+          user_id: string
+          lat: number
+          lng: number
+          heading: number | null
+          updated_at: string
+          location: unknown
+          accuracy_m: number | null
+          speed_mps: number | null
+        }
+        Insert: {
+          user_id: string
+          lat: number
+          lng: number
+          heading?: number | null
+          updated_at?: string
+          location?: unknown
+          accuracy_m?: number | null
+          speed_mps?: number | null
+        }
+        Update: {
+          user_id?: string
+          lat?: number
+          lng?: number
+          heading?: number | null
+          updated_at?: string
+          location?: unknown
+          accuracy_m?: number | null
+          speed_mps?: number | null
+        }
+        Relationships: []
+      }
       driver_profiles: {
         Row: {
           available: boolean

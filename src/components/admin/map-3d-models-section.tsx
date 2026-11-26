@@ -17,17 +17,24 @@ const MODEL_ITEMS: { key: ModelKey; title: string; description: string }[] = [
   { key: "worker", title: "فني / عامل", description: "مقدمو الخدمات المنزلية والمهنية" },
   { key: "customer", title: "زبون", description: "مؤشر موقع الزبون عند الحاجة" },
 ];
-const EMPTY_MODELS = Object.fromEntries(MODEL_ITEMS.map(({ key }) => [key, { url: "", fileName: "" }])) as ModelSettings;
+const DEFAULT_MODELS: ModelSettings = {
+  taxi: { url: "https://tevy.dev/models/city-taxi/v1/lod2.glb", fileName: "City Taxi (CC0)" },
+  cargo_van: { url: "https://tevy.dev/models/delivery-van/v1/lod2.glb", fileName: "High-Roof Delivery Van (CC0)" },
+  passenger_van: { url: "https://tevy.dev/models/kei-van/v1/lod2.glb", fileName: "Kei Van (CC0)" },
+  bus: { url: "https://tevy.dev/models/city-bus/v1/lod2.glb", fileName: "Low-Floor City Bus (CC0)" },
+  worker: { url: "https://tevy.dev/models/road-worker/v1/lod2.glb", fileName: "Road Worker (CC0)" },
+  customer: { url: "", fileName: "" },
+};
 
 function readModels(value: Json | null | undefined): ModelSettings {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return EMPTY_MODELS;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return DEFAULT_MODELS;
   const raw = value as SettingsRecord;
   const candidate = raw.mapModels;
-  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return EMPTY_MODELS;
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return DEFAULT_MODELS;
   const source = candidate as Record<string, Json>;
   return Object.fromEntries(MODEL_ITEMS.map(({ key }) => {
     const item = source[key];
-    if (!item || typeof item !== "object" || Array.isArray(item)) return [key, { url: "", fileName: "" }];
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [key, DEFAULT_MODELS[key]];
     const row = item as Record<string, Json>;
     return [key, { url: typeof row.url === "string" ? row.url : "", fileName: typeof row.fileName === "string" ? row.fileName : "" }];
   })) as ModelSettings;
