@@ -72,7 +72,7 @@ export default function NewRequest() {
   const [destinationCoords, setDestinationCoords] = useState<Coordinates | null>(null);
   const [mapMode, setMapMode] = useState<'pickup' | 'destination'>('pickup');
   const [region, setRegion] = useState(BAGHDAD_REGION);
-  const [nearbyProviders, setNearbyProviders] = useState<Array<{ pin_id: string; lat: number; lng: number; heading: number | null }>>([]);
+  const [nearbyProviders, setNearbyProviders] = useState<Array<{ pin_id: string; lat: number; lng: number; heading: number | null; model_type: 'taxi' | 'cargo_van' | 'passenger_van' | 'bus' | 'worker' }>>([]);
   const [locationLoading, setLocationLoading] = useState(true);
   const [vehicleCat, setVehicleCat] = useState<VehicleCategory>('economy');
   const [vehicleImages, setVehicleImages] = useState<Record<string, { url: string; scale: number; x: number; y: number }>>({});
@@ -103,7 +103,7 @@ export default function NewRequest() {
           const { data: service } = await supabase.from('services').select('id').eq('slug', selectedService).maybeSingle();
           serviceId = service?.id ?? null;
         }
-        const { data, error } = await supabase.rpc('find_nearby_provider_pins', {
+        const { data, error } = await supabase.rpc('find_nearby_provider_map_pins', {
           _lat: pickupCoords.latitude,
           _lng: pickupCoords.longitude,
           _type: isTaxi ? 'taxi' : 'service',
@@ -114,11 +114,12 @@ export default function NewRequest() {
         });
         if (error) throw error;
         if (!active) return;
-        setNearbyProviders((data ?? []).map((pin: { pin_id: string; lat: number; lng: number; heading: number | null }) => ({
+        setNearbyProviders((data ?? []).map((pin: { pin_id: string; lat: number; lng: number; heading: number | null; model_type: 'taxi' | 'cargo_van' | 'passenger_van' | 'bus' | 'worker' }) => ({
           pin_id: String(pin.pin_id),
           lat: Number(pin.lat),
           lng: Number(pin.lng),
           heading: pin.heading == null ? null : Number(pin.heading),
+          model_type: pin.model_type,
         })).filter((pin) => Number.isFinite(pin.lat) && Number.isFinite(pin.lng)));
       } catch {
         // Nearby markers are optional; keep the request map usable if the lookup is unavailable.
@@ -467,12 +468,12 @@ export default function NewRequest() {
             <Marker
               key={provider.pin_id}
               coordinate={{ latitude: provider.lat, longitude: provider.lng }}
-              title={isTaxi ? 'تكسي قريب' : 'فني قريب'}
+              title={provider.model_type === 'worker' ? 'فني قريب' : provider.model_type === 'cargo_van' ? 'كيّة حمل قريبة' : provider.model_type === 'passenger_van' ? 'كيّة ركاب قريبة' : provider.model_type === 'bus' ? 'باص قريب' : 'تكسي قريب'}
               anchor={{ x: 0.5, y: 0.5 }}
               tracksViewChanges={false}
             >
-              <View style={styles.nearbyMarker}>
-                <Text style={styles.nearbyMarkerEmoji}>{isTaxi ? '🚕' : '🧰'}</Text>
+              <View style={[styles.nearbyMarker, { transform: [{ rotate: `${provider.heading ?? 0}deg` }] }]}>
+                <Text style={styles.nearbyMarkerEmoji}>{provider.model_type === 'worker' ? '🧰' : provider.model_type === 'cargo_van' ? '🚚' : provider.model_type === 'passenger_van' ? '🚐' : provider.model_type === 'bus' ? '🚌' : '🚕'}</Text>
               </View>
             </Marker>
           ))}

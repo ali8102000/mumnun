@@ -4,7 +4,8 @@ import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps
 import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
 
-type Pin = { pin_id: string; lat: number; lng: number; heading: number | null; kind: 'taxi' | 'worker' };
+type ModelType = 'taxi' | 'cargo_van' | 'passenger_van' | 'bus' | 'worker';
+type Pin = { pin_id: string; lat: number; lng: number; heading: number | null; model_type: ModelType };
 const DEFAULT_REGION: Region = { latitude: 32.0, longitude: 44.0, latitudeDelta: 3.5, longitudeDelta: 3.5 };
 
 export function NearbyProvidersMap() {
@@ -23,24 +24,27 @@ export function NearbyProvidersMap() {
       if (!center || busy) return;
       busy = true;
       try {
-        const [taxiResult, workerResult] = await Promise.all([
-          supabase.rpc('find_nearby_provider_pins', {
+        const [taxiResult, largeResult, workerResult] = await Promise.all([
+          supabase.rpc('find_nearby_provider_map_pins', {
             _lat: center.latitude, _lng: center.longitude, _type: 'taxi',
             _category: null, _service_id: null, _radius_km: 5, _limit: 30,
           }),
-          supabase.rpc('find_nearby_provider_pins', {
+          supabase.rpc('find_nearby_provider_map_pins', {
+            _lat: center.latitude, _lng: center.longitude, _type: 'taxi',
+            _category: 'large', _service_id: null, _radius_km: 5, _limit: 30,
+          }),
+          supabase.rpc('find_nearby_provider_map_pins', {
             _lat: center.latitude, _lng: center.longitude, _type: 'service',
             _category: null, _service_id: null, _radius_km: 5, _limit: 30,
           }),
         ]);
-        if (taxiResult.error || workerResult.error) throw taxiResult.error || workerResult.error;
+        if (taxiResult.error || largeResult.error || workerResult.error) throw taxiResult.error || largeResult.error || workerResult.error;
         if (!active) return;
-        const rows = [
-          ...(taxiResult.data ?? []).map((pin: { pin_id: string; lat: number; lng: number; heading: number | null }) => ({ ...pin, kind: 'taxi' as const })),
-          ...(workerResult.data ?? []).map((pin: { pin_id: string; lat: number; lng: number; heading: number | null }) => ({ ...pin, kind: 'worker' as const })),
-        ];
-        setPins(rows.map((pin) => ({ pin_id: String(pin.pin_id), lat: Number(pin.lat), lng: Number(pin.lng), heading: pin.heading == null ? null : Number(pin.heading), kind: pin.kind }))
-          .filter((pin) => Number.isFinite(pin.lat) && Number.isFinite(pin.lng)));
+        const rows = [...(taxiResult.data ?? []), ...(largeResult.data ?? []), ...(workerResult.data ?? [])];
+        setPins(rows.map((pin: { pin_id: string; lat: number; lng: number; heading: number | null; model_type: ModelType }) => ({
+          pin_id: String(pin.pin_id), lat: Number(pin.lat), lng: Number(pin.lng),
+          heading: pin.heading == null ? null : Number(pin.heading), model_type: pin.model_type,
+        })).filter((pin) => Number.isFinite(pin.lat) && Number.isFinite(pin.lng)));
         setMessage(rows.length ? 'المزوّدون المتاحون حولك' : 'ماكو مزوّدين متاحين قريباً حالياً');
       } catch {
         if (active) setMessage('تعذّر تحميل المزوّدين القريبين حالياً');
@@ -95,12 +99,12 @@ export function NearbyProvidersMap() {
           <Marker
             key={pin.pin_id}
             coordinate={{ latitude: pin.lat, longitude: pin.lng }}
-            title={pin.kind === 'taxi' ? 'تكسي متاح' : 'فني متاح'}
+            title={pin.model_type === 'worker' ? 'فني متاح' : pin.model_type === 'cargo_van' ? 'كيّة حمل متاحة' : pin.model_type === 'passenger_van' ? 'كيّة ركاب متاحة' : pin.model_type === 'bus' ? 'باص متاح' : 'تكسي متاح'}
             anchor={{ x: 0.5, y: 0.5 }}
             tracksViewChanges={false}
           >
-            <View style={[styles.marker, pin.kind === 'worker' && styles.workerMarker]}>
-              <Text style={styles.markerEmoji}>{pin.kind === 'taxi' ? '🚕' : '🧰'}</Text>
+            <View style={[styles.marker, pin.model_type === 'worker' && styles.workerMarker, { transform: [{ rotate: `${pin.heading ?? 0}deg` }] }]}>
+              <Text style={styles.markerEmoji}>{pin.model_type === 'worker' ? '🧰' : pin.model_type === 'cargo_van' ? '🚚' : pin.model_type === 'passenger_van' ? '🚐' : pin.model_type === 'bus' ? '🚌' : '🚕'}</Text>
             </View>
           </Marker>
         ))}
