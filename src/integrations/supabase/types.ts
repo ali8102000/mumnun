@@ -141,6 +141,7 @@ export type Database = {
           vehicle_color?: string | null
           vehicle_make?: string | null
           vehicle_model?: string | null
+          map_model_type?: string
           vehicle_plate?: string | null
           vehicle_year?: number | null
         }
