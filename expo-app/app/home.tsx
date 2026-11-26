@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Alert, Image } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -161,6 +161,8 @@ export default function HomeScreen() {
   }
 
   const onRefresh = async () => { setRefreshing(true); await loadIncoming(); setRefreshing(false); };
+
+  if (activeRole === 'admin') return <Redirect href="/admin" />;
 
   return (
     <View style={styles.container}>
