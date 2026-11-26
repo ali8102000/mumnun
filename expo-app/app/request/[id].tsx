@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 
 const QUICK_REPLIES_CUSTOMER = ['وصلت!', 'كم دقيقة؟', 'أين أنت؟', 'شكراً جزيلاً', 'هل أنت قريب؟'];
 const QUICK_REPLIES_PROVIDER = ['قادم إليك', 'وصلت للموقع', 'بانتظارك', 'تم الإنجاز', 'دقيقة واحدة'];
-type Coordinates = { latitude: number; longitude: number };
+type Coordinates = { latitude: number; longitude: number; heading?: number | null };
 type RequestRecord = {
   provider_id: string | null;
   customer_id: string;
@@ -128,7 +128,7 @@ export default function RequestDetail() {
   }, [chatId, loadMessages]);
 
   useEffect(() => {
-    if (!isActive || !currentUserId || currentRequestType !== 'taxi') return;
+    if (!isActive || !currentUserId || (currentRequestType !== 'taxi' && currentRequestType !== 'service')) return;
     let mounted = true;
     let subscription: Location.LocationSubscription | null = null;
     const role = isCustomer ? 'customer' : 'provider';
@@ -138,6 +138,7 @@ export default function RequestDetail() {
       const coords = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
+        heading: location.coords.heading,
       };
       setMyLocation(coords);
       const { error } = await supabase.from('live_locations').upsert({
@@ -178,7 +179,7 @@ export default function RequestDetail() {
   }, [id, isActive, isCustomer, currentRequestType, currentUserId]);
 
   useEffect(() => {
-    if (!isActive || !currentUserId || currentRequestType !== 'taxi') {
+    if (!isActive || !currentUserId || (currentRequestType !== 'taxi' && currentRequestType !== 'service')) {
       setOtherLocation(null);
       return;
     }
@@ -186,12 +187,12 @@ export default function RequestDetail() {
     if (!otherId) return;
 
     supabase.from('live_locations')
-      .select('user_id, lat, lng, updated_at')
+      .select('user_id, lat, lng, heading, updated_at')
       .eq('request_id', id)
       .eq('user_id', otherId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setOtherLocation({ latitude: data.lat, longitude: data.lng });
+        if (data) setOtherLocation({ latitude: data.lat, longitude: data.lng, heading: data.heading });
       });
 
     const channel = supabase.channel(`locations-${id}`)
@@ -201,9 +202,9 @@ export default function RequestDetail() {
         table: 'live_locations',
         filter: `request_id=eq.${id}`,
       }, (payload) => {
-        const row = payload.new as { user_id?: string; lat?: number; lng?: number };
+        const row = payload.new as { user_id?: string; lat?: number; lng?: number; heading?: number | null };
         if (row.user_id === otherId && typeof row.lat === 'number' && typeof row.lng === 'number') {
-          setOtherLocation({ latitude: row.lat, longitude: row.lng });
+          setOtherLocation({ latitude: row.lat, longitude: row.lng, heading: row.heading });
         }
       })
       .subscribe((status, error) => {
@@ -323,7 +324,7 @@ export default function RequestDetail() {
       <View style={styles.container}>
         <View style={styles.header}><TouchableOpacity onPress={() => router.back()}><Text style={styles.backBtn}>→</Text></TouchableOpacity><Text style={styles.headerTitle}>{statusLabel[request.status] || request.status}</Text><View style={{ width: 30 }} /></View>
         <View style={styles.infoCard}><Text style={styles.infoType}>{request.type === 'taxi' ? '🚕 طلب سيارة' : '🔧 خدمة منزلية'}</Text>{request.pickup_text && <Text style={styles.infoRow}>من: {request.pickup_text}</Text>}{request.dest_text && <Text style={styles.infoRow}>إلى: {request.dest_text}</Text>}{request.price_estimate && <Text style={styles.infoPrice}>{request.price_estimate.toLocaleString('en')} د.ع</Text>}</View>
-        {request.type === 'taxi' && isActive && request.pickup_lat != null && request.pickup_lng != null && (
+        {isActive && request.pickup_lat != null && request.pickup_lng != null && (
           <View style={styles.trackingCard}>
             <Text style={styles.trackingTitle}>موقع الرحلة المباشر</Text>
             <MapView
@@ -334,7 +335,7 @@ export default function RequestDetail() {
                 latitudeDelta: 0.025,
                 longitudeDelta: 0.025,
               }}
-              showsUserLocation
+              showsUserLocation={false}
             >
               <Marker
                 coordinate={{ latitude: request.pickup_lat, longitude: request.pickup_lng }}
@@ -348,8 +349,8 @@ export default function RequestDetail() {
                   pinColor="#16a34a"
                 />
               )}
-              {myLocation && <Marker coordinate={myLocation} title="موقعي" pinColor="#7c3aed" />}
-              {otherLocation && <Marker coordinate={otherLocation} title="الطرف الآخر" pinColor="#f97316" />}
+              {myLocation && <Marker coordinate={myLocation} title="موقعي" pinColor="#7c3aed" rotation={myLocation.heading ?? 0} flat />}
+              {otherLocation && <Marker coordinate={otherLocation} title="الطرف الآخر" pinColor="#f97316" rotation={otherLocation.heading ?? 0} flat />}
             </MapView>
             <Text style={styles.trackingHint}>
               {otherLocation ? 'يتم استقبال موقع الطرف الآخر' : 'بانتظار مشاركة موقع الطرف الآخر'}
