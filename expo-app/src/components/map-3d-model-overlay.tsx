@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ComponentType, Ref } from 'react';
 import { StyleSheet } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { WebView as NativeWebView, type WebViewProps, type WebViewMessageEvent } from 'react-native-webview';
+
+// react-native-webview 14.0.1 has a published generic default-type bug (P=undefined).
+const WebView = NativeWebView as unknown as ComponentType<WebViewProps & { ref?: Ref<NativeWebView> }>;
 
 export type ProjectedMapModelPin = {
   id: string;
@@ -110,7 +114,7 @@ export function Map3DModelOverlay({
       bounces={false}
       originWhitelist={['https://*', 'http://*']}
       onLoadEnd={() => setReady(true)}
-      onMessage={(event) => {
+      onMessage={(event: WebViewMessageEvent) => {
         try {
           const message = JSON.parse(event.nativeEvent.data) as { type?: string; id?: string };
           if (message.id && (message.type === 'loaded' || message.type === 'error' || message.type === 'loading')) {
@@ -128,6 +132,6 @@ export function Map3DModelOverlay({
 }
 
 const styles = StyleSheet.create({
-  container: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent' },
+  container: { ...StyleSheet.absoluteFill, backgroundColor: 'transparent' },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'transparent' },
 });
