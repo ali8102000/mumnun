@@ -17,6 +17,7 @@ interface AuthCtx {
   profile: Profile | null;
   roles: AppRole[];
   loading: boolean;
+  authError: string | null;
   mustChangePassword: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const requestId = useRef(0);
   const activeUserId = useRef<string | null>(null);
   const mustChangePassword = session?.user?.app_metadata?.must_change_password === true;
@@ -57,16 +59,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!nextSession?.user) {
       setProfile(null);
       setRoles([]);
+      setAuthError(null);
       setLoading(false);
       return;
     }
 
+    if (activeUserId.current !== nextSession.user.id) {
+      setProfile(null);
+      setRoles([]);
+    }
+    setAuthError(null);
     setLoading(true);
     try {
       await loadProfile(nextSession.user.id);
     } catch (error) {
-      // Keep the app stable and stop routing until this single load attempt finishes.
       console.warn('Unable to load account profile and roles', error);
+      if (requestId.current === currentRequest) {
+        setProfile(null);
+        setRoles([]);
+        setAuthError(error instanceof Error ? error.message : 'تعذّر تحميل بيانات الحساب. تحقق من الإنترنت ثم أعد المحاولة.');
+      }
     } finally {
       if (requestId.current === currentRequest) setLoading(false);
     }
@@ -80,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await applySession(data.session);
     } catch (error) {
       console.warn('Unable to refresh authentication session', error);
+      setAuthError(error instanceof Error ? error.message : 'تعذّر تحديث الجلسة. تحقق من الإنترنت ثم أعد المحاولة.');
       setLoading(false);
     }
   }
@@ -120,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ session, user: session?.user ?? null, profile, roles, loading, mustChangePassword, refresh, signOut }}>
+    <Ctx.Provider value={{ session, user: session?.user ?? null, profile, roles, loading, authError, mustChangePassword, refresh, signOut }}>
       {children}
     </Ctx.Provider>
   );
